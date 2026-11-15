@@ -43,13 +43,6 @@ export function OnboardingForm() {
         </fieldset>
       ))}
 
-      <label className="flex items-start gap-3 rounded-lg bg-subtle p-4 cursor-pointer">
-        <input type="checkbox" name="demo" defaultChecked className="mt-0.5 size-4 accent-zinc-900" />
-        <span>
-          <span className="block font-medium">Carregar dados de exemplo</span>
-          <span className="text-[13px] text-muted">Clientes, veículos e ordens de serviço fictícios para conhecer o sistema.</span>
-        </span>
-      </label>
 
       {state?.erro && (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">

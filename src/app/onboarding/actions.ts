@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
-import { seedDemo } from "@/db/seed-demo";
 import { chaveOficina } from "@/lib/oficina";
 
 const empresaSchema = z.object({
@@ -20,7 +19,6 @@ const empresaSchema = z.object({
 const formSchema = z.object({
   nomeOficina: z.string().trim().min(2, "Informe o nome da oficina"),
   empresas: z.array(empresaSchema).min(1),
-  demo: z.boolean(),
 });
 
 export type OnboardingState = { erro?: string } | undefined;
@@ -39,7 +37,6 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
   const parsed = formSchema.safeParse({
     nomeOficina: form.get("nomeOficina"),
     empresas,
-    demo: form.get("demo") === "on",
   });
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos" };
 
@@ -52,12 +49,10 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
       .insert(schema.oficinas)
       .values({ clerkOrgId: chave, nome: parsed.data.nomeOficina })
       .returning();
-    const criadas = await tx
+    await tx
       .insert(schema.empresas)
-      .values(parsed.data.empresas.map((e) => ({ oficinaId: oficina.id, nome: e.nome, cnpj: e.cnpj || null, tipo: e.tipo })))
-      .returning();
+      .values(parsed.data.empresas.map((e) => ({ oficinaId: oficina.id, nome: e.nome, cnpj: e.cnpj || null, tipo: e.tipo })));
     await tx.insert(schema.usuarioAcessos).values({ oficinaId: oficina.id, clerkUserId: userId, empresaId: null, papel: "dono" });
-    if (parsed.data.demo) await seedDemo(tx as unknown as typeof db, oficina.id, criadas);
   });
 
   redirect("/inicio");
