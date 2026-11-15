@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordens de serviço · Oficina</title>
+<link rel="stylesheet" href="base.css">
+<script src="theme.js"></script>
+<style>
+  .toolbar { display: flex; align-items: center; gap: 10px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+  .tabs a { padding: 8px 12px; font-weight: 500; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 8px; }
+  .tabs a.on { color: var(--text); border-color: var(--text); }
+  .board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .col { background: var(--subtle); border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .col-head { white-space: nowrap; display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-weight: 600; font-size: 13px; }
+  .col-head .n { color: var(--muted); font-weight: 500; }
+  .col-head .add { margin-left: auto; color: var(--muted); display: flex; }
+  .os { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+  .os-top { display: flex; align-items: center; justify-content: space-between; }
+  .os-id { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .os h2 { font-size: 14px; font-weight: 600; }
+  .os .desc { color: var(--muted); font-size: 13px; margin-top: 1px; }
+  .os-foot { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; font-size: 13px; }
+  .os-foot .who { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+  .os-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 12px; }
+  .os-meta span { white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+  .os-meta svg.lucide { width: 14px; height: 14px; }
+  .alert { color: var(--danger) !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar"></aside>
+  <main class="main">
+    <header class="topbar"></header>
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <h1>Ordens de serviço</h1>
+          <p>18 abertas · arraste o cartão para mudar o status</p>
+        </div>
+        <div class="toolbar">
+          <button class="btn"><i data-lucide="sliders-horizontal"></i>Filtros</button>
+          <button class="btn"><i data-lucide="user"></i>Responsável<i data-lucide="chevron-down" style="width:16px;height:16px;color:var(--muted)"></i></button>
+          <button class="btn primary"><i data-lucide="plus"></i>Nova OS</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <a class="on" href="#"><i data-lucide="columns-3"></i>Quadro</a>
+        <a href="#"><i data-lucide="list"></i>Lista</a>
+      </div>
+
+      <div class="board">
+        <!-- Diagnóstico -->
+        <div class="col">
+          <div class="col-head">Em diagnóstico <span class="n">3</span></div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>PXM3C40</span></span><span class="os-id">#1035</span></div>
+            <div><h2>Gol 1.6 Trend</h2><div class="desc">Barulho na suspensão dianteira</div></div>
+            <div class="os-meta"><span class="tag mec">Mecânica</span><span><i data-lucide="camera"></i>8</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm">PM</span>Paulo</span><span class="cell-sub">2 dias</span></div>
+          </div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>KTR6B09</span></span><span class="os-id">#1044</span></div>
+            <div><h2>Kwid Zen</h2><div class="desc">Bateria descarrega à noite</div></div>
+            <div class="os-meta"><span class="tag ele">Elétrica</span><span><i data-lucide="camera"></i>6</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm b">DM</span>Diego</span><span class="cell-sub">1 h</span></div>
+          </div>
+        </div>
+
+        <!-- Aguardando aprovação -->
+        <div class="col">
+          <div class="col-head">Aguardando aprovação <span class="n">4</span></div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>BRA0S17</span></span><span class="os-id">#1041</span></div>
+            <div><h2>HB20 Comfort</h2><div class="desc">Alternador sem carga</div></div>
+            <div class="os-meta"><span class="tag ele">Elétrica</span><span><i data-lucide="message-circle"></i>Enviado 09:12</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm b">DM</span>Diego</span><span class="num" style="font-weight:600">R$ 980,00</span></div>
+          </div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>MNO4D33</span></span><span class="os-id">#1038</span></div>
+            <div><h2>Tracker Premier</h2><div class="desc">Troca de amortecedores</div></div>
+            <div class="os-meta"><span class="tag mec">Mecânica</span><span class="alert"><i data-lucide="alert-circle"></i>2 dias sem resposta</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm">PM</span>Paulo</span><span class="num" style="font-weight:600">R$ 2.760,00</span></div>
+          </div>
+        </div>
+
+        <!-- Aguardando peça -->
+        <div class="col">
+          <div class="col-head">Aguardando peça <span class="n">2</span></div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>QTP5F71</span></span><span class="os-id">#1039</span></div>
+            <div><h2>Strada Freedom</h2><div class="desc">Revisão 60.000 km</div></div>
+            <div class="os-meta"><span class="tag mec">Mecânica</span><span><i data-lucide="truck"></i>Chega amanhã</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm c">BR</span>Bruno</span><span class="num" style="font-weight:600">R$ 2.430,00</span></div>
+          </div>
+        </div>
+
+        <!-- Em execução -->
+        <div class="col">
+          <div class="col-head">Em execução <span class="n">5</span></div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>RIO2A18</span></span><span class="os-id">#1042</span></div>
+            <div><h2>Onix 1.0 LT</h2><div class="desc">Troca de embreagem</div></div>
+            <div class="os-meta"><span class="tag mec">Mecânica</span><span><i data-lucide="list-checks"></i>3/5</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm c">BR</span>Bruno</span><span class="num" style="font-weight:600">R$ 1.890,00</span></div>
+          </div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>SVR1E55</span></span><span class="os-id">#1043</span></div>
+            <div><h2>Saveiro Robust</h2><div class="desc">Chicote do farol</div></div>
+            <div class="os-meta"><span class="tag ele">Elétrica</span><span><i data-lucide="list-checks"></i>1/3</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm b">DM</span>Diego</span><span class="num" style="font-weight:600">R$ 420,00</span></div>
+          </div>
+        </div>
+
+        <!-- Pronto -->
+        <div class="col">
+          <div class="col-head">Pronto <span class="n">3</span></div>
+          <div class="os">
+            <div class="os-top"><span class="plate"><span>FKD8J22</span></span><span class="os-id">#1037</span></div>
+            <div><h2>Corolla XEi</h2><div class="desc">Motor de partida</div></div>
+            <div class="os-meta"><span class="tag ele">Elétrica</span><span style="color:var(--ok)"><i data-lucide="check-check"></i>Cliente avisado</span></div>
+            <div class="os-foot"><span class="who"><span class="avatar sm b">DM</span>Diego</span><span class="num" style="font-weight:600">R$ 640,00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="_sidebar.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>renderSidebar('Ordens de serviço'); renderTopbar(); lucide.createIcons();</script>
+</body>
+</html>

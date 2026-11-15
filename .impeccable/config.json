@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-15T18:12:09.668Z",
+        "reason": "Claude decided: same deliberate Inter choice (lowercase import URL match)"
+      }
+    ]
+  }
+}

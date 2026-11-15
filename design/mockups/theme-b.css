@@ -1,0 +1,32 @@
+/* Variação B — Neutro com navegação no topo (preto/cinza, IBM Plex Sans) */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --font: 'IBM Plex Sans';
+  --bg: #FAFAFA; --card: #FFFFFF; --subtle: #F4F4F5;
+  --border: #E4E4E7; --border-strong: #D4D4D8;
+  --text: #18181B; --text-2: #3F3F46; --muted: #71717A;
+  --primary: #18181B; --primary-hover: #27272A; --primary-soft: #F4F4F5;
+  --mec: #2563EB; --mec-soft: #EFF6FF;
+  --radius: 8px; --radius-sm: 6px;
+}
+
+/* Layout: sem menu lateral, navegação no topo */
+.app { grid-template-columns: 1fr; }
+.sidebar { display: none; }
+.topbar { height: 64px; padding: 0 32px; gap: 10px; }
+.topbar .brand { padding: 0; margin-right: 20px; }
+.topnav { display: flex; gap: 2px; }
+.topnav a { padding: 6px 10px; border-radius: 6px; color: var(--muted); font-weight: 500; cursor: pointer; white-space: nowrap; }
+.topnav a.on { color: var(--text); background: var(--subtle); }
+.switcher button:first-child svg { display: none; }
+.content { width: 100%; max-width: 1320px; margin: 0 auto; padding: 32px; }
+.status.info { color: #1D4ED8; background: #EFF6FF; border-color: #BFDBFE; }
+.input.focus { box-shadow: 0 0 0 3px rgba(24, 24, 27, .10); border-color: #18181B; }
+.col { background: transparent; border: 1px dashed var(--border-strong); }
+
+/* Login: cartão centralizado */
+.left { grid-column: 1 / -1; background: var(--bg); }
+.right { display: none; }
+.form-wrap { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 40px; max-width: 440px; box-shadow: 0 8px 24px -12px rgba(24, 24, 27, .12); }
+.box { background: #18181B; border-color: #18181B; }

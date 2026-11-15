@@ -1,0 +1,41 @@
+/* Variação C — Menu lateral escuro, verde-petróleo, Manrope */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  --font: 'Manrope';
+  --bg: #F6F7F9;
+  --primary: #0F766E; --primary-hover: #115E59; --primary-soft: #F0FDFA;
+  --mec: #0F766E; --mec-soft: #F0FDFA;
+  --radius: 8px;
+}
+
+/* Menu lateral escuro */
+.sidebar { background: #0F172A; border-right: 0; }
+.sidebar .brand { color: #fff; }
+.sidebar .brand-sub { color: #94A3B8; }
+.brand-mark { background: #14B8A6; }
+.nav-label { color: #64748B; }
+.nav-item { color: #CBD5E1; }
+.nav-item svg.lucide { color: #94A3B8; }
+.nav-item:hover { background: rgba(255, 255, 255, .06); }
+.nav-item.active { background: rgba(45, 212, 191, .14); color: #fff; }
+.nav-item.active svg.lucide { color: #5EEAD4; }
+.nav-item .count { color: #94A3B8; }
+.sidebar-foot { border-color: rgba(255, 255, 255, .08); }
+.u-name { color: #F1F5F9 !important; }
+.u-org { color: #94A3B8 !important; }
+.input.focus { box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+.status.info { color: #0F766E; background: #F0FDFA; border-color: #99F6E4; }
+
+/* Cartões de OS com faixa da empresa */
+.col { background: #EEF1F4; }
+.os:has(.tag.mec) { border-left: 3px solid var(--mec); }
+.os:has(.tag.ele) { border-left: 3px solid var(--ele); }
+.kpi { border-top: 3px solid var(--primary); }
+
+/* Login: painel escuro à esquerda */
+.right { order: -1; background: #0F172A; border-left: 0; }
+.right h2 { color: #fff; }
+.right p { color: #94A3B8; }
+.feat { color: #E2E8F0; }
+.feat svg.lucide { color: #5EEAD4; }
