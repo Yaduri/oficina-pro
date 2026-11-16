@@ -11,7 +11,9 @@ export const metadata = { title: "Ordens de serviço" };
 
 export default async function OrdensServicoPage({ searchParams }: PageProps<"/ordens-servico">) {
   const { empresa } = await searchParams;
-  const { oficina, empresaIds, selecionada } = await empresasFiltradas(empresa);
+  const { oficina, empresaIds, selecionada, pode } = await empresasFiltradas(empresa);
+  const valores = pode("verValores");
+  const podeFechar = pode("fecharOS");
   const abertas = await listarOSAbertas(oficina.id, empresaIds);
 
   return (
@@ -20,9 +22,11 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
         title="Ordens de serviço"
         description={`${abertas.length} ${abertas.length === 1 ? "aberta" : "abertas"} · use o menu do cartão para mudar o status`}
         actions={
-          <Link href={`/ordens-servico/nova${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("primary")}>
-            <Plus />Nova OS
-          </Link>
+          pode("abrirOS") && (
+            <Link href={`/ordens-servico/nova${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("primary")}>
+              <Plus />Nova OS
+            </Link>
+          )
         }
       />
 
@@ -49,7 +53,7 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
                 {STATUS[status].label} <span className="font-medium text-muted">{cards.length}</span>
               </h2>
               {cards.map((o) => (
-                <CartaoOS key={o.id} os={o} />
+                <CartaoOS key={o.id} os={o} valores={valores} podeFechar={podeFechar} />
               ))}
               {cards.length === 0 && <p className="px-1.5 pb-2 text-[13px] text-muted">Nenhuma OS</p>}
             </section>
@@ -60,7 +64,7 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
   );
 }
 
-function CartaoOS({ os }: { os: OSResumo }) {
+function CartaoOS({ os, valores, podeFechar }: { os: OSResumo; valores: boolean; podeFechar: boolean }) {
   const meta = metaDoCartao(os);
   return (
     <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3 shadow-card transition-colors hover:border-border-strong">
@@ -88,14 +92,14 @@ function CartaoOS({ os }: { os: OSResumo }) {
             <span className="text-muted">Sem responsável</span>
           )}
         </span>
-        {os.total > 0 ? (
+        {valores && os.total > 0 ? (
           <span className="font-semibold tabular-nums">{formatBRL(os.total)}</span>
         ) : (
           <span className="text-muted">{tempoDesde(os.entradaEm)}</span>
         )}
       </div>
       </Link>
-      <MoverOS osId={os.id} status={os.status} />
+      <MoverOS osId={os.id} status={os.status} podeFechar={podeFechar} />
     </article>
   );
 }

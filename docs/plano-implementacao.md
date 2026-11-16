@@ -18,6 +18,7 @@ Complementa [arquitetura.md](arquitetura.md) (o "o quê" e o "porquê"); aqui es
 - [x] Arquivos no Cloudflare R2 (testado)
 - [x] Orçamento com link de aprovação (aprovação total, parcial ou recusa, sem login)
 - [x] Configurações da oficina e das empresas (1.1)
+- [x] Usuários, papéis e convites (1.2)
 
 ---
 
@@ -34,13 +35,15 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] O check-in guarda a cópia do termo que o cliente leu ao assinar
 
 ### 1.2 Usuários, papéis e acessos — **G**
-- [ ] Ativar **Organizations** no Clerk; a oficina passa a ser a organização (migrar a oficina atual de `user_<id>` para o `org_id`)
-- [ ] Convidar usuário por e-mail, escolhendo papel (dono, gerente, atendente, técnico, financeiro) e empresas que ele acessa
-- [ ] Lista de usuários: alterar papel/acesso, desativar, reenviar convite
-- [ ] Permissões aplicadas no servidor em todas as ações (ex.: técnico não vê valores nem financeiro; atendente não cancela OS faturada)
-- [ ] Menu e botões escondidos conforme o papel
-- [ ] Webhook do Clerk para sincronizar entrada/saída de membros
-- [ ] Técnicos sem login continuam cadastráveis (para atribuir OS e comissão)
+- [x] Acessos no nosso banco (`membros`, `membro_empresas`, `convites`), sem Organizations do Clerk — ver arquitetura §4.1
+- [x] Convite por link de uso único (7 dias), enviado pelo WhatsApp, escolhendo papel e empresas
+- [x] Lista de usuários: alterar papel/acesso, desativar e reativar; convites pendentes com copiar/WhatsApp/cancelar
+- [x] Permissões aplicadas no servidor em todas as ações (técnico não vê valores, não abre OS, não lança itens, não entrega/cancela; financeiro não abre OS)
+- [x] Menu e botões escondidos conforme o papel
+- [x] Regras: ninguém altera o próprio acesso, gerente não mexe em dono, a oficina sempre tem um dono ativo
+- [x] Tela de acesso desativado
+- [ ] ~~Webhook do Clerk~~ — não é mais necessário (nome/e-mail copiados ao aceitar o convite)
+- [ ] Técnicos sem login continuam cadastráveis (já existe a tabela `tecnicos`; tela de cadastro fica com 1.6)
 
 ### 1.3 Checklist configurável no check-in — **M**
 - [ ] Configurações → Checklist: itens agrupados (ex.: Itens do veículo, Painel, Externo), ativar/desativar, ordenar

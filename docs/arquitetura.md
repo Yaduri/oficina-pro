@@ -181,17 +181,20 @@ Regras:
 | Monitoramento | Sentry | |
 
 ### 4.1 Autenticação com Clerk
-- **Clerk Organization = Oficina.** Os membros da organização são os usuários da oficina.
-- O papel geral (`org:admin`, `org:member`) vem do Clerk. O **acesso por empresa (CNPJ)** fica na tabela `usuario_acessos` do nosso banco, porque é regra de negócio e precisa participar do RLS e dos relatórios.
-- Opcional: replicar os IDs das empresas permitidas em `publicMetadata` da membership para checagens rápidas na UI (a fonte da verdade continua sendo o banco).
-- **Webhooks do Clerk** (`user.created`, `organizationMembership.created/deleted`…) sincronizam `usuarios` e `usuario_acessos`.
-- `clerkMiddleware()` protege as rotas; as páginas públicas (link de aprovação de orçamento e portal do cliente) ficam fora do middleware e são acessadas por **token assinado**.
-- Fluxo de cadastro: o dono cria a conta e a organização (oficina), cadastra as empresas e os CNPJs e convida o sócio e a equipe.
+- O Clerk cuida **só do login** (e-mail/senha, Google, código por e-mail, sessões).
+- **Decisão (16/11/2026): a oficina e os acessos ficam no nosso banco, sem Organizations do Clerk.**
+  - `membros`: usuário (id do Clerk) + oficina + papel (dono, gerente, financeiro, atendente, técnico) + ativo.
+  - `membro_empresas`: CNPJs que o membro acessa quando não tem acesso a todas.
+  - `convites`: link de uso único (vale 7 dias), enviado pelo WhatsApp. A pessoa abre, entra ou cria a conta e aceita.
+  - Motivos: nada a configurar no painel do Clerk, convite pelo WhatsApp (como a oficina já trabalha), sem limite de membros por organização do Clerk e as regras de acesso por CNPJ já precisavam estar no banco.
+- As permissões de cada papel ficam em `src/lib/permissoes.ts` e são conferidas no servidor em toda ação.
+- Páginas públicas (orçamento do cliente e convite) usam **token aleatório** no link e não exigem login.
+- Um usuário pode participar de mais de uma oficina; hoje ele entra na mais recente (seletor de oficina fica para quando houver necessidade).
 
 ### 4.2 Banco + RLS com Clerk
-- O Supabase aceita o Clerk como **provedor de autenticação de terceiros**: o token de sessão do Clerk é enviado ao banco e as policies leem `auth.jwt()->>'sub'` (usuário) e `auth.jwt()->>'org_id'` (oficina).
-- Policy-base: `oficina_id = (select id from oficinas where clerk_org_id = auth.jwt()->>'org_id')`.
-- Tabelas financeiras/fiscais: além disso, `empresa_id IN (empresas permitidas ao usuário em usuario_acessos)`.
+- O Supabase aceita o Clerk como **provedor de autenticação de terceiros**: o token de sessão do Clerk é enviado ao banco e as policies leem `auth.jwt()->>'sub'` (usuário) e buscam a oficina dele em `membros`.
+- Policy-base: `oficina_id IN (select oficina_id from membros where clerk_user_id = auth.jwt()->>'sub' and ativo)`.
+- Tabelas financeiras/fiscais: além disso, `empresa_id` entre as empresas permitidas ao membro (`todas_empresas` ou `membro_empresas`).
 - Alternativa sem Supabase: **Neon** (Postgres serverless, plano gratuito) com filtros aplicados na camada de dados. Funciona, mas perde a garantia do RLS: só faz sentido se a ideia for sair totalmente do Supabase.
 
 ### 4.3 Arquivos no Cloudflare R2

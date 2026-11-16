@@ -1,17 +1,13 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/db";
-import { chaveOficina } from "@/lib/oficina";
+import { exigirLogin, membroAtivo } from "@/lib/oficina";
 import { Brand } from "@/components/brand";
 import { OnboardingForm } from "./form";
 
 export const metadata = { title: "Cadastrar oficina" };
 
 export default async function OnboardingPage() {
-  const { chave } = await chaveOficina();
-  const db = await getDb();
-  const existente = await db.query.oficinas.findFirst({ where: eq(schema.oficinas.clerkOrgId, chave) });
-  if (existente) redirect("/inicio");
+  const userId = await exigirLogin();
+  if (await membroAtivo(userId)) redirect("/inicio");
 
   return (
     <div className="flex min-h-dvh flex-col px-6 py-8 sm:px-14 sm:py-10">
@@ -23,6 +19,9 @@ export default async function OnboardingPage() {
           financeiro.
         </p>
         <OnboardingForm />
+        <p className="mt-6 border-t border-border pt-4 text-[13px] text-muted">
+          Foi convidado por uma oficina? Não cadastre outra: abra de novo o link do convite que você recebeu.
+        </p>
       </main>
     </div>
   );

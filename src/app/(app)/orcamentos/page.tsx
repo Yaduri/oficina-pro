@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronRight, Eye } from "lucide-react";
 import { Badge, Card, EmpresaTag, PageHeader, Placa, Vazio } from "@/components/ui";
 import { empresasFiltradas } from "@/lib/oficina";
@@ -9,7 +10,8 @@ export const metadata = { title: "Orçamentos" };
 
 export default async function OrcamentosPage({ searchParams }: PageProps<"/orcamentos">) {
   const { empresa } = await searchParams;
-  const { oficina, empresaIds } = await empresasFiltradas(empresa);
+  const { oficina, empresaIds, pode } = await empresasFiltradas(empresa);
+  if (!pode("verValores")) redirect("/inicio");
   const lista = await listarOrcamentos(oficina.id, empresaIds);
   const pendentes = lista.filter((o) => o.status === "pendente");
   const outros = lista.filter((o) => o.status !== "pendente");

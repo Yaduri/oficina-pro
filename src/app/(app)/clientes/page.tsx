@@ -10,7 +10,7 @@ export const metadata = { title: "Clientes" };
 export default async function ClientesPage({ searchParams }: PageProps<"/clientes">) {
   const { q } = await searchParams;
   const busca = Array.isArray(q) ? q[0] : q;
-  const { oficina } = await getContexto();
+  const { oficina, pode } = await getContexto();
   const clientes = await listarClientes(oficina.id, busca);
 
   return (
@@ -19,9 +19,11 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
         title="Clientes"
         description="Clientes e veículos são compartilhados entre as empresas da oficina"
         actions={
-          <Link href="/clientes/novo" className={buttonClass("primary")}>
-            <Plus />Novo cliente
-          </Link>
+          pode("cadastros") && (
+            <Link href="/clientes/novo" className={buttonClass("primary")}>
+              <Plus />Novo cliente
+            </Link>
+          )
         }
       />
 

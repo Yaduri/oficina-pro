@@ -2,60 +2,84 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import { pode, type Acao, type Papel } from "@/lib/permissoes";
 
 export type Empresa = typeof schema.empresas.$inferSelect;
 export type Oficina = typeof schema.oficinas.$inferSelect;
-export type Papel = (typeof schema.papel.enumValues)[number];
+export type Membro = typeof schema.membros.$inferSelect;
+export type { Papel };
 
-/** Do maior para o menor poder */
-const ORDEM_PAPEIS: Papel[] = ["dono", "gerente", "financeiro", "atendente", "tecnico"];
-
-/** Chave da oficina: a Organization do Clerk ou, sem organização, o próprio usuário. */
-export async function chaveOficina() {
-  const { userId, orgId } = await auth();
+export async function exigirLogin() {
+  const { userId } = await auth();
   if (!userId) redirect("/sign-in");
-  return { userId, chave: orgId ?? `user_${userId}` };
+  return userId;
+}
+
+/** Participação ativa mais recente do usuário (um usuário pode estar em mais de uma oficina). */
+export async function membroAtivo(userId: string) {
+  const db = await getDb();
+  const [m] = await db
+    .select()
+    .from(schema.membros)
+    .where(and(eq(schema.membros.clerkUserId, userId), eq(schema.membros.ativo, true)))
+    .orderBy(desc(schema.membros.criadoEm))
+    .limit(1);
+  return m ?? null;
 }
 
 /**
- * Contexto da requisição: oficina atual, empresas que o usuário pode acessar.
- * Redireciona para o login ou para o cadastro inicial quando necessário.
+ * Contexto da requisição: oficina do usuário, papel e empresas (CNPJs) que ele pode acessar.
+ * Sem participação: vai para o cadastro inicial; com acesso desativado: tela de aviso.
  */
 export const getContexto = cache(async () => {
-  const { userId, chave } = await chaveOficina();
+  const userId = await exigirLogin();
   const db = await getDb();
 
+  const membro = await membroAtivo(userId);
+  if (!membro) {
+    const [inativo] = await db.select({ id: schema.membros.id }).from(schema.membros).where(eq(schema.membros.clerkUserId, userId)).limit(1);
+    redirect(inativo ? "/sem-acesso" : "/onboarding");
+  }
+
   const oficina = await db.query.oficinas.findFirst({
-    where: eq(schema.oficinas.clerkOrgId, chave),
+    where: eq(schema.oficinas.id, membro.oficinaId),
     with: { empresas: { orderBy: (e, { asc }) => [asc(e.criadoEm), asc(e.nome)] } },
   });
   if (!oficina) redirect("/onboarding");
 
-  const acessos = await db
-    .select()
-    .from(schema.usuarioAcessos)
-    .where(and(eq(schema.usuarioAcessos.oficinaId, oficina.id), eq(schema.usuarioAcessos.clerkUserId, userId)));
+  let empresas = oficina.empresas;
+  if (!membro.todasEmpresas) {
+    const vinculos = await db
+      .select({ empresaId: schema.membroEmpresas.empresaId })
+      .from(schema.membroEmpresas)
+      .where(eq(schema.membroEmpresas.membroId, membro.id));
+    const ids = new Set(vinculos.map((v) => v.empresaId));
+    empresas = oficina.empresas.filter((e) => ids.has(e.id));
+  }
 
-  // Sem registro de acesso: quem está na organização vê tudo (ajustar quando houver gestão de usuários).
-  const todas = acessos.length === 0 || acessos.some((a) => a.empresaId === null);
-  const permitidas = todas
-    ? oficina.empresas
-    : oficina.empresas.filter((e) => acessos.some((a) => a.empresaId === e.id));
-
-  // Papel mais alto entre os acessos (sem registro: quem criou a oficina = dono)
-  const papel: Papel = acessos.length === 0 ? "dono" : ORDEM_PAPEIS.find((p) => acessos.some((a) => a.papel === p))!;
-
-  return { userId, oficina, empresas: permitidas, papel, admin: papel === "dono" || papel === "gerente" };
+  const papel = membro.papel;
+  return {
+    userId,
+    membro,
+    oficina,
+    empresas,
+    papel,
+    admin: pode(papel, "configurar"),
+    pode: (acao: Acao) => pode(papel, acao),
+  };
 });
 
-/** Telas e ações só para dono/gerente; os demais voltam para o início. */
-export async function exigirAdmin() {
+/** Página que exige uma permissão: sem ela, volta para o início. */
+export async function exigir(acao: Acao) {
   const ctx = await getContexto();
-  if (!ctx.admin) redirect("/inicio");
+  if (!ctx.pode(acao)) redirect("/inicio");
   return ctx;
 }
+
+/** Telas e ações só para dono/gerente. */
+export const exigirAdmin = () => exigir("configurar");
 
 /** Resolve o filtro ?empresa=<id> para a lista de empresas a exibir. */
 export async function empresasFiltradas(empresaParam?: string | string[]) {

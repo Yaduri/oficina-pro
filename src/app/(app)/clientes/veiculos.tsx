@@ -7,9 +7,19 @@ import { Button, Placa, buttonClass } from "@/components/ui";
 import type { Veiculo } from "@/lib/cadastros";
 import { VeiculoForm } from "./forms";
 
-export function ListaVeiculos({ clienteId, veiculos }: { clienteId: string; veiculos: Veiculo[] }) {
+export function ListaVeiculos({
+  clienteId,
+  veiculos,
+  editavel = true,
+  abrirOS = true,
+}: {
+  clienteId: string;
+  veiculos: Veiculo[];
+  editavel?: boolean;
+  abrirOS?: boolean;
+}) {
   const [editando, setEditando] = useState<string | null>(null);
-  const [novo, setNovo] = useState(veiculos.length === 0);
+  const [novo, setNovo] = useState(editavel && veiculos.length === 0);
 
   return (
     <div className="flex flex-col">
@@ -31,21 +41,26 @@ export function ListaVeiculos({ clienteId, veiculos }: { clienteId: string; veic
                   </p>
                 </div>
                 <div className="flex gap-1.5">
-                  <Button variant="ghost" className="px-2.5" onClick={() => setEditando(v.id)} aria-label={`Editar veículo ${v.placa}`}>
-                    <Pencil />
-                  </Button>
+                  {editavel && (
+                    <Button variant="ghost" className="px-2.5" onClick={() => setEditando(v.id)} aria-label={`Editar veículo ${v.placa}`}>
+                      <Pencil />
+                    </Button>
+                  )}
                   <Link href={`/check-in/novo?veiculo=${v.id}`} className={buttonClass("ghost", "px-2.5")} aria-label={`Check-in do veículo ${v.placa}`} title="Check-in">
                     <Camera />
                   </Link>
-                  <Link href={`/ordens-servico/nova?veiculo=${v.id}`} className={buttonClass("secondary")}>
-                    <Wrench />Abrir OS
-                  </Link>
+                  {abrirOS && (
+                    <Link href={`/ordens-servico/nova?veiculo=${v.id}`} className={buttonClass("secondary")}>
+                      <Wrench />Abrir OS
+                    </Link>
+                  )}
                 </div>
               </div>
             )}
           </li>
         ))}
       </ul>
+      {editavel && (
       <div className="border-t border-border px-4 py-3 sm:px-5">
         {novo ? (
           <div className="py-2">
@@ -58,6 +73,7 @@ export function ListaVeiculos({ clienteId, veiculos }: { clienteId: string; veic
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 }

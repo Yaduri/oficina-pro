@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui";
-import { getContexto } from "@/lib/oficina";
+import { exigir } from "@/lib/oficina";
 import { NovoClienteForm } from "../forms";
 
 export const metadata = { title: "Novo cliente" };
 
 export default async function NovoClientePage() {
-  await getContexto();
+  await exigir("cadastros");
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <Link href="/clientes" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-muted hover:text-foreground">

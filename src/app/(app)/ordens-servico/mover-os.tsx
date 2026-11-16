@@ -6,17 +6,35 @@ import { COLUNAS, STATUS, type StatusOS } from "@/lib/os";
 import { moverOS } from "./actions";
 
 /** Menu para mudar o status da OS (no celular substitui o arrastar). */
-export function MoverOS({ osId, status, grande = false }: { osId: string; status: StatusOS; grande?: boolean }) {
+export function MoverOS({
+  osId,
+  status,
+  grande = false,
+  podeFechar = true,
+}: {
+  osId: string;
+  status: StatusOS;
+  grande?: boolean;
+  /** Pode entregar, cancelar e reabrir (técnico não pode) */
+  podeFechar?: boolean;
+}) {
   const [pending, start] = useTransition();
   // Na tela da OS também é possível cancelar e reabrir uma OS entregue/cancelada
-  const opcoes: StatusOS[] = grande ? [...COLUNAS, "entregue", "cancelada"] : [...COLUNAS, "entregue"];
+  const fechada = status === "entregue" || status === "cancelada";
+  const opcoes: StatusOS[] = !podeFechar
+    ? fechada
+      ? [status]
+      : COLUNAS
+    : grande
+      ? [...COLUNAS, "entregue", "cancelada"]
+      : [...COLUNAS, "entregue"];
 
   return (
     <label className="relative inline-flex items-center">
       <span className="sr-only">Mudar status da OS</span>
       <select
         value={status}
-        disabled={pending}
+        disabled={pending || (!podeFechar && fechada)}
         onChange={(e) => {
           const novo = e.target.value;
           if (novo === "cancelada" && !confirm("Cancelar esta OS?")) return;

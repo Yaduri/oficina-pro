@@ -7,16 +7,17 @@ import { UserButton } from "@clerk/nextjs";
 import { Brand } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { TipoEmpresa } from "@/components/ui";
+import { pode, type Acao, type Papel } from "@/lib/permissoes";
 
-const NAV = [
+const NAV: { href: string; label: string; acao?: Acao }[] = [
   { href: "/inicio", label: "Início" },
   { href: "/agenda", label: "Agenda" },
   { href: "/check-in", label: "Check-in" },
-  { href: "/orcamentos", label: "Orçamentos" },
+  { href: "/orcamentos", label: "Orçamentos", acao: "verValores" },
   { href: "/ordens-servico", label: "Ordens de serviço" },
   { href: "/clientes", label: "Clientes" },
   { href: "/estoque", label: "Estoque" },
-  { href: "/financeiro", label: "Financeiro" },
+  { href: "/financeiro", label: "Financeiro", acao: "financeiro" },
 ];
 
 type EmpresaResumo = { id: string; nome: string; tipo: TipoEmpresa };
@@ -24,7 +25,8 @@ type EmpresaResumo = { id: string; nome: string; tipo: TipoEmpresa };
 const dot: Record<TipoEmpresa, string> = { mecanica: "bg-mec", eletrica: "bg-ele", outra: "bg-muted" };
 const txt: Record<TipoEmpresa, string> = { mecanica: "text-mec", eletrica: "text-ele", outra: "text-foreground-2" };
 
-export function Topbar({ empresas, oficina, admin }: { empresas: EmpresaResumo[]; oficina: string; admin: boolean }) {
+export function Topbar({ empresas, oficina, papel }: { empresas: EmpresaResumo[]; oficina: string; papel: Papel }) {
+  const admin = pode(papel, "configurar");
   const pathname = usePathname();
   const params = useSearchParams();
   const atual = params.get("empresa");
@@ -39,7 +41,7 @@ export function Topbar({ empresas, oficina, admin }: { empresas: EmpresaResumo[]
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
-  const navLinks = NAV.map((item) => {
+  const navLinks = NAV.filter((item) => !item.acao || pode(papel, item.acao)).map((item) => {
     const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
     return (
       <Link

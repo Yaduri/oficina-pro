@@ -19,7 +19,22 @@ type Item = {
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
-export function ItensOS({ osId, itens, editavel }: { osId: string; itens: Item[]; editavel: boolean }) {
+export function ItensOS({
+  osId,
+  itens,
+  editavel,
+  valores = true,
+  marcavel = editavel,
+}: {
+  osId: string;
+  itens: Item[];
+  /** Pode lançar, remover e alterar itens */
+  editavel: boolean;
+  /** Mostra preços e totais (técnico não vê) */
+  valores?: boolean;
+  /** Pode marcar itens como feitos */
+  marcavel?: boolean;
+}) {
   // Itens recusados pelo cliente no orçamento ficam fora do total
   const validos = itens.filter((i) => !i.recusado);
   const soma = (l: Item[]) => l.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
@@ -34,13 +49,14 @@ export function ItensOS({ osId, itens, editavel }: { osId: string; itens: Item[]
       ) : (
         <ul className="divide-y divide-border">
           {itens.map((i) => (
-            <LinhaItem key={i.id} osId={osId} item={i} editavel={editavel} />
+            <LinhaItem key={i.id} osId={osId} item={i} editavel={editavel} valores={valores} marcavel={marcavel} />
           ))}
         </ul>
       )}
 
       {editavel && <NovoItem osId={osId} />}
 
+      {valores && (
       <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 border-t border-border px-5 py-4 text-[13px]">
         <dt className="text-muted">Peças</dt>
         <dd className="text-right tabular-nums">{formatBRL(pecas)}</dd>
@@ -55,18 +71,31 @@ export function ItensOS({ osId, itens, editavel }: { osId: string; itens: Item[]
         <dt className="pt-1 text-[15px] font-semibold">Total</dt>
         <dd className="pt-1 text-right text-[15px] font-semibold tabular-nums">{formatBRL(total)}</dd>
       </dl>
+      )}
     </div>
   );
 }
 
-function LinhaItem({ osId, item, editavel }: { osId: string; item: Item; editavel: boolean }) {
+function LinhaItem({
+  osId,
+  item,
+  editavel,
+  valores,
+  marcavel,
+}: {
+  osId: string;
+  item: Item;
+  editavel: boolean;
+  valores: boolean;
+  marcavel: boolean;
+}) {
   const [pending, start] = useTransition();
   return (
     <li className={cn("flex items-center gap-3 px-4 py-3 sm:px-5", pending && "opacity-60")}>
       <input
         type="checkbox"
         checked={item.concluido}
-        disabled={!editavel || pending || item.recusado}
+        disabled={!marcavel || pending || item.recusado}
         onChange={(e) => {
           const v = e.target.checked;
           start(() => marcarItem(osId, item.id, v));
@@ -77,13 +106,16 @@ function LinhaItem({ osId, item, editavel }: { osId: string; item: Item; editave
       <div className="min-w-0 flex-1">
         <p className={cn("font-medium", (item.concluido || item.recusado) && "text-muted line-through")}>{item.descricao}</p>
         <p className="text-[13px] text-muted">
-          {item.tipo === "peca" ? "Peça" : "Serviço"} · {qtd(item.quantidade)} × {formatBRL(item.valorUnitario)}
+          {item.tipo === "peca" ? "Peça" : "Serviço"} · {qtd(item.quantidade)}
+          {valores && <> × {formatBRL(item.valorUnitario)}</>}
           {item.recusado && <span className="font-medium text-danger"> · Recusado pelo cliente</span>}
         </p>
       </div>
-      <span className={cn("font-medium tabular-nums", item.recusado && "text-muted line-through")}>
-        {formatBRL(item.quantidade * item.valorUnitario)}
-      </span>
+      {valores && (
+        <span className={cn("font-medium tabular-nums", item.recusado && "text-muted line-through")}>
+          {formatBRL(item.quantidade * item.valorUnitario)}
+        </span>
+      )}
       {editavel && (
         <Button
           variant="ghost"

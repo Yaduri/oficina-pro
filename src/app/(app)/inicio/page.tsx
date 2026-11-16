@@ -18,7 +18,8 @@ function saudacao() {
 
 export default async function InicioPage({ searchParams }: PageProps<"/inicio">) {
   const { empresa } = await searchParams;
-  const { oficina, empresas, empresaIds, selecionada } = await empresasFiltradas(empresa);
+  const { oficina, empresas, empresaIds, selecionada, pode } = await empresasFiltradas(empresa);
+  const valores = pode("verValores");
   const [abertas, faturamento, agenda, user] = await Promise.all([
     listarOSAbertas(oficina.id, empresaIds),
     faturamentoDoMes(oficina.id, empresaIds),
@@ -57,13 +58,14 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
           )}
         </Kpi>
         <Kpi icon={Clock} label="Aguardando aprovação" value={String(aguardando.length)}>
-          <span className="text-[13px] text-muted">{formatBRL(aguardando.reduce((s, o) => s + o.total, 0))} em orçamentos</span>
+          {valores && <span className="text-[13px] text-muted">{formatBRL(aguardando.reduce((s, o) => s + o.total, 0))} em orçamentos</span>}
         </Kpi>
         <Kpi icon={CircleCheck} label="Prontos para entrega" value={String(prontos.length)}>
           <span className="text-[13px] text-muted">
             {prontos.length === 0 ? "Nenhum no momento" : prontos.every((o) => o.clienteAvisadoEm) ? "Clientes já avisados" : "Avisar clientes"}
           </span>
         </Kpi>
+        {valores && (
         <Kpi icon={TrendingUp} label="Faturamento do mês" value={formatBRLInteiro(totalFaturado)}>
           {porEmpresa.length > 1 && (
             <>
@@ -76,6 +78,7 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
             </>
           )}
         </Kpi>
+        )}
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -95,7 +98,7 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Cliente</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Empresa</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Status</th>
-                    <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 text-right font-medium">Valor</th>
+                    {valores && <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 text-right font-medium">Valor</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -113,7 +116,7 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                       <td className="px-4 py-3">{o.cliente ?? "—"}</td>
                       <td className="px-4 py-3"><EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} /></td>
                       <td className="px-4 py-3"><Badge tom={STATUS[o.status].tom}>{STATUS[o.status].label}</Badge></td>
-                      <td className="px-4 py-3 text-right tabular-nums">{o.total ? formatBRL(o.total) : <span className="text-muted">—</span>}</td>
+                      {valores && <td className="px-4 py-3 text-right tabular-nums">{o.total ? formatBRL(o.total) : <span className="text-muted">—</span>}</td>}
                     </tr>
                   ))}
                 </tbody>

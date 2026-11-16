@@ -18,9 +18,9 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 async function carregar(id: string) {
   if (!UUID.test(id)) return null;
-  const { oficina, empresas } = await getContexto();
+  const { oficina, empresas, pode } = await getContexto();
   const dados = await obterOS(oficina.id, empresas.map((e) => e.id), id);
-  return dados && { ...dados, oficina };
+  return dados && { ...dados, oficina, pode };
 }
 
 export async function generateMetadata({ params }: PageProps<"/ordens-servico/[id]">) {
@@ -31,11 +31,12 @@ export async function generateMetadata({ params }: PageProps<"/ordens-servico/[i
 export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]">) {
   const dados = await carregar((await params).id);
   if (!dados) notFound();
-  const { os, veiculo, cliente, responsavel, empresa, itens, oficina } = dados;
+  const { os, veiculo, cliente, responsavel, empresa, itens, oficina, pode } = dados;
+  const valores = pode("verValores");
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
   const fotos = os.checkinId ? await fotosDoCheckin(os.checkinId) : [];
-  const orc = await ultimoOrcamento(os.id);
+  const orc = valores ? await ultimoOrcamento(os.id) : null;
   let resumo: ResumoOrcamento | null = null;
   if (orc) {
     const url = `${await urlBase()}/orcamento/${orc.token}`;
@@ -86,7 +87,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               <MessageCircle />WhatsApp
             </a>
           )}
-          <MoverOS osId={os.id} status={os.status} grande />
+          <MoverOS osId={os.id} status={os.status} grande podeFechar={pode("fecharOS")} />
         </div>
       </div>
 
@@ -135,16 +136,18 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
                 )
               }
             />
-            <ItensOS osId={os.id} itens={itens} editavel={!fechada} />
+            <ItensOS osId={os.id} itens={itens} editavel={!fechada && pode("editarItens")} valores={valores} marcavel={!fechada} />
           </Card>
 
+          {valores && (
           <OrcamentoOS
             osId={os.id}
             orcamento={resumo}
-            podeEnviar={!fechada}
+            podeEnviar={!fechada && pode("orcamento")}
             semItens={itens.length === 0}
             padrao={{ observacao: oficina.obsOrcamento ?? "", dias: oficina.validadeOrcamentoDias }}
           />
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">

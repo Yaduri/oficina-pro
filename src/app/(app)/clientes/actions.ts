@@ -69,7 +69,8 @@ async function placaEmUso(oficinaId: string, placa: string, exceto?: string) {
 
 /** Cria um cliente (e opcionalmente o primeiro veículo) */
 export async function criarCliente(_prev: FormState, form: FormData): Promise<FormState> {
-  const { oficina } = await getContexto();
+  const { oficina, pode } = await getContexto();
+  if (!pode("cadastros")) return { erro: "Seu usuário não tem permissão para isso" };
   const c = clienteSchema.safeParse(campos(form, ["tipoPessoa", "nome", "documento", "telefone", "email"]));
   if (!c.success) return { erro: c.error.issues[0].message };
 
@@ -97,7 +98,8 @@ export async function criarCliente(_prev: FormState, form: FormData): Promise<Fo
 }
 
 export async function atualizarCliente(id: string, _prev: FormState, form: FormData): Promise<FormState> {
-  const { oficina } = await getContexto();
+  const { oficina, pode } = await getContexto();
+  if (!pode("cadastros")) return { erro: "Seu usuário não tem permissão para isso" };
   const c = clienteSchema.safeParse(campos(form, ["tipoPessoa", "nome", "documento", "telefone", "email"]));
   if (!c.success) return { erro: c.error.issues[0].message };
 
@@ -121,7 +123,8 @@ export async function salvarVeiculo(
   _prev: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const { oficina } = await getContexto();
+  const { oficina, pode } = await getContexto();
+  if (!pode("cadastros")) return { erro: "Seu usuário não tem permissão para isso" };
   const v = veiculoSchema.safeParse(campos(form, ["placa", "marca", "modelo", "ano", "cor", "km"]));
   if (!v.success) return { erro: v.error.issues[0].message };
   if (await placaEmUso(oficina.id, v.data.placa, veiculoId ?? undefined)) {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { Card, PageHeader } from "@/components/ui";
 import { getDb, schema } from "@/db";
@@ -13,7 +14,8 @@ export const metadata = { title: "Nova OS" };
 export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-servico/nova">) {
   const sp = await searchParams;
   const param = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]);
-  const { oficina, empresas, selecionada } = await empresasFiltradas(param("empresa"));
+  const { oficina, empresas, selecionada, pode } = await empresasFiltradas(param("empresa"));
+  if (!pode("abrirOS")) redirect("/ordens-servico");
 
   const db = await getDb();
   const [clientes, tecnicos] = await Promise.all([

@@ -6,6 +6,7 @@ import { and, eq, ilike, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
+import type { Acao } from "@/lib/permissoes";
 import { atualizarStatusOS } from "@/lib/queries";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
 import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
@@ -24,7 +25,17 @@ export async function moverOS(osId: string, status: string) {
   const parsed = z.object({ osId: z.uuid(), status: statusEnum }).safeParse({ osId, status });
   if (!parsed.success) return { ok: false, erro: "Dados inválidos" };
 
-  const { oficina, empresas } = await getContexto();
+  const { oficina, empresas, pode } = await getContexto();
+  if (!pode("fecharOS")) {
+    // Técnico movimenta a OS no quadro, mas não entrega, cancela nem reabre
+    if (parsed.data.status === "entregue" || parsed.data.status === "cancelada") return { ok: false, erro: "Seu usuário não pode entregar ou cancelar OS" };
+    const db = await getDb();
+    const [atual] = await db
+      .select({ status: schema.ordensServico.status })
+      .from(schema.ordensServico)
+      .where(and(eq(schema.ordensServico.id, parsed.data.osId), eq(schema.ordensServico.oficinaId, oficina.id)));
+    if (atual && (atual.status === "entregue" || atual.status === "cancelada")) return { ok: false, erro: "Seu usuário não pode reabrir OS" };
+  }
   const ok = await atualizarStatusOS(oficina.id, empresas.map((e) => e.id), parsed.data.osId, parsed.data.status);
   if (!ok) return { ok: false, erro: "OS não encontrada" };
 
@@ -93,7 +104,8 @@ const novaOSSchema = z.object({
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaOSState> {
-  const { oficina, empresas } = await getContexto();
+  const { oficina, empresas, pode } = await getContexto();
+  if (!pode("abrirOS")) return { erro: "Seu usuário não tem permissão para isso" };
 
   let itens: unknown = [];
   try {
@@ -179,9 +191,10 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
 
 const uuid = (v: string) => z.uuid().safeParse(v).success;
 
-async function osDaOficina(osId: string, itemId?: string) {
+async function osDaOficina(osId: string, itemId?: string, acao?: Acao) {
   if (!uuid(osId) || (itemId !== undefined && !uuid(itemId))) return null;
-  const { oficina, empresas } = await getContexto();
+  const { oficina, empresas, pode } = await getContexto();
+  if (acao && !pode(acao)) return null;
   const db = await getDb();
   const [o] = await db
     .select({ id: schema.ordensServico.id, empresaId: schema.ordensServico.empresaId })
@@ -206,8 +219,8 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
     valor: f(form, "valor"),
   });
   if (!item.success) return { erro: item.error.issues[0].message };
-  const r = await osDaOficina(osId);
-  if (!r) return { erro: "OS não encontrada" };
+  const r = await osDaOficina(osId, undefined, "editarItens");
+  if (!r) return { erro: "OS não encontrada ou sem permissão" };
   await r.db.insert(schema.osItens).values({
     osId,
     empresaId: r.os.empresaId,
@@ -231,7 +244,7 @@ export async function marcarItem(osId: string, itemId: string, concluido: boolea
 }
 
 export async function removerItem(osId: string, itemId: string) {
-  const r = await osDaOficina(osId, itemId);
+  const r = await osDaOficina(osId, itemId, "editarItens");
   if (!r) return;
   await r.db.delete(schema.osItens).where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)));
   revalidarOS(osId);
@@ -251,8 +264,8 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
     .safeParse({ observacao: f(form, "observacao"), dias: f(form, "dias") || "15" });
   if (!dados.success) return { erro: dados.error.issues[0].message };
 
-  const r = await osDaOficina(osId);
-  if (!r) return { erro: "OS não encontrada" };
+  const r = await osDaOficina(osId, undefined, "orcamento");
+  if (!r) return { erro: "OS não encontrada ou sem permissão" };
   const { userId, oficina } = await getContexto();
 
   const [atual] = await r.db
@@ -304,7 +317,7 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
 
 /** Cancela o link pendente (o cliente não consegue mais responder). */
 export async function cancelarOrcamento(osId: string) {
-  const r = await osDaOficina(osId);
+  const r = await osDaOficina(osId, undefined, "orcamento");
   if (!r) return;
   await r.db
     .update(schema.orcamentos)

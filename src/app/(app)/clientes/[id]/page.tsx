@@ -19,7 +19,8 @@ export async function generateMetadata({ params }: PageProps<"/clientes/[id]">) 
 export default async function ClientePage({ params }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { oficina, empresas } = await getContexto();
+  const { oficina, empresas, pode } = await getContexto();
+  const editavel = pode("cadastros");
   const cliente = await obterCliente(oficina.id, id);
   if (!cliente) notFound();
   const historico = await historicoCliente(oficina.id, empresas.map((e) => e.id), id);
@@ -46,15 +47,17 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader title="Veículos" />
-            <ListaVeiculos clienteId={cliente.id} veiculos={cliente.veiculos} />
+            <ListaVeiculos clienteId={cliente.id} veiculos={cliente.veiculos} editavel={editavel} abrirOS={pode("abrirOS")} />
           </Card>
 
-          <Card>
-            <CardHeader title="Dados do cliente" />
-            <div className="p-5">
-              <EditarClienteForm cliente={cliente} />
-            </div>
-          </Card>
+          {editavel && (
+            <Card>
+              <CardHeader title="Dados do cliente" />
+              <div className="p-5">
+                <EditarClienteForm cliente={cliente} />
+              </div>
+            </Card>
+          )}
         </div>
 
         <Card>
@@ -70,7 +73,7 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
                       <Placa placa={o.placa} />
                       <span className="text-[13px] font-medium">OS #{o.numero}</span>
                       <span className="text-[13px] text-muted">{formatData(o.entradaEm)}</span>
-                      <span className="ml-auto font-semibold tabular-nums">{o.total > 0 ? formatBRL(o.total) : "—"}</span>
+                      <span className="ml-auto font-semibold tabular-nums">{pode("verValores") && o.total > 0 ? formatBRL(o.total) : ""}</span>
                     </div>
                     <p className="text-[13px] text-foreground-2">{o.descricao}</p>
                     <div className="flex flex-wrap items-center gap-2">

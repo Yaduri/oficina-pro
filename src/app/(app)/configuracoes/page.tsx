@@ -3,6 +3,7 @@ import { EmpresaTag, PageHeader } from "@/components/ui";
 import { exigirAdmin } from "@/lib/oficina";
 import { formatDocumento } from "@/lib/utils";
 import { EmpresaForm, OficinaForm, TextosForm } from "./forms";
+import { AbasConfig } from "./abas";
 
 export const metadata = { title: "Configurações" };
 
@@ -13,7 +14,9 @@ export default async function ConfiguracoesPage() {
     <>
       <PageHeader title="Configurações" description="Dados da oficina e de cada CNPJ, usados no orçamento, no termo de entrada, nos PDFs e nas notas fiscais." />
 
-      <nav aria-label="Seções" className="no-scrollbar -mt-2 flex gap-1.5 overflow-x-auto text-[13px]">
+      <AbasConfig />
+
+      <nav aria-label="Seções" className="no-scrollbar flex gap-1.5 overflow-x-auto text-[13px]">
         <a href="#oficina" className="rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
           Oficina
         </a>

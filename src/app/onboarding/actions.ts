@@ -1,10 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
-import { chaveOficina } from "@/lib/oficina";
+import { currentUser } from "@clerk/nextjs/server";
+import { exigirLogin, membroAtivo } from "@/lib/oficina";
 import { cnpjValido, normalizarCnpj } from "@/lib/utils";
 
 const empresaSchema = z.object({
@@ -24,7 +24,7 @@ const formSchema = z.object({
 export type OnboardingState = { erro?: string } | undefined;
 
 export async function criarOficina(_prev: OnboardingState, form: FormData): Promise<OnboardingState> {
-  const { userId, chave } = await chaveOficina();
+  const userId = await exigirLogin();
 
   const empresas = [0, 1]
     .map((i) => ({
@@ -41,18 +41,25 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos" };
 
   const db = await getDb();
-  const existente = await db.query.oficinas.findFirst({ where: eq(schema.oficinas.clerkOrgId, chave) });
-  if (existente) redirect("/inicio");
+  if (await membroAtivo(userId)) redirect("/inicio");
+  const usuario = await currentUser();
 
   await db.transaction(async (tx) => {
     const [oficina] = await tx
       .insert(schema.oficinas)
-      .values({ clerkOrgId: chave, nome: parsed.data.nomeOficina })
+      // clerk_org_id: identificador legado (a oficina não depende mais de Organization do Clerk)
+      .values({ clerkOrgId: `oficina_${crypto.randomUUID()}`, nome: parsed.data.nomeOficina })
       .returning();
     await tx
       .insert(schema.empresas)
       .values(parsed.data.empresas.map((e) => ({ oficinaId: oficina.id, nome: e.nome, cnpj: e.cnpj || null, tipo: e.tipo })));
-    await tx.insert(schema.usuarioAcessos).values({ oficinaId: oficina.id, clerkUserId: userId, empresaId: null, papel: "dono" });
+    await tx.insert(schema.membros).values({
+      oficinaId: oficina.id,
+      clerkUserId: userId,
+      nome: usuario?.fullName ?? null,
+      email: usuario?.primaryEmailAddress?.emailAddress ?? null,
+      papel: "dono",
+    });
   });
 
   redirect("/inicio");

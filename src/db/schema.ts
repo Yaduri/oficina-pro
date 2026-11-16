@@ -7,6 +7,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -94,18 +95,56 @@ export const empresas = pgTable(
   (t) => [index("empresas_oficina_idx").on(t.oficinaId)],
 );
 
-/** Acesso de usuário (Clerk) por empresa. empresa_id nulo = todas as empresas da oficina. */
-export const usuarioAcessos = pgTable(
-  "usuario_acessos",
+/**
+ * Usuário (login do Clerk) que faz parte da oficina, com um papel.
+ * todasEmpresas = vê todos os CNPJs; senão, só os de membro_empresas.
+ */
+export const membros = pgTable(
+  "membros",
   {
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
     clerkUserId: text("clerk_user_id").notNull(),
-    empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "cascade" }),
+    /** Cópia do nome/e-mail do Clerk para exibir na lista */
+    nome: text("nome"),
+    email: text("email"),
     papel: papel("papel").notNull(),
+    todasEmpresas: boolean("todas_empresas").notNull().default(true),
+    ativo: boolean("ativo").notNull().default(true),
     criadoEm: criadoEm(),
   },
-  (t) => [index("acessos_usuario_idx").on(t.clerkUserId, t.oficinaId)],
+  (t) => [uniqueIndex("membros_oficina_usuario_uq").on(t.oficinaId, t.clerkUserId), index("membros_usuario_idx").on(t.clerkUserId)],
+);
+
+export const membroEmpresas = pgTable(
+  "membro_empresas",
+  {
+    membroId: uuid("membro_id").notNull().references(() => membros.id, { onDelete: "cascade" }),
+    empresaId: uuid("empresa_id").notNull().references(() => empresas.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.membroId, t.empresaId] })],
+);
+
+/** Convite por link (enviado pelo WhatsApp). Quem abre, entra/cria a conta e aceita. */
+export const convites = pgTable(
+  "convites",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    /** Para quem é (só para identificar na lista) */
+    nome: text("nome").notNull(),
+    papel: papel("papel").notNull(),
+    todasEmpresas: boolean("todas_empresas").notNull().default(true),
+    empresaIds: jsonb("empresa_ids").$type<string[]>().notNull().default([]),
+    criadoPor: text("criado_por").notNull(),
+    criadoEm: criadoEm(),
+    expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
+    aceitoEm: timestamp("aceito_em", { withTimezone: true }),
+    aceitoPor: text("aceito_por"),
+    canceladoEm: timestamp("cancelado_em", { withTimezone: true }),
+  },
+  (t) => [index("convites_oficina_idx").on(t.oficinaId)],
 );
 
 /** Mecânicos/eletricistas — podem não ter login. */
