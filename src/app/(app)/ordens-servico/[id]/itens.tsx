@@ -14,13 +14,18 @@ type Item = {
   quantidade: number;
   valorUnitario: number;
   concluido: boolean;
+  recusado: boolean;
 };
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 export function ItensOS({ osId, itens, editavel }: { osId: string; itens: Item[]; editavel: boolean }) {
-  const total = itens.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
-  const pecas = itens.filter((i) => i.tipo === "peca").reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
+  // Itens recusados pelo cliente no orçamento ficam fora do total
+  const validos = itens.filter((i) => !i.recusado);
+  const soma = (l: Item[]) => l.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
+  const total = soma(validos);
+  const pecas = soma(validos.filter((i) => i.tipo === "peca"));
+  const recusado = soma(itens.filter((i) => i.recusado));
 
   return (
     <div className="flex flex-col">
@@ -41,6 +46,12 @@ export function ItensOS({ osId, itens, editavel }: { osId: string; itens: Item[]
         <dd className="text-right tabular-nums">{formatBRL(pecas)}</dd>
         <dt className="text-muted">Serviços</dt>
         <dd className="text-right tabular-nums">{formatBRL(total - pecas)}</dd>
+        {recusado > 0 && (
+          <>
+            <dt className="text-muted">Recusado pelo cliente</dt>
+            <dd className="text-right text-muted tabular-nums line-through">{formatBRL(recusado)}</dd>
+          </>
+        )}
         <dt className="pt-1 text-[15px] font-semibold">Total</dt>
         <dd className="pt-1 text-right text-[15px] font-semibold tabular-nums">{formatBRL(total)}</dd>
       </dl>
@@ -55,7 +66,7 @@ function LinhaItem({ osId, item, editavel }: { osId: string; item: Item; editave
       <input
         type="checkbox"
         checked={item.concluido}
-        disabled={!editavel || pending}
+        disabled={!editavel || pending || item.recusado}
         onChange={(e) => {
           const v = e.target.checked;
           start(() => marcarItem(osId, item.id, v));
@@ -64,12 +75,15 @@ function LinhaItem({ osId, item, editavel }: { osId: string; item: Item; editave
         className="size-[18px] shrink-0 cursor-pointer accent-zinc-900"
       />
       <div className="min-w-0 flex-1">
-        <p className={cn("font-medium", item.concluido && "text-muted line-through")}>{item.descricao}</p>
+        <p className={cn("font-medium", (item.concluido || item.recusado) && "text-muted line-through")}>{item.descricao}</p>
         <p className="text-[13px] text-muted">
           {item.tipo === "peca" ? "Peça" : "Serviço"} · {qtd(item.quantidade)} × {formatBRL(item.valorUnitario)}
+          {item.recusado && <span className="font-medium text-danger"> · Recusado pelo cliente</span>}
         </p>
       </div>
-      <span className="font-medium tabular-nums">{formatBRL(item.quantidade * item.valorUnitario)}</span>
+      <span className={cn("font-medium tabular-nums", item.recusado && "text-muted line-through")}>
+        {formatBRL(item.quantidade * item.valorUnitario)}
+      </span>
       {editavel && (
         <Button
           variant="ghost"

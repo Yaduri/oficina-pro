@@ -6,9 +6,9 @@ import { ABERTAS, type StatusOS } from "@/lib/os";
 const { ordensServico: os, osItens, veiculos, clientes, tecnicos, empresas, agendamentos } = schema;
 
 /** Total da OS = soma de quantidade × valor dos itens */
-const totalOS = sql<string>`coalesce((select sum(i.quantidade * i.valor_unitario) from ${osItens} i where i.os_id = ${os.id}), 0)`;
-const itensTotal = sql<number>`(select count(*) from ${osItens} i where i.os_id = ${os.id})::int`;
-const itensFeitos = sql<number>`(select count(*) from ${osItens} i where i.os_id = ${os.id} and i.concluido)::int`;
+const totalOS = sql<string>`coalesce((select sum(i.quantidade * i.valor_unitario) from ${osItens} i where i.os_id = ${os.id} and not i.recusado), 0)`;
+const itensTotal = sql<number>`(select count(*) from ${osItens} i where i.os_id = ${os.id} and not i.recusado)::int`;
+const itensFeitos = sql<number>`(select count(*) from ${osItens} i where i.os_id = ${os.id} and i.concluido and not i.recusado)::int`;
 
 export type OSResumo = Awaited<ReturnType<typeof listarOSAbertas>>[number];
 

@@ -5,12 +5,14 @@ import { Avatar, Badge, Card, CardHeader, EmpresaTag, Placa, buttonClass } from 
 import { getContexto } from "@/lib/oficina";
 import { obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
-import { formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { formatBRL, formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { STATUS_ORCAMENTO, orcamentoDesatualizado, totalItens, ultimoOrcamento, urlBase } from "@/lib/orcamento";
 import { fotosDoCheckin } from "@/lib/checkin-dados";
 import { ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
 import { urlArquivo } from "@/lib/storage";
 import { MoverOS } from "../mover-os";
 import { ItensOS } from "./itens";
+import { OrcamentoOS, type ResumoOrcamento } from "./orcamento";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -32,6 +34,35 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
   const fotos = os.checkinId ? await fotosDoCheckin(os.checkinId) : [];
+  const orc = await ultimoOrcamento(os.id);
+  let resumo: ResumoOrcamento | null = null;
+  if (orc) {
+    const url = `${await urlBase()}/orcamento/${orc.token}`;
+    const veiculoTxt = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
+    const saudacao = cliente ? `Olá, ${cliente.nome.split(" ")[0]}!` : "Olá!";
+    const texto = `${saudacao} Segue o orçamento do seu ${veiculoTxt} (${veiculo.placa}), OS #${os.numero}, no valor de ${formatBRL(Number(orc.total))}. Você pode aprovar pelo link: ${url}`;
+    const aprovados = new Set(orc.itensAprovados ?? []);
+    const respondido = ["aprovado", "parcial", "recusado"].includes(orc.status);
+    const vencido = orc.status === "pendente" && orc.validoAte < new Date();
+    resumo = {
+      status: vencido ? { label: "Vencido", tom: "neutro" } : STATUS_ORCAMENTO[orc.status],
+      pendente: orc.status === "pendente",
+      respondido,
+      url,
+      whatsapp: `${whats ?? "https://wa.me/"}?text=${encodeURIComponent(texto)}`,
+      enviadoEm: formatEntrada(orc.criadoEm),
+      validoAte: formatData(orc.validoAte),
+      vencido,
+      vistoEm: orc.vistoEm ? formatEntrada(orc.vistoEm).toLowerCase() : null,
+      respondidoEm: orc.respondidoEm ? formatEntrada(orc.respondidoEm).toLowerCase() : null,
+      respostaNome: orc.respostaNome,
+      respostaComentario: orc.respostaComentario,
+      total: formatBRL(Number(orc.total)),
+      totalAprovado: orc.status === "parcial" ? formatBRL(totalItens(orc.itens.filter((i) => aprovados.has(i.id)))) : null,
+      recusados: respondido ? orc.itens.filter((i) => !aprovados.has(i.id)).length : 0,
+      desatualizado: orcamentoDesatualizado(orc.itens, itens),
+    };
+  }
 
   return (
     <>
@@ -58,8 +89,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
         </div>
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="flex min-w-0 flex-col gap-6">
           <Card>
             <CardHeader title="Problema relatado" />
             <p className="whitespace-pre-line px-5 py-4">{os.descricao}</p>
@@ -98,16 +129,18 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               action={
                 itens.length > 0 && (
                   <span className="text-[13px] text-muted">
-                    {itens.filter((i) => i.concluido).length}/{itens.length} feitos
+                    {itens.filter((i) => i.concluido && !i.recusado).length}/{itens.filter((i) => !i.recusado).length} feitos
                   </span>
                 )
               }
             />
             <ItensOS osId={os.id} itens={itens} editavel={!fechada} />
           </Card>
+
+          <OrcamentoOS osId={os.id} orcamento={resumo} podeEnviar={!fechada} semItens={itens.length === 0} />
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <Card>
             <CardHeader title="Veículo" />
             <div className="flex flex-col gap-3 px-5 py-4">

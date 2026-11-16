@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -33,6 +34,7 @@ export const statusOS = pgEnum("status_os", [
   "cancelada",
 ]);
 export const tipoItem = pgEnum("tipo_item", ["peca", "servico"]);
+export const statusOrcamento = pgEnum("status_orcamento", ["pendente", "aprovado", "parcial", "recusado", "substituido"]);
 
 /* ---------- Oficina (tenant) e empresas (CNPJs) ---------- */
 
@@ -201,9 +203,49 @@ export const osItens = pgTable(
     quantidade: numeric("quantidade", { precision: 10, scale: 2 }).notNull().default("1"),
     valorUnitario: numeric("valor_unitario", { precision: 12, scale: 2 }).notNull(),
     concluido: boolean("concluido").notNull().default(false),
+    /** Recusado pelo cliente no orçamento: fica na OS riscado e fora do total */
+    recusado: boolean("recusado").notNull().default(false),
     criadoEm: criadoEm(),
   },
   (t) => [index("os_itens_os_idx").on(t.osId)],
+);
+
+/** Cópia dos itens no momento do envio — o cliente aprova exatamente o que viu. */
+export type ItemOrcamento = {
+  id: string;
+  tipo: "peca" | "servico";
+  descricao: string;
+  quantidade: number;
+  valorUnitario: number;
+};
+
+/**
+ * Orçamento enviado ao cliente por link (sem login). Cada envio gera um novo registro;
+ * o anterior pendente vira "substituido".
+ */
+export const orcamentos = pgTable(
+  "orcamentos",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
+    /** Segredo do link público /orcamento/<token> */
+    token: text("token").notNull().unique(),
+    itens: jsonb("itens").$type<ItemOrcamento[]>().notNull(),
+    total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+    observacao: text("observacao"),
+    validoAte: timestamp("valido_ate", { withTimezone: true }).notNull(),
+    status: statusOrcamento("status").notNull().default("pendente"),
+    enviadoPor: text("enviado_por").notNull(),
+    criadoEm: criadoEm(),
+    /** Visualizado pelo cliente pela primeira vez */
+    vistoEm: timestamp("visto_em", { withTimezone: true }),
+    respondidoEm: timestamp("respondido_em", { withTimezone: true }),
+    respostaNome: text("resposta_nome"),
+    respostaComentario: text("resposta_comentario"),
+    itensAprovados: jsonb("itens_aprovados").$type<string[]>(),
+  },
+  (t) => [index("orcamentos_os_idx").on(t.osId), index("orcamentos_oficina_idx").on(t.oficinaId, t.criadoEm)],
 );
 
 export const agendamentos = pgTable(

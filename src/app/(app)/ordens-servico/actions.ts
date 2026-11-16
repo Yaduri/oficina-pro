@@ -9,6 +9,7 @@ import { getContexto } from "@/lib/oficina";
 import { atualizarStatusOS } from "@/lib/queries";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
 import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
+import { novoToken, totalItens } from "@/lib/orcamento";
 import { PLACA_RE, formatPlaca, parseValor, soDigitos } from "@/lib/utils";
 
 const statusEnum = z.enum(["diagnostico", "aguardando_aprovacao", "aguardando_peca", "em_execucao", "pronto", "entregue", "cancelada"]);
@@ -234,4 +235,81 @@ export async function removerItem(osId: string, itemId: string) {
   if (!r) return;
   await r.db.delete(schema.osItens).where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)));
   revalidarOS(osId);
+}
+
+/* ---------- Orçamento com link para o cliente ---------- */
+
+export type OrcamentoState = { erro?: string; ok?: boolean } | undefined;
+
+/** Gera um novo link de orçamento com os itens atuais da OS (o anterior pendente é substituído). */
+export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form: FormData): Promise<OrcamentoState> {
+  const dados = z
+    .object({
+      observacao: z.string().trim().max(1000, "Observação muito longa"),
+      dias: z.coerce.number().int().min(1).max(90),
+    })
+    .safeParse({ observacao: f(form, "observacao"), dias: f(form, "dias") || "15" });
+  if (!dados.success) return { erro: dados.error.issues[0].message };
+
+  const r = await osDaOficina(osId);
+  if (!r) return { erro: "OS não encontrada" };
+  const { userId, oficina } = await getContexto();
+
+  const [atual] = await r.db
+    .select({ status: schema.ordensServico.status })
+    .from(schema.ordensServico)
+    .where(eq(schema.ordensServico.id, osId));
+  if (atual.status === "entregue" || atual.status === "cancelada") return { erro: "A OS está fechada" };
+
+  const itens = await r.db.select().from(schema.osItens).where(eq(schema.osItens.osId, osId)).orderBy(schema.osItens.criadoEm);
+  if (itens.length === 0) return { erro: "Adicione peças ou serviços antes de enviar o orçamento" };
+
+  const copia = itens.map((i) => ({
+    id: i.id,
+    tipo: i.tipo,
+    descricao: i.descricao,
+    quantidade: Number(i.quantidade),
+    valorUnitario: Number(i.valorUnitario),
+  }));
+  const total = totalItens(copia);
+  const agora = new Date();
+
+  await r.db.transaction(async (tx) => {
+    await tx
+      .update(schema.orcamentos)
+      .set({ status: "substituido" })
+      .where(and(eq(schema.orcamentos.osId, osId), eq(schema.orcamentos.status, "pendente")));
+    await tx.insert(schema.orcamentos).values({
+      oficinaId: oficina.id,
+      osId,
+      token: novoToken(),
+      itens: copia,
+      total: total.toFixed(2),
+      observacao: dados.data.observacao || null,
+      validoAte: new Date(agora.getTime() + dados.data.dias * 86_400_000),
+      enviadoPor: userId,
+    });
+    // O cliente decide de novo sobre todos os itens
+    await tx.update(schema.osItens).set({ recusado: false }).where(eq(schema.osItens.osId, osId));
+    await tx
+      .update(schema.ordensServico)
+      .set({ status: "aguardando_aprovacao", aprovacaoEnviadaEm: agora })
+      .where(eq(schema.ordensServico.id, osId));
+  });
+
+  revalidarOS(osId);
+  revalidatePath("/orcamentos");
+  return { ok: true };
+}
+
+/** Cancela o link pendente (o cliente não consegue mais responder). */
+export async function cancelarOrcamento(osId: string) {
+  const r = await osDaOficina(osId);
+  if (!r) return;
+  await r.db
+    .update(schema.orcamentos)
+    .set({ status: "substituido" })
+    .where(and(eq(schema.orcamentos.osId, osId), eq(schema.orcamentos.status, "pendente")));
+  revalidarOS(osId);
+  revalidatePath("/orcamentos");
 }

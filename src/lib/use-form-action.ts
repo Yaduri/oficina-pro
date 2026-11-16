@@ -11,7 +11,9 @@ export function useFormAction<S>(action: (state: S, form: FormData) => Promise<S
   const [state, dispatch, pending] = useActionState(action, undefined as Awaited<S>);
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const dados = new FormData(e.currentTarget);
+    // Inclui o botão clicado (name/value), para formulários com mais de uma ação
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const dados = new FormData(e.currentTarget, submitter);
     startTransition(() => dispatch(dados));
   };
   return { state, pending, onSubmit };
