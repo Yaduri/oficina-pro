@@ -43,6 +43,13 @@
       "when": 1794853944049,
       "tag": "0005_modern_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794854700915,
+      "tag": "0006_sudden_phil_sheldon",
+      "breakpoints": true
     }
   ]
 }

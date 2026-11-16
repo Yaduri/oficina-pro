@@ -8,6 +8,7 @@ import { FOTOS_PADRAO, ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
 import { cn } from "@/lib/utils";
 import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { criarCheckin } from "../actions";
+import { ChecklistCampo } from "./checklist";
 
 /* ---------- Upload ---------- */
 
@@ -56,6 +57,7 @@ export function CheckinForm({
   clientes,
   inicial,
   termo,
+  checklist,
 }: {
   empresas: { id: string; nome: string }[];
   empresaPadrao?: string;
@@ -63,6 +65,8 @@ export function CheckinForm({
   inicial: ResultadoPlaca | null;
   /** Texto que o cliente lê antes de assinar */
   termo: string;
+  /** Itens ativos do checklist da oficina */
+  checklist: { id: string; grupo: string; descricao: string }[];
 }) {
   const [state, dispatch, pending] = useActionState(criarCheckin, undefined);
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(inicial);
@@ -209,11 +213,17 @@ export function CheckinForm({
           <Textarea id="avarias" name="avarias" rows={2} placeholder="Ex.: risco na porta traseira direita, para-choque trincado" />
         </Campo>
         <Campo label="Objetos deixados no veículo" htmlFor="objetos" hint="(opcional)">
-          <Input id="objetos" name="objetos" placeholder="Ex.: estepe, macaco, cadeirinha, documentos" />
+          <Input id="objetos" name="objetos" placeholder="Ex.: cadeirinha, óculos, carregador" />
         </Campo>
       </Secao>
 
-      <Secao n={4} titulo="Serviço">
+      {checklist.length > 0 && (
+        <Secao n={4} titulo="Checklist" descricao="Confira cada item com o cliente. Itens com problema aparecem em destaque no termo.">
+          <ChecklistCampo itens={checklist} />
+        </Secao>
+      )}
+
+      <Secao n={checklist.length > 0 ? 5 : 4} titulo="Serviço">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">
             Para qual empresa? <span className="font-normal text-muted">Uma OS é aberta para cada empresa marcada.</span>
@@ -241,7 +251,7 @@ export function CheckinForm({
         </Campo>
       </Secao>
 
-      <Secao n={5} titulo="Assinatura do cliente" descricao="O cliente confirma o estado do veículo e os objetos deixados.">
+      <Secao n={checklist.length > 0 ? 6 : 5} titulo="Assinatura do cliente" descricao="O cliente confirma o estado do veículo e os objetos deixados.">
         <p className="text-[13px] text-foreground-2">{termo}</p>
         <Assinatura ref={assinatura} />
       </Secao>

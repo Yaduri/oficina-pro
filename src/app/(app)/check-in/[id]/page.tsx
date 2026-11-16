@@ -10,6 +10,7 @@ import { urlArquivo } from "@/lib/storage";
 import { formatEndereco, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
 import { TERMO_PADRAO } from "@/lib/textos";
 import { Imprimir } from "./imprimir";
+import { ChecklistRegistrado } from "@/components/checklist-registrado";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -80,6 +81,22 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
               </ul>
             )}
           </Card>
+
+          {checkin.checklist && checkin.checklist.length > 0 && (
+            <Card className="print:break-inside-avoid">
+              <CardHeader
+                title="Checklist"
+                action={
+                  <span className="text-[13px] text-muted">
+                    {checkin.checklist.filter((i) => i.estado === "problema").length > 0
+                      ? `${checkin.checklist.filter((i) => i.estado === "problema").length} com problema`
+                      : "Sem problemas"}
+                  </span>
+                }
+              />
+              <ChecklistRegistrado itens={checkin.checklist} />
+            </Card>
+          )}
 
           <Card className="print:break-inside-avoid">
             <CardHeader title="Relato do cliente" />

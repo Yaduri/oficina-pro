@@ -193,6 +193,30 @@ export const veiculos = pgTable(
 
 /* ---------- Operacional ---------- */
 
+/** Itens que a oficina confere na recepção do veículo (configuráveis) */
+export const checklistItens = pgTable(
+  "checklist_itens",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    grupo: text("grupo").notNull(),
+    descricao: text("descricao").notNull(),
+    ordem: integer("ordem").notNull().default(0),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("checklist_oficina_idx").on(t.oficinaId)],
+);
+
+/** ok = conferido, problema = com defeito/avaria, nao_tem = item ausente; null = não verificado */
+export type EstadoChecklist = "ok" | "problema" | "nao_tem";
+export type ItemChecklistRegistrado = {
+  grupo: string;
+  descricao: string;
+  estado: EstadoChecklist | null;
+  obs: string | null;
+};
+
 /**
  * Recepção do veículo (feita no celular). Um check-in pode gerar uma OS por empresa
  * (ex.: o carro entra para a mecânica e para a elétrica ao mesmo tempo).
@@ -214,6 +238,8 @@ export const checkins = pgTable(
     assinaturaKey: text("assinatura_key"),
     /** Texto do termo que o cliente viu ao assinar (cópia; mudanças nas Configurações não alteram) */
     termo: text("termo"),
+    /** Checklist preenchido (cópia dos itens no momento do check-in) */
+    checklist: jsonb("checklist").$type<ItemChecklistRegistrado[]>(),
     criadoPor: text("criado_por").notNull(),
     criadoEm: criadoEm(),
   },

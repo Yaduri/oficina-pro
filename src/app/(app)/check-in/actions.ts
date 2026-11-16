@@ -6,6 +6,8 @@ import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { TERMO_PADRAO } from "@/lib/textos";
+import { listarChecklist } from "@/lib/checklist-dados";
+import type { ItemChecklistRegistrado } from "@/db/schema";
 import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
 import { soDigitos } from "@/lib/utils";
 import { POSICOES } from "@/lib/checkin";
@@ -35,6 +37,9 @@ const checkinSchema = z.object({
     .array(z.object({ posicao: z.enum(POSICOES), key: z.string().min(1) }))
     .max(30, "Máximo de 30 fotos"),
   assinaturaKey: z.string(),
+  checklist: z
+    .array(z.object({ id: z.uuid(), estado: z.enum(["ok", "problema", "nao_tem"]), obs: z.string().trim().max(200).nullable() }))
+    .max(200),
 });
 
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
@@ -43,10 +48,12 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
   const { oficina, empresas, userId } = await getContexto();
 
   let fotos: unknown = [];
+  let checklist: unknown = [];
   try {
     fotos = JSON.parse(f(form, "fotos") || "[]");
+    checklist = JSON.parse(f(form, "checklist") || "[]");
   } catch {
-    return { erro: "Fotos inválidas" };
+    return { erro: "Dados do formulário inválidos" };
   }
   const parsed = checkinSchema.safeParse({
     empresaIds: form.getAll("empresaIds").map(String),
@@ -57,6 +64,7 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
     objetos: f(form, "objetos"),
     fotos,
     assinaturaKey: f(form, "assinaturaKey"),
+    checklist,
   });
   if (!parsed.success) return { erro: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -67,6 +75,19 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
   if (d.fotos.some((ft) => !ft.key.startsWith(prefixo)) || (d.assinaturaKey && !d.assinaturaKey.startsWith(prefixo))) {
     return { erro: "Arquivo inválido" };
   }
+
+  // Cópia do checklist: todos os itens ativos, com a resposta dada (ou não verificado)
+  const config = await listarChecklist(oficina.id, true);
+  const respostas = new Map(d.checklist.map((r) => [r.id, r]));
+  const checklistRegistrado: ItemChecklistRegistrado[] | null =
+    config.length === 0
+      ? null
+      : config.map((i) => ({
+          grupo: i.grupo,
+          descricao: i.descricao,
+          estado: respostas.get(i.id)?.estado ?? null,
+          obs: respostas.get(i.id)?.estado === "problema" ? (respostas.get(i.id)?.obs || null) : null,
+        }));
 
   const prep = await prepararVeiculo(oficina.id, form);
   if ("erro" in prep) return prep;
@@ -89,6 +110,7 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
         objetos: d.objetos,
         assinaturaKey: d.assinaturaKey || null,
         termo: d.assinaturaKey ? (oficina.textoTermoCheckin ?? TERMO_PADRAO) : null,
+        checklist: checklistRegistrado,
         criadoPor: userId,
       })
       .returning({ id: schema.checkins.id });

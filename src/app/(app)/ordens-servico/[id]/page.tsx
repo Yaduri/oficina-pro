@@ -7,7 +7,8 @@ import { obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
 import { formatBRL, formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
 import { STATUS_ORCAMENTO, orcamentoDesatualizado, totalItens, ultimoOrcamento, urlBase } from "@/lib/orcamento";
-import { fotosDoCheckin } from "@/lib/checkin-dados";
+import { checklistDoCheckin, fotosDoCheckin } from "@/lib/checkin-dados";
+import { ChecklistResumo } from "@/components/checklist-registrado";
 import { ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
 import { urlArquivo } from "@/lib/storage";
 import { MoverOS } from "../mover-os";
@@ -35,7 +36,9 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const valores = pode("verValores");
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
-  const fotos = os.checkinId ? await fotosDoCheckin(os.checkinId) : [];
+  const [fotos, checklist] = os.checkinId
+    ? await Promise.all([fotosDoCheckin(os.checkinId), checklistDoCheckin(os.checkinId)])
+    : [[], null];
   const orc = valores ? await ultimoOrcamento(os.id) : null;
   let resumo: ResumoOrcamento | null = null;
   if (orc) {
@@ -122,6 +125,20 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
                   ))}
                 </ul>
               )}
+            </Card>
+          )}
+
+          {checklist && checklist.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Checklist de entrada"
+                action={
+                  <Link href={`/check-in/${os.checkinId}`} className="text-[13px] font-medium underline-offset-4 hover:underline">
+                    Ver completo
+                  </Link>
+                }
+              />
+              <ChecklistResumo itens={checklist} />
             </Card>
           )}
 

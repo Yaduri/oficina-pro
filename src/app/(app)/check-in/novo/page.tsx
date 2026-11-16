@@ -6,6 +6,7 @@ import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
 import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { CheckinForm } from "./checkin-form";
 import { TERMO_PADRAO } from "@/lib/textos";
+import { listarChecklist } from "@/lib/checklist-dados";
 
 export const metadata = { title: "Novo check-in" };
 
@@ -13,7 +14,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
   const sp = await searchParams;
   const param = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]);
   const { oficina, empresas, selecionada } = await empresasFiltradas(param("empresa"));
-  const clientes = await opcoesClientes(oficina.id);
+  const [clientes, checklist] = await Promise.all([opcoesClientes(oficina.id), listarChecklist(oficina.id, true)]);
 
   let inicial: ResultadoPlaca | null = null;
   const veiculoId = param("veiculo");
@@ -42,6 +43,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
           clientes={clientes}
           inicial={inicial}
           termo={oficina.textoTermoCheckin ?? TERMO_PADRAO}
+          checklist={checklist.map((i) => ({ id: i.id, grupo: i.grupo, descricao: i.descricao }))}
         />
       </Card>
     </div>

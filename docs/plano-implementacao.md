@@ -19,6 +19,7 @@ Complementa [arquitetura.md](arquitetura.md) (o "o quê" e o "porquê"); aqui es
 - [x] Orçamento com link de aprovação (aprovação total, parcial ou recusa, sem login)
 - [x] Configurações da oficina e das empresas (1.1)
 - [x] Usuários, papéis e convites (1.2)
+- [x] Checklist configurável no check-in (1.3)
 
 ---
 
@@ -46,11 +47,11 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [ ] Técnicos sem login continuam cadastráveis (já existe a tabela `tecnicos`; tela de cadastro fica com 1.6)
 
 ### 1.3 Checklist configurável no check-in — **M**
-- [ ] Configurações → Checklist: itens agrupados (ex.: Itens do veículo, Painel, Externo), ativar/desativar, ordenar
-- [ ] Sugestão inicial: estepe, macaco, chave de roda, triângulo, tapetes, rádio/multimídia, documento, luzes de alerta no painel, nível de óleo, pneus
-- [ ] No check-in: cada item com OK / Com problema / Não tem, e observação
-- [ ] Mostrar no termo de entrada, na OS e no PDF
-- [ ] Mudança no checklist não altera check-ins antigos (cópia no momento do registro)
+- [x] Configurações → Checklist: itens agrupados, ativar/desativar, ordenar, remover
+- [x] Sugestão inicial com um clique (itens do veículo, painel e elétrica, verificações)
+- [x] No check-in: cada item OK / Com problema / Não tem, observação no problema, "marcar os restantes como OK"
+- [x] Mostrar no termo de entrada e na OS (resumo do que tem problema ou falta); PDF na etapa 1.4
+- [x] Mudança no checklist não altera check-ins antigos (cópia no momento do registro)
 
 ### 1.4 PDFs — **M**
 - [ ] Geração no servidor com logo e dados do CNPJ da OS

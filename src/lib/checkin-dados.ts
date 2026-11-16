@@ -95,3 +95,10 @@ export async function fotosDoCheckin(checkinId: string) {
     .where(eq(checkinFotos.checkinId, checkinId))
     .orderBy(asc(checkinFotos.ordem));
 }
+
+/** Checklist registrado no check-in de uma OS */
+export async function checklistDoCheckin(checkinId: string) {
+  const db = await getDb();
+  const [r] = await db.select({ checklist: checkins.checklist }).from(checkins).where(eq(checkins.id, checkinId));
+  return r?.checklist ?? null;
+}
