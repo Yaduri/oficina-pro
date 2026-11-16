@@ -57,7 +57,7 @@ export function Topbar({ empresas, oficina }: { empresas: EmpresaResumo[]; ofici
   });
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card">
+    <header className="sticky top-0 z-30 border-b border-border bg-card print:hidden">
       <div className="flex h-16 items-center gap-2.5 px-4 sm:px-8">
         <Link href={comFiltro("/inicio")} className="mr-3 shrink-0" aria-label={`Início — ${oficina}`}>
           <Brand />

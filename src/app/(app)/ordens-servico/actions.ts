@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { getDb, schema } from "@/db";
+import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { atualizarStatusOS } from "@/lib/queries";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
+import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
 import { PLACA_RE, formatPlaca, parseValor, soDigitos } from "@/lib/utils";
 
 const statusEnum = z.enum(["diagnostico", "aguardando_aprovacao", "aguardando_peca", "em_execucao", "pronto", "entregue", "cancelada"]);
@@ -88,21 +89,6 @@ const novaOSSchema = z.object({
   itens: z.array(itemSchema),
 });
 
-const novoVeiculoSchema = z.object({
-  placa: z
-    .string()
-    .transform(formatPlaca)
-    .refine((v) => PLACA_RE.test(v), "Placa inválida (ex.: ABC1D23 ou ABC1234)"),
-  marca: z.string().trim().transform((v) => v || null),
-  modelo: z.string().trim().min(1, "Informe o modelo do veículo"),
-  clienteId: z.string(),
-  clienteNome: z.string().trim(),
-  clienteTelefone: z
-    .string()
-    .transform(soDigitos)
-    .refine((v) => v === "" || v.length === 10 || v.length === 11, "Telefone deve ter DDD + número"),
-});
-
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaOSState> {
@@ -126,76 +112,14 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
   const d = dados.data;
   if (!empresas.some((e) => e.id === d.empresaId)) return { erro: "Empresa não permitida" };
 
+  const prep = await prepararVeiculo(oficina.id, form);
+  if ("erro" in prep) return prep;
+
   const db = await getDb();
-  const { veiculos, clientes, tecnicos, ordensServico, osItens } = schema;
-
-  // Veículo existente ou novo (com cliente existente ou novo)
-  let veiculoId: string | null = null;
-  let clienteId: string | null = null;
-  let novoVeiculo: z.infer<typeof novoVeiculoSchema> | null = null;
-
-  if (d.veiculoId) {
-    const [v] = await db
-      .select({ id: veiculos.id, clienteId: veiculos.clienteId })
-      .from(veiculos)
-      .where(and(eq(veiculos.id, d.veiculoId), eq(veiculos.oficinaId, oficina.id)));
-    if (!v) return { erro: "Veículo não encontrado" };
-    veiculoId = v.id;
-    clienteId = v.clienteId;
-  } else {
-    const nv = novoVeiculoSchema.safeParse({
-      placa: f(form, "placa"),
-      marca: f(form, "marca"),
-      modelo: f(form, "modelo"),
-      clienteId: f(form, "clienteId"),
-      clienteNome: f(form, "clienteNome"),
-      clienteTelefone: f(form, "clienteTelefone"),
-    });
-    if (!nv.success) return { erro: nv.error.issues[0].message };
-    novoVeiculo = nv.data;
-    if (await buscarVeiculoPorPlaca(oficina.id, novoVeiculo.placa)) {
-      return { erro: `A placa ${novoVeiculo.placa} já está cadastrada. Busque novamente.` };
-    }
-    if (novoVeiculo.clienteId) {
-      const [c] = await db
-        .select({ id: clientes.id })
-        .from(clientes)
-        .where(and(eq(clientes.id, novoVeiculo.clienteId), eq(clientes.oficinaId, oficina.id)));
-      if (!c) return { erro: "Cliente não encontrado" };
-      clienteId = c.id;
-    } else if (novoVeiculo.clienteNome.length < 2) {
-      return { erro: "Informe o nome do cliente" };
-    }
-  }
+  const { tecnicos, ordensServico, osItens } = schema;
 
   const osId = await db.transaction(async (tx) => {
-    if (novoVeiculo) {
-      if (!clienteId) {
-        const [c] = await tx
-          .insert(clientes)
-          .values({ oficinaId: oficina.id, nome: novoVeiculo.clienteNome, telefone: novoVeiculo.clienteTelefone || null })
-          .returning({ id: clientes.id });
-        clienteId = c.id;
-      }
-      const [v] = await tx
-        .insert(veiculos)
-        .values({
-          oficinaId: oficina.id,
-          clienteId,
-          placa: novoVeiculo.placa,
-          marca: novoVeiculo.marca,
-          modelo: novoVeiculo.modelo,
-          km: d.kmEntrada,
-        })
-        .returning({ id: veiculos.id });
-      veiculoId = v.id;
-    } else if (d.kmEntrada != null) {
-      // Atualiza o km do veículo se o novo for maior
-      await tx
-        .update(veiculos)
-        .set({ km: d.kmEntrada })
-        .where(and(eq(veiculos.id, veiculoId!), sql`coalesce(${veiculos.km}, 0) < ${d.kmEntrada}`));
-    }
+    const { veiculoId, clienteId } = await gravarVeiculo(tx as unknown as DB, oficina.id, prep.ok, d.kmEntrada);
 
     // Responsável: técnico existente (pelo nome) ou novo
     let responsavelId: string | null = null;
@@ -214,10 +138,7 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
         )[0].id;
     }
 
-    const [{ proximo }] = await tx
-      .select({ proximo: sql<number>`coalesce(max(${ordensServico.numero}), 0)::int + 1` })
-      .from(ordensServico)
-      .where(eq(ordensServico.oficinaId, oficina.id));
+    const proximo = await proximoNumeroOS(tx as unknown as DB, oficina.id);
 
     const [nova] = await tx
       .insert(ordensServico)
@@ -225,7 +146,7 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
         oficinaId: oficina.id,
         empresaId: d.empresaId,
         numero: proximo,
-        veiculoId: veiculoId!,
+        veiculoId,
         clienteId,
         responsavelId,
         descricao: d.descricao,

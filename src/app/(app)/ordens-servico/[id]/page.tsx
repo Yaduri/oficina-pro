@@ -6,6 +6,9 @@ import { getContexto } from "@/lib/oficina";
 import { obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
 import { formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { fotosDoCheckin } from "@/lib/checkin-dados";
+import { ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
+import { urlArquivo } from "@/lib/storage";
 import { MoverOS } from "../mover-os";
 import { ItensOS } from "./itens";
 
@@ -28,6 +31,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const { os, veiculo, cliente, responsavel, empresa, itens } = dados;
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
+  const fotos = os.checkinId ? await fotosDoCheckin(os.checkinId) : [];
 
   return (
     <>
@@ -60,6 +64,33 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             <CardHeader title="Problema relatado" />
             <p className="whitespace-pre-line px-5 py-4">{os.descricao}</p>
           </Card>
+
+          {os.checkinId && (
+            <Card>
+              <CardHeader
+                title="Fotos de chegada"
+                action={
+                  <Link href={`/check-in/${os.checkinId}`} className="text-[13px] font-medium underline-offset-4 hover:underline">
+                    Ver check-in
+                  </Link>
+                }
+              />
+              {fotos.length === 0 ? (
+                <p className="px-5 py-4 text-[13px] text-muted">Check-in sem fotos.</p>
+              ) : (
+                <ul className="grid grid-cols-3 gap-2 p-4 sm:grid-cols-5 sm:p-5">
+                  {fotos.map((f) => (
+                    <li key={f.id}>
+                      <a href={urlArquivo(f.key)} target="_blank" rel="noreferrer" className="block aspect-square overflow-hidden rounded-md border border-border bg-subtle">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- arquivo autenticado servido por /arquivos */}
+                        <img src={urlArquivo(f.key)} alt={ROTULO_POSICAO[f.posicao as Posicao] ?? f.posicao} className="size-full object-cover" loading="lazy" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
 
           <Card>
             <CardHeader

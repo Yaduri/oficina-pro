@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pencil, Plus, Wrench } from "lucide-react";
+import { Camera, Pencil, Plus, Wrench } from "lucide-react";
 import { Button, Placa, buttonClass } from "@/components/ui";
 import type { Veiculo } from "@/lib/cadastros";
 import { VeiculoForm } from "./forms";
@@ -34,6 +34,9 @@ export function ListaVeiculos({ clienteId, veiculos }: { clienteId: string; veic
                   <Button variant="ghost" className="px-2.5" onClick={() => setEditando(v.id)} aria-label={`Editar veículo ${v.placa}`}>
                     <Pencil />
                   </Button>
+                  <Link href={`/check-in/novo?veiculo=${v.id}`} className={buttonClass("ghost", "px-2.5")} aria-label={`Check-in do veículo ${v.placa}`} title="Check-in">
+                    <Camera />
+                  </Link>
                   <Link href={`/ordens-servico/nova?veiculo=${v.id}`} className={buttonClass("secondary")}>
                     <Wrench />Abrir OS
                   </Link>

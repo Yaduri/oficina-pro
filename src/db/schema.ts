@@ -121,6 +121,45 @@ export const veiculos = pgTable(
 
 /* ---------- Operacional ---------- */
 
+/**
+ * Recepção do veículo (feita no celular). Um check-in pode gerar uma OS por empresa
+ * (ex.: o carro entra para a mecânica e para a elétrica ao mesmo tempo).
+ */
+export const checkins = pgTable(
+  "checkins",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    veiculoId: uuid("veiculo_id").notNull().references(() => veiculos.id),
+    clienteId: uuid("cliente_id").references(() => clientes.id),
+    km: integer("km"),
+    /** Nível de combustível em oitavos (0 = reserva, 8 = cheio) */
+    combustivel: integer("combustivel"),
+    relato: text("relato").notNull(),
+    avarias: text("avarias"),
+    objetos: text("objetos"),
+    /** Chave do arquivo da assinatura do cliente no armazenamento */
+    assinaturaKey: text("assinatura_key"),
+    criadoPor: text("criado_por").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("checkins_oficina_idx").on(t.oficinaId, t.criadoEm)],
+);
+
+export const checkinFotos = pgTable(
+  "checkin_fotos",
+  {
+    id: id(),
+    checkinId: uuid("checkin_id").notNull().references(() => checkins.id, { onDelete: "cascade" }),
+    /** frente | traseira | esquerda | direita | painel | avaria | outra */
+    posicao: text("posicao").notNull(),
+    key: text("key").notNull(),
+    ordem: integer("ordem").notNull().default(0),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("checkin_fotos_checkin_idx").on(t.checkinId)],
+);
+
 export const ordensServico = pgTable(
   "ordens_servico",
   {
@@ -129,6 +168,7 @@ export const ordensServico = pgTable(
     /** Empresa dona da OS (decisão: cada OS pertence a uma empresa) */
     empresaId: uuid("empresa_id").notNull().references(() => empresas.id),
     numero: integer("numero").notNull(),
+    checkinId: uuid("checkin_id").references(() => checkins.id, { onDelete: "set null" }),
     veiculoId: uuid("veiculo_id").notNull().references(() => veiculos.id),
     clienteId: uuid("cliente_id").references(() => clientes.id),
     responsavelId: uuid("responsavel_id").references(() => tecnicos.id, { onDelete: "set null" }),

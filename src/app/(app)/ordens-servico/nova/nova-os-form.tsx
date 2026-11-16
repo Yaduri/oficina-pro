@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Plus, Search, Trash2, X } from "lucide-react";
-import { Button, Campo, Erro, Input, Placa, Select, Textarea, inputClass } from "@/components/ui";
+import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { Button, Campo, Erro, Input, Textarea, inputClass } from "@/components/ui";
+import { SeletorVeiculo } from "@/components/seletor-veiculo";
 import { useFormAction } from "@/lib/use-form-action";
-import { cn, formatBRL, formatPlaca, formatTelefone, parseValor } from "@/lib/utils";
-import { buscarPlaca, criarOS, type ResultadoPlaca } from "../actions";
+import { cn, formatBRL, parseValor } from "@/lib/utils";
+import { criarOS, type ResultadoPlaca } from "../actions";
 
 type Item = { chave: number; tipo: "peca" | "servico"; descricao: string; quantidade: string; valor: string };
 
@@ -23,17 +24,9 @@ export function NovaOSForm({
   inicial: ResultadoPlaca | null;
 }) {
   const { state, pending, onSubmit } = useFormAction(criarOS);
-  const [placa, setPlaca] = useState(inicial && inicial.status !== "invalida" ? inicial.placa : "");
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(inicial);
-  const [buscando, startBusca] = useTransition();
-  const [clienteId, setClienteId] = useState("");
   const [itens, setItens] = useState<Item[]>([]);
   const [seq, setSeq] = useState(1);
-
-  const buscar = () => {
-    if (!placa.trim()) return;
-    startBusca(async () => setResultado(await buscarPlaca(placa)));
-  };
 
   const addItem = (tipo: Item["tipo"]) => {
     setItens((l) => [...l, { chave: seq, tipo, descricao: "", quantidade: "1", valor: "" }]);
@@ -75,102 +68,7 @@ export function NovaOSForm({
       <section className="flex flex-col gap-4 border-t border-border pt-6">
         <h2 className="text-[15px] font-semibold">Veículo e cliente</h2>
 
-        {encontrado ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-subtle p-3">
-            <input type="hidden" name="veiculoId" value={encontrado.veiculo.id} />
-            <Placa placa={encontrado.placa} />
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{[encontrado.veiculo.marca, encontrado.veiculo.modelo, encontrado.veiculo.ano].filter(Boolean).join(" ")}</p>
-              <p className="text-[13px] text-muted">
-                {encontrado.cliente
-                  ? [encontrado.cliente.nome, formatTelefone(encontrado.cliente.telefone)].filter(Boolean).join(" · ")
-                  : "Sem cliente vinculado"}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setResultado(null);
-                setPlaca("");
-              }}
-            >
-              <X />Trocar
-            </Button>
-          </div>
-        ) : (
-          <>
-            <input type="hidden" name="veiculoId" value="" />
-            <Campo label="Placa" htmlFor="placa" hint="— busca o veículo já cadastrado">
-              <div className="flex gap-2">
-                <Input
-                  id="placa"
-                  name="placa"
-                  value={placa}
-                  onChange={(e) => {
-                    setPlaca(e.target.value);
-                    if (resultado) setResultado(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      buscar();
-                    }
-                  }}
-                  onBlur={() => !resultado && buscar()}
-                  placeholder="ABC1D23"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  maxLength={8}
-                  className="max-w-48 uppercase tracking-wider"
-                  autoFocus
-                  required
-                />
-                <Button type="button" onClick={buscar} disabled={buscando}>
-                  <Search />{buscando ? "Buscando…" : "Buscar"}
-                </Button>
-              </div>
-            </Campo>
-            {resultado?.status === "invalida" && <Erro>Placa inválida. Use o formato ABC1D23 ou ABC1234.</Erro>}
-
-            {novo && (
-              <div className="flex flex-col gap-4 rounded-lg border border-dashed border-border-strong p-4">
-                <p className="text-[13px] text-muted">
-                  Placa <strong className="text-foreground">{formatPlaca(placa)}</strong> não cadastrada. Preencha os dados para cadastrar junto com a OS.
-                </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Campo label="Marca" htmlFor="marca">
-                    <Input id="marca" name="marca" placeholder="Volkswagen" />
-                  </Campo>
-                  <Campo label="Modelo" htmlFor="modelo">
-                    <Input id="modelo" name="modelo" placeholder="Gol 1.6" required />
-                  </Campo>
-                </div>
-                <Campo label="Cliente" htmlFor="clienteId">
-                  <Select id="clienteId" name="clienteId" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-                    <option value="">+ Novo cliente</option>
-                    {clientes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                        {c.telefone ? ` · ${formatTelefone(c.telefone)}` : ""}
-                      </option>
-                    ))}
-                  </Select>
-                </Campo>
-                {clienteId === "" && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Campo label="Nome do cliente" htmlFor="clienteNome">
-                      <Input id="clienteNome" name="clienteNome" required autoComplete="off" />
-                    </Campo>
-                    <Campo label="WhatsApp / telefone" htmlFor="clienteTelefone">
-                      <Input id="clienteTelefone" name="clienteTelefone" type="tel" inputMode="tel" placeholder="(11) 98765-4321" />
-                    </Campo>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+        <SeletorVeiculo clientes={clientes} inicial={inicial} onChange={setResultado} />
       </section>
 
       {/* Atendimento */}
