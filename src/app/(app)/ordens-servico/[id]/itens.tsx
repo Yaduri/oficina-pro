@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
-import { Plus, Trash2 } from "lucide-react";
-import { Button, Erro, Input, inputClass } from "@/components/ui";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Button, EmpresaTag, Erro, Input, inputClass, type TipoEmpresa } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
+import { calcularTotais } from "@/lib/os-total";
 import { cn, formatBRL } from "@/lib/utils";
 import { adicionarItem, marcarItem, removerItem } from "../actions";
+import { definirDesconto, editarItem } from "../edicao";
 
 type Item = {
   id: string;
@@ -15,9 +17,13 @@ type Item = {
   valorUnitario: number;
   concluido: boolean;
   recusado: boolean;
+  empresaId: string;
 };
+type EmpresaOpcao = { id: string; nome: string; tipo: TipoEmpresa };
+type Desconto = { percentual: number | null; valor: number };
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+const valorTxt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function ItensOS({
   osId,
@@ -25,6 +31,9 @@ export function ItensOS({
   editavel,
   valores = true,
   marcavel = editavel,
+  empresas = [],
+  empresaOS,
+  desconto = { percentual: null, valor: 0 },
 }: {
   osId: string;
   itens: Item[];
@@ -34,13 +43,19 @@ export function ItensOS({
   valores?: boolean;
   /** Pode marcar itens como feitos */
   marcavel?: boolean;
+  /** Empresas que o usuário vê (para OS mista) */
+  empresas?: EmpresaOpcao[];
+  /** Empresa dona da OS */
+  empresaOS?: string;
+  desconto?: Desconto;
 }) {
-  // Itens recusados pelo cliente no orçamento ficam fora do total
-  const validos = itens.filter((i) => !i.recusado);
-  const soma = (l: Item[]) => l.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
-  const total = soma(validos);
-  const pecas = soma(validos.filter((i) => i.tipo === "peca"));
-  const recusado = soma(itens.filter((i) => i.recusado));
+  const t = calcularTotais(itens, desconto);
+  const mista = itens.some((i) => i.empresaId !== empresaOS);
+  const porEmpresa = mista
+    ? empresas
+        .map((e) => ({ ...e, total: itens.filter((i) => !i.recusado && i.empresaId === e.id).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0) }))
+        .filter((e) => e.total > 0)
+    : [];
 
   return (
     <div className="flex flex-col">
@@ -49,32 +64,112 @@ export function ItensOS({
       ) : (
         <ul className="divide-y divide-border">
           {itens.map((i) => (
-            <LinhaItem key={i.id} osId={osId} item={i} editavel={editavel} valores={valores} marcavel={marcavel} />
+            <LinhaItem
+              key={i.id}
+              osId={osId}
+              item={i}
+              editavel={editavel}
+              valores={valores}
+              marcavel={marcavel}
+              empresas={empresas}
+              empresaOS={empresaOS}
+            />
           ))}
         </ul>
       )}
 
-      {editavel && <NovoItem osId={osId} />}
+      {editavel && <NovoItem osId={osId} empresas={empresas} empresaOS={empresaOS} />}
 
       {valores && (
-      <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 border-t border-border px-5 py-4 text-[13px]">
-        <dt className="text-muted">Peças</dt>
-        <dd className="text-right tabular-nums">{formatBRL(pecas)}</dd>
-        <dt className="text-muted">Serviços</dt>
-        <dd className="text-right tabular-nums">{formatBRL(total - pecas)}</dd>
-        {recusado > 0 && (
-          <>
-            <dt className="text-muted">Recusado pelo cliente</dt>
-            <dd className="text-right text-muted tabular-nums line-through">{formatBRL(recusado)}</dd>
-          </>
-        )}
-        <dt className="pt-1 text-[15px] font-semibold">Total</dt>
-        <dd className="pt-1 text-right text-[15px] font-semibold tabular-nums">{formatBRL(total)}</dd>
-      </dl>
+        <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 border-t border-border px-5 py-4 text-[13px]">
+          <dt className="text-muted">Peças</dt>
+          <dd className="text-right tabular-nums">{formatBRL(t.pecas)}</dd>
+          <dt className="text-muted">Serviços</dt>
+          <dd className="text-right tabular-nums">{formatBRL(t.servicos)}</dd>
+          {t.recusado > 0 && (
+            <>
+              <dt className="text-muted">Recusado pelo cliente</dt>
+              <dd className="text-right text-muted tabular-nums line-through">{formatBRL(t.recusado)}</dd>
+            </>
+          )}
+          <LinhaDesconto osId={osId} desconto={desconto} valor={t.desconto} editavel={editavel && itens.length > 0} />
+          <dt className="pt-1 text-[15px] font-semibold">Total</dt>
+          <dd className="pt-1 text-right text-[15px] font-semibold tabular-nums">{formatBRL(t.total)}</dd>
+          {porEmpresa.length > 1 && (
+            <dd className="col-span-2 flex flex-wrap gap-x-3 gap-y-1 pt-1.5 text-muted">
+              OS mista:
+              {porEmpresa.map((e) => (
+                <span key={e.id}>
+                  {e.nome} {formatBRL(e.total)}
+                </span>
+              ))}
+              {t.desconto > 0 && <span>(antes do desconto)</span>}
+            </dd>
+          )}
+        </dl>
       )}
     </div>
   );
 }
+
+/* ---------- Desconto ---------- */
+
+function LinhaDesconto({ osId, desconto, valor, editavel }: { osId: string; desconto: Desconto; valor: number; editavel: boolean }) {
+  const [editando, setEditando] = useState(false);
+  const { state, pending, onSubmit } = useFormAction(async (prev: Awaited<ReturnType<typeof definirDesconto>>, form: FormData) => {
+    const r = await definirDesconto(osId, prev, form);
+    if (r?.ok) setEditando(false);
+    return r;
+  });
+  const tem = valor > 0;
+
+  if (editando) {
+    return (
+      <dd className="col-span-2 py-1.5">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2 rounded-md border border-border bg-subtle/60 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <select name="tipo" aria-label="Tipo de desconto" defaultValue={desconto.percentual != null ? "percentual" : "valor"} className={cn(inputClass, "h-9 w-auto text-sm")}>
+              <option value="valor">R$</option>
+              <option value="percentual">%</option>
+            </select>
+            <Input
+              name="valor"
+              aria-label="Valor do desconto"
+              inputMode="decimal"
+              defaultValue={desconto.percentual != null ? String(desconto.percentual).replace(".", ",") : desconto.valor ? valorTxt(desconto.valor) : ""}
+              className="h-9 w-28 text-right text-sm"
+              autoFocus
+            />
+            <Button type="submit" variant="primary" disabled={pending}>
+              Aplicar
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setEditando(false)}>
+              Cancelar
+            </Button>
+          </div>
+          <Erro>{state?.erro}</Erro>
+        </form>
+      </dd>
+    );
+  }
+
+  if (!tem && !editavel) return null;
+  return (
+    <>
+      <dt className="text-muted">
+        Desconto{desconto.percentual != null && tem ? ` (${desconto.percentual.toLocaleString("pt-BR")}%)` : ""}
+        {editavel && (
+          <button type="button" onClick={() => setEditando(true)} className="ml-2 font-medium text-foreground underline-offset-4 hover:underline">
+            {tem ? "alterar" : "adicionar"}
+          </button>
+        )}
+      </dt>
+      <dd className="text-right tabular-nums">{tem ? `− ${formatBRL(valor)}` : "—"}</dd>
+    </>
+  );
+}
+
+/* ---------- Item ---------- */
 
 function LinhaItem({
   osId,
@@ -82,14 +177,37 @@ function LinhaItem({
   editavel,
   valores,
   marcavel,
+  empresas,
+  empresaOS,
 }: {
   osId: string;
   item: Item;
   editavel: boolean;
   valores: boolean;
   marcavel: boolean;
+  empresas: EmpresaOpcao[];
+  empresaOS?: string;
 }) {
   const [pending, start] = useTransition();
+  const [editando, setEditando] = useState(false);
+  const empresaItem = item.empresaId !== empresaOS ? empresas.find((e) => e.id === item.empresaId) : undefined;
+
+  if (editando) {
+    return (
+      <li className="bg-subtle/60 px-4 py-3 sm:px-5">
+        <FormItem
+          acao={editarItem.bind(null, osId, item.id)}
+          item={item}
+          empresas={empresas}
+          empresaOS={empresaOS}
+          rotulo="Salvar"
+          onDone={() => setEditando(false)}
+          onCancel={() => setEditando(false)}
+        />
+      </li>
+    );
+  }
+
   return (
     <li className={cn("flex items-center gap-3 px-4 py-3 sm:px-5", pending && "opacity-60")}>
       <input
@@ -105,10 +223,11 @@ function LinhaItem({
       />
       <div className="min-w-0 flex-1">
         <p className={cn("font-medium", (item.concluido || item.recusado) && "text-muted line-through")}>{item.descricao}</p>
-        <p className="text-[13px] text-muted">
+        <p className="flex flex-wrap items-center gap-x-1 text-[13px] text-muted">
           {item.tipo === "peca" ? "Peça" : "Serviço"} · {qtd(item.quantidade)}
           {valores && <> × {formatBRL(item.valorUnitario)}</>}
           {item.recusado && <span className="font-medium text-danger"> · Recusado pelo cliente</span>}
+          {empresaItem && <EmpresaTag tipo={empresaItem.tipo} nome={empresaItem.nome} className="ml-1" />}
         </p>
       </div>
       {valores && (
@@ -117,47 +236,117 @@ function LinhaItem({
         </span>
       )}
       {editavel && (
-        <Button
-          variant="ghost"
-          className="px-2"
-          disabled={pending}
-          onClick={() => {
-            if (confirm(`Remover “${item.descricao}” da OS?`)) start(() => removerItem(osId, item.id));
-          }}
-          aria-label={`Remover ${item.descricao}`}
-        >
-          <Trash2 />
-        </Button>
+        <div className="flex">
+          <Button variant="ghost" className="px-2" disabled={pending} onClick={() => setEditando(true)} aria-label={`Alterar ${item.descricao}`}>
+            <Pencil />
+          </Button>
+          <Button
+            variant="ghost"
+            className="px-2"
+            disabled={pending}
+            onClick={() => {
+              if (confirm(`Remover “${item.descricao}” da OS?`)) start(() => removerItem(osId, item.id));
+            }}
+            aria-label={`Remover ${item.descricao}`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
       )}
     </li>
   );
 }
 
-function NovoItem({ osId }: { osId: string }) {
-  const { state, pending, onSubmit } = useFormAction(adicionarItem.bind(null, osId));
+type AcaoItem = (prev: { erro?: string; ok?: boolean } | undefined, form: FormData) => Promise<{ erro?: string; ok?: boolean } | undefined>;
+
+function FormItem({
+  acao,
+  item,
+  empresas,
+  empresaOS,
+  rotulo,
+  onDone,
+  onCancel,
+  limparAoSalvar = false,
+}: {
+  acao: AcaoItem;
+  item?: Item;
+  empresas: EmpresaOpcao[];
+  empresaOS?: string;
+  rotulo: string;
+  onDone?: () => void;
+  onCancel?: () => void;
+  limparAoSalvar?: boolean;
+}) {
   const form = useRef<HTMLFormElement>(null);
+  const { state, pending, onSubmit } = useFormAction(async (prev: Awaited<ReturnType<AcaoItem>>, dados: FormData) => {
+    const r = await acao(prev, dados);
+    if (r?.ok) onDone?.();
+    return r;
+  });
   useEffect(() => {
-    if (state?.ok) {
+    if (state?.ok && limparAoSalvar) {
       form.current?.reset();
       form.current?.querySelector<HTMLInputElement>("[name=descricao]")?.focus();
     }
-  }, [state]);
+  }, [state, limparAoSalvar]);
+  const mista = empresas.length > 1;
 
   return (
-    <form ref={form} onSubmit={onSubmit} className="flex flex-col gap-2 border-t border-border bg-subtle/60 px-4 py-3 sm:px-5">
-      <div className="grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[110px_1fr_72px_120px_auto]">
-        <select name="tipo" aria-label="Tipo" defaultValue="servico" className={cn(inputClass, "h-10")}>
+    <form ref={form} onSubmit={onSubmit} className="flex flex-col gap-2">
+      <div className={cn("grid grid-cols-[1fr_1fr] gap-2", mista ? "sm:grid-cols-[110px_1fr_72px_120px_130px_auto]" : "sm:grid-cols-[110px_1fr_72px_120px_auto]")}>
+        <select name="tipo" aria-label="Tipo" defaultValue={item?.tipo ?? "servico"} className={cn(inputClass, "h-10")}>
           <option value="servico">Serviço</option>
           <option value="peca">Peça</option>
         </select>
-        <Input name="descricao" aria-label="Descrição" placeholder="Descrição" required className="col-span-2 h-10 sm:col-span-1 max-sm:order-first" />
-        <Input name="quantidade" aria-label="Quantidade" defaultValue="1" inputMode="decimal" className="h-10 text-right" />
-        <Input name="valor" aria-label="Valor unitário (R$)" placeholder="R$ 0,00" inputMode="decimal" required className="h-10 text-right" />
-        <Button variant="primary" className="h-10" disabled={pending}>
-          <Plus />Adicionar
-        </Button>
+        <Input
+          name="descricao"
+          aria-label="Descrição"
+          placeholder="Descrição"
+          defaultValue={item?.descricao}
+          required
+          className="col-span-2 h-10 sm:col-span-1 max-sm:order-first"
+        />
+        <Input name="quantidade" aria-label="Quantidade" defaultValue={item ? qtd(item.quantidade) : "1"} inputMode="decimal" className="h-10 text-right" />
+        <Input
+          name="valor"
+          aria-label="Valor unitário (R$)"
+          placeholder="R$ 0,00"
+          defaultValue={item ? valorTxt(item.valorUnitario) : undefined}
+          inputMode="decimal"
+          required
+          className="h-10 text-right"
+        />
+        {mista && (
+          <select name="empresaId" aria-label="Empresa do item" defaultValue={item?.empresaId ?? empresaOS} className={cn(inputClass, "h-10")}>
+            {empresas.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
+        )}
+        <div className={cn("flex gap-2", mista && "col-span-2 sm:col-span-1")}>
+          <Button variant="primary" className="h-10 flex-1" disabled={pending}>
+            {!item && <Plus />}
+            {rotulo}
+          </Button>
+          {onCancel && (
+            <Button type="button" variant="ghost" className="h-10" onClick={onCancel}>
+              Cancelar
+            </Button>
+          )}
+        </div>
       </div>
       <Erro>{state?.erro}</Erro>
     </form>
+  );
+}
+
+function NovoItem({ osId, empresas, empresaOS }: { osId: string; empresas: EmpresaOpcao[]; empresaOS?: string }) {
+  return (
+    <div className="border-t border-border bg-subtle/60 px-4 py-3 sm:px-5">
+      <FormItem acao={adicionarItem.bind(null, osId)} empresas={empresas} empresaOS={empresaOS} rotulo="Adicionar" limparAoSalvar />
+    </div>
   );
 }

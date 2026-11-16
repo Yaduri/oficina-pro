@@ -7,11 +7,14 @@ import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import type { Acao } from "@/lib/permissoes";
+import { registrarEvento } from "@/lib/os-acesso";
+import { STATUS } from "@/lib/os";
 import { atualizarStatusOS } from "@/lib/queries";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
 import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
-import { novoToken, totalItens } from "@/lib/orcamento";
-import { PLACA_RE, formatPlaca, parseValor, soDigitos } from "@/lib/utils";
+import { novoToken } from "@/lib/orcamento";
+import { PLACA_RE, formatBRL, formatPlaca, parseValor, soDigitos } from "@/lib/utils";
+import { calcularTotais } from "@/lib/os-total";
 
 const statusEnum = z.enum(["diagnostico", "aguardando_aprovacao", "aguardando_peca", "em_execucao", "pronto", "entregue", "cancelada"]);
 
@@ -25,10 +28,13 @@ export async function moverOS(osId: string, status: string) {
   const parsed = z.object({ osId: z.uuid(), status: statusEnum }).safeParse({ osId, status });
   if (!parsed.success) return { ok: false, erro: "Dados inválidos" };
 
-  const { oficina, empresas, pode } = await getContexto();
+  const ctx = await getContexto();
+  const { oficina, empresas, pode } = ctx;
+  // A entrega tem formulário próprio (km de saída, garantia, assinatura)
+  if (parsed.data.status === "entregue") return { ok: false, erro: "Use “Entregar veículo” na tela da OS" };
   if (!pode("fecharOS")) {
     // Técnico movimenta a OS no quadro, mas não entrega, cancela nem reabre
-    if (parsed.data.status === "entregue" || parsed.data.status === "cancelada") return { ok: false, erro: "Seu usuário não pode entregar ou cancelar OS" };
+    if (parsed.data.status === "cancelada") return { ok: false, erro: "Seu usuário não pode cancelar OS" };
     const db = await getDb();
     const [atual] = await db
       .select({ status: schema.ordensServico.status })
@@ -36,8 +42,16 @@ export async function moverOS(osId: string, status: string) {
       .where(and(eq(schema.ordensServico.id, parsed.data.osId), eq(schema.ordensServico.oficinaId, oficina.id)));
     if (atual && (atual.status === "entregue" || atual.status === "cancelada")) return { ok: false, erro: "Seu usuário não pode reabrir OS" };
   }
+  const db = await getDb();
+  const [antes] = await db
+    .select({ status: schema.ordensServico.status })
+    .from(schema.ordensServico)
+    .where(and(eq(schema.ordensServico.id, parsed.data.osId), eq(schema.ordensServico.oficinaId, oficina.id)));
   const ok = await atualizarStatusOS(oficina.id, empresas.map((e) => e.id), parsed.data.osId, parsed.data.status);
   if (!ok) return { ok: false, erro: "OS não encontrada" };
+  if (antes && antes.status !== parsed.data.status) {
+    await registrarEvento(db, oficina.id, parsed.data.osId, `Status: ${STATUS[antes.status].label} → ${STATUS[parsed.data.status].label}`, ctx);
+  }
 
   revalidarOS(parsed.data.osId);
   return { ok: true };
@@ -181,6 +195,7 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
     }
     return nova.id;
   });
+  await registrarEvento(db, oficina.id, osId, "Abriu a OS", await getContexto());
 
   revalidarOS();
   revalidatePath("/clientes");
@@ -206,7 +221,7 @@ async function osDaOficina(osId: string, itemId?: string, acao?: Acao) {
         inArray(schema.ordensServico.empresaId, empresas.map((e) => e.id)),
       ),
     );
-  return o ? { db, os: o } : null;
+  return o ? { db, os: o, oficinaId: oficina.id } : null;
 }
 
 export type ItemState = { erro?: string; ok?: boolean } | undefined;
@@ -221,14 +236,25 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
   if (!item.success) return { erro: item.error.issues[0].message };
   const r = await osDaOficina(osId, undefined, "editarItens");
   if (!r) return { erro: "OS não encontrada ou sem permissão" };
+  // OS mista: o item pode ser de outra empresa que o usuário vê
+  const ctx = await getContexto();
+  const empresaId = f(form, "empresaId") || r.os.empresaId;
+  if (!ctx.empresas.some((e) => e.id === empresaId)) return { erro: "Empresa não permitida" };
   await r.db.insert(schema.osItens).values({
     osId,
-    empresaId: r.os.empresaId,
+    empresaId,
     tipo: item.data.tipo,
     descricao: item.data.descricao,
     quantidade: String(item.data.quantidade),
     valorUnitario: item.data.valor.toFixed(2),
   });
+  await registrarEvento(
+    r.db,
+    r.oficinaId,
+    osId,
+    `Adicionou ${item.data.tipo === "peca" ? "a peça" : "o serviço"} “${item.data.descricao}” (${formatBRL(item.data.quantidade * item.data.valor)})`,
+    await getContexto(),
+  );
   revalidarOS(osId);
   return { ok: true };
 }
@@ -236,17 +262,25 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
 export async function marcarItem(osId: string, itemId: string, concluido: boolean) {
   const r = await osDaOficina(osId, itemId);
   if (!r) return;
-  await r.db
+  const [item] = await r.db
     .update(schema.osItens)
     .set({ concluido })
-    .where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)));
+    .where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)))
+    .returning({ descricao: schema.osItens.descricao });
+  if (item) {
+    await registrarEvento(r.db, r.oficinaId, osId, `${concluido ? "Concluiu" : "Desmarcou"} “${item.descricao}”`, await getContexto());
+  }
   revalidarOS(osId);
 }
 
 export async function removerItem(osId: string, itemId: string) {
   const r = await osDaOficina(osId, itemId, "editarItens");
   if (!r) return;
-  await r.db.delete(schema.osItens).where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)));
+  const [item] = await r.db
+    .delete(schema.osItens)
+    .where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)))
+    .returning({ descricao: schema.osItens.descricao });
+  if (item) await registrarEvento(r.db, r.oficinaId, osId, `Removeu o item “${item.descricao}”`, await getContexto());
   revalidarOS(osId);
 }
 
@@ -269,7 +303,11 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
   const { userId, oficina } = await getContexto();
 
   const [atual] = await r.db
-    .select({ status: schema.ordensServico.status })
+    .select({
+      status: schema.ordensServico.status,
+      descontoPercentual: schema.ordensServico.descontoPercentual,
+      descontoValor: schema.ordensServico.descontoValor,
+    })
     .from(schema.ordensServico)
     .where(eq(schema.ordensServico.id, osId));
   if (atual.status === "entregue" || atual.status === "cancelada") return { erro: "A OS está fechada" };
@@ -284,7 +322,11 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
     quantidade: Number(i.quantidade),
     valorUnitario: Number(i.valorUnitario),
   }));
-  const total = totalItens(copia);
+  // O desconto da OS vale sobre todos os itens enviados (recusas anteriores são zeradas)
+  const totais = calcularTotais(copia, {
+    percentual: atual.descontoPercentual != null ? Number(atual.descontoPercentual) : null,
+    valor: Number(atual.descontoValor),
+  });
   const agora = new Date();
 
   await r.db.transaction(async (tx) => {
@@ -297,7 +339,8 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
       osId,
       token: novoToken(),
       itens: copia,
-      total: total.toFixed(2),
+      total: totais.total.toFixed(2),
+      desconto: totais.desconto.toFixed(2),
       observacao: dados.data.observacao || null,
       validoAte: new Date(agora.getTime() + dados.data.dias * 86_400_000),
       enviadoPor: userId,
@@ -309,6 +352,7 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
       .set({ status: "aguardando_aprovacao", aprovacaoEnviadaEm: agora })
       .where(eq(schema.ordensServico.id, osId));
   });
+  await registrarEvento(r.db, oficina.id, osId, `Enviou o orçamento (${formatBRL(totais.total)}) para o cliente`, await getContexto());
 
   revalidarOS(osId);
   revalidatePath("/orcamentos");
@@ -323,6 +367,7 @@ export async function cancelarOrcamento(osId: string) {
     .update(schema.orcamentos)
     .set({ status: "substituido" })
     .where(and(eq(schema.orcamentos.osId, osId), eq(schema.orcamentos.status, "pendente")));
+  await registrarEvento(r.db, r.oficinaId, osId, "Cancelou o link do orçamento", await getContexto());
   revalidarOS(osId);
   revalidatePath("/orcamentos");
 }

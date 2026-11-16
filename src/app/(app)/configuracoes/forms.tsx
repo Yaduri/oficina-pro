@@ -279,6 +279,7 @@ type Textos = {
   textoTermoCheckin: string | null;
   obsOrcamento: string | null;
   validadeOrcamentoDias: number;
+  garantiaDias: number;
 };
 
 export function TextosForm({ textos }: { textos: Textos }) {
@@ -288,6 +289,7 @@ export function TextosForm({ textos }: { textos: Textos }) {
     <Card>
       <form onSubmit={onSubmit}>
         <div className="flex flex-col gap-5 px-5 py-5">
+          <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
           <Campo label="Garantia dos serviços" htmlFor="tx-garantia">
             <Textarea
               id="tx-garantia"
@@ -297,6 +299,10 @@ export function TextosForm({ textos }: { textos: Textos }) {
               placeholder="Ex.: Garantia de 90 dias para serviços e conforme o fabricante para peças, a partir da entrega do veículo."
             />
           </Campo>
+          <Campo label="Garantia padrão" hint="(dias, sugerida na entrega)" htmlFor="tx-garantia-dias">
+            <Input id="tx-garantia-dias" name="garantiaDias" type="number" inputMode="numeric" min={0} max={3650} defaultValue={textos.garantiaDias} required />
+          </Campo>
+          </div>
           <Campo label="Termo de entrada do veículo" hint="(aparece acima da assinatura no check-in)" htmlFor="tx-termo">
             <Textarea id="tx-termo" name="textoTermoCheckin" rows={3} defaultValue={textos.textoTermoCheckin ?? ""} placeholder={TERMO_PADRAO} />
           </Campo>

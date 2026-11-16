@@ -67,6 +67,8 @@ export const oficinas = pgTable("oficinas", {
   textoTermoCheckin: text("texto_termo_checkin"),
   obsOrcamento: text("obs_orcamento"),
   validadeOrcamentoDias: integer("validade_orcamento_dias").notNull().default(15),
+  /** Garantia padrão sugerida na entrega do veículo */
+  garantiaDias: integer("garantia_dias").notNull().default(90),
   criadoEm: criadoEm(),
 });
 
@@ -281,6 +283,16 @@ export const ordensServico = pgTable(
     previsaoPecaEm: timestamp("previsao_peca_em", { withTimezone: true }),
     clienteAvisadoEm: timestamp("cliente_avisado_em", { withTimezone: true }),
     entregueEm: timestamp("entregue_em", { withTimezone: true }),
+    previsaoEntregaEm: timestamp("previsao_entrega_em", { withTimezone: true }),
+    /** Desconto: percentual (sobre os itens não recusados) ou valor fixo */
+    descontoPercentual: numeric("desconto_percentual", { precision: 5, scale: 2 }),
+    descontoValor: numeric("desconto_valor", { precision: 12, scale: 2 }).notNull().default("0"),
+    /** Entrega do veículo */
+    kmSaida: integer("km_saida"),
+    garantiaAte: timestamp("garantia_ate", { withTimezone: true }),
+    entregaObs: text("entrega_obs"),
+    entregaAssinaturaKey: text("entrega_assinatura_key"),
+    entreguePor: text("entregue_por"),
     criadoEm: criadoEm(),
   },
   (t) => [
@@ -332,6 +344,8 @@ export const orcamentos = pgTable(
     itens: jsonb("itens").$type<ItemOrcamento[]>().notNull(),
     total: numeric("total", { precision: 12, scale: 2 }).notNull(),
     observacao: text("observacao"),
+    /** Desconto em R$ sobre o total dos itens enviados */
+    desconto: numeric("desconto", { precision: 12, scale: 2 }).notNull().default("0"),
     validoAte: timestamp("valido_ate", { withTimezone: true }).notNull(),
     status: statusOrcamento("status").notNull().default("pendente"),
     enviadoPor: text("enviado_por").notNull(),
@@ -344,6 +358,36 @@ export const orcamentos = pgTable(
     itensAprovados: jsonb("itens_aprovados").$type<string[]>(),
   },
   (t) => [index("orcamentos_os_idx").on(t.osId), index("orcamentos_oficina_idx").on(t.oficinaId, t.criadoEm)],
+);
+
+/** Histórico da OS: quem fez o quê e quando */
+export const osEventos = pgTable(
+  "os_eventos",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
+    descricao: text("descricao").notNull(),
+    /** Id do Clerk; nulo quando foi o cliente (link do orçamento) */
+    usuarioId: text("usuario_id"),
+    usuarioNome: text("usuario_nome"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("os_eventos_os_idx").on(t.osId, t.criadoEm)],
+);
+
+/** Fotos tiradas durante o serviço (peça trocada, antes/depois) */
+export const osFotos = pgTable(
+  "os_fotos",
+  {
+    id: id(),
+    osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    legenda: text("legenda"),
+    criadoPor: text("criado_por").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("os_fotos_os_idx").on(t.osId)],
 );
 
 export const agendamentos = pgTable(

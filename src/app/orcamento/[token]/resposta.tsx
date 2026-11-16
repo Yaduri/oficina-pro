@@ -6,6 +6,7 @@ import { Button, Campo, Erro, Input, Textarea } from "@/components/ui";
 import type { ItemOrcamento } from "@/db/schema";
 import { useFormAction } from "@/lib/use-form-action";
 import { cn, formatBRL } from "@/lib/utils";
+import { totalSelecionado } from "@/lib/os-total";
 import { responderOrcamento } from "./actions";
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -13,15 +14,17 @@ const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 
 export function RespostaOrcamento({
   token,
   itens,
+  desconto,
   nomeInicial,
 }: {
   token: string;
   itens: ItemOrcamento[];
+  desconto: number;
   nomeInicial: string;
 }) {
   const { state, pending, onSubmit } = useFormAction(responderOrcamento.bind(null, token));
   const [marcados, setMarcados] = useState<Set<string>>(() => new Set(itens.map((i) => i.id)));
-  const total = itens.filter((i) => marcados.has(i.id)).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);
+  const { desconto: descontoSel, total } = totalSelecionado(itens, marcados, desconto);
   const todos = marcados.size === itens.length;
 
   const alternar = (id: string) =>
@@ -67,6 +70,12 @@ export function RespostaOrcamento({
             );
           })}
         </ul>
+        {desconto > 0 && (
+          <div className="flex justify-between border-t border-border px-4 py-2.5 text-[14px] text-foreground-2 sm:px-5">
+            <span>Desconto</span>
+            <span className="tabular-nums">− {formatBRL(descontoSel)}</span>
+          </div>
+        )}
         <div className="flex justify-between border-t border-border px-4 py-3 text-[16px] font-semibold sm:px-5">
           <span>{todos ? "Total" : "Total selecionado"}</span>
           <span className="tabular-nums">{formatBRL(total)}</span>

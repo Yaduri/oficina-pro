@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
+import { registrarEvento } from "@/lib/os-acesso";
 import { TERMO_PADRAO } from "@/lib/textos";
 import { listarChecklist } from "@/lib/checklist-dados";
 import type { ItemChecklistRegistrado } from "@/db/schema";
@@ -45,7 +46,8 @@ const checkinSchema = z.object({
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 export async function criarCheckin(_prev: CheckinState, form: FormData): Promise<CheckinState> {
-  const { oficina, empresas, userId } = await getContexto();
+  const ctx = await getContexto();
+  const { oficina, empresas, userId } = ctx;
 
   let fotos: unknown = [];
   let checklist: unknown = [];
@@ -124,16 +126,20 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
     // Uma OS por empresa escolhida, já ligada ao check-in
     let numero = await proximoNumeroOS(tx, oficina.id);
     for (const empresaId of d.empresaIds) {
-      await tx.insert(schema.ordensServico).values({
-        oficinaId: oficina.id,
-        empresaId,
-        numero: numero++,
-        checkinId: checkin.id,
-        veiculoId,
-        clienteId,
-        descricao: d.relato,
-        kmEntrada: d.km,
-      });
+      const [nova] = await tx
+        .insert(schema.ordensServico)
+        .values({
+          oficinaId: oficina.id,
+          empresaId,
+          numero: numero++,
+          checkinId: checkin.id,
+          veiculoId,
+          clienteId,
+          descricao: d.relato,
+          kmEntrada: d.km,
+        })
+        .returning({ id: schema.ordensServico.id });
+      await registrarEvento(tx, oficina.id, nova.id, "Abriu a OS pelo check-in", ctx);
     }
     return checkin.id;
   });

@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { Avatar, Badge, Card, CardHeader, EmpresaTag, Placa, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
-import { obterOS } from "@/lib/queries";
+import { eventosDaOS, fotosDaOS, listarTecnicos, obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
 import { formatBRL, formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
-import { STATUS_ORCAMENTO, orcamentoDesatualizado, totalItens, ultimoOrcamento, urlBase } from "@/lib/orcamento";
+import { STATUS_ORCAMENTO, orcamentoDesatualizado, ultimoOrcamento, urlBase } from "@/lib/orcamento";
+import { calcularTotais, totalSelecionado } from "@/lib/os-total";
 import { checklistDoCheckin, fotosDoCheckin } from "@/lib/checkin-dados";
 import { ChecklistResumo } from "@/components/checklist-registrado";
 import { ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
@@ -14,14 +15,18 @@ import { urlArquivo } from "@/lib/storage";
 import { MoverOS } from "../mover-os";
 import { ItensOS } from "./itens";
 import { OrcamentoOS, type ResumoOrcamento } from "./orcamento";
+import { DadosOS } from "./dados-os";
+import { EntregarOS } from "./entrega";
+import { TransferirOS } from "./transferir";
+import { FotosServico } from "./fotos-servico";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
 async function carregar(id: string) {
   if (!UUID.test(id)) return null;
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, empresas, pode, userId } = await getContexto();
   const dados = await obterOS(oficina.id, empresas.map((e) => e.id), id);
-  return dados && { ...dados, oficina, pode };
+  return dados && { ...dados, oficina, pode, empresas, userId };
 }
 
 export async function generateMetadata({ params }: PageProps<"/ordens-servico/[id]">) {
@@ -29,17 +34,34 @@ export async function generateMetadata({ params }: PageProps<"/ordens-servico/[i
   return { title: dados ? `OS #${dados.os.numero}` : "OS" };
 }
 
+/** Data no formato do input type="date", no fuso de São Paulo */
+const dia = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+
+/** Data de garantia sugerida na entrega (hoje + dias configurados) */
+function garantiaSugerida(dias: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return dia(d);
+}
+
 export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]">) {
   const dados = await carregar((await params).id);
   if (!dados) notFound();
-  const { os, veiculo, cliente, responsavel, empresa, itens, oficina, pode } = dados;
+  const { os, veiculo, cliente, responsavel, empresa, itens, oficina, pode, empresas, userId } = dados;
   const valores = pode("verValores");
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
-  const [fotos, checklist] = os.checkinId
-    ? await Promise.all([fotosDoCheckin(os.checkinId), checklistDoCheckin(os.checkinId)])
-    : [[], null];
-  const orc = valores ? await ultimoOrcamento(os.id) : null;
+  const [[fotos, checklist], orc, fotosServico, eventos, tecnicos] = await Promise.all([
+    os.checkinId ? Promise.all([fotosDoCheckin(os.checkinId), checklistDoCheckin(os.checkinId)]) : Promise.resolve([[], null] as const),
+    valores ? ultimoOrcamento(os.id) : Promise.resolve(null),
+    fotosDaOS(os.id),
+    eventosDaOS(os.id),
+    listarTecnicos(oficina.id),
+  ]);
+  const desconto = { percentual: os.descontoPercentual != null ? Number(os.descontoPercentual) : null, valor: Number(os.descontoValor) };
+  const opcoesEmpresas = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
+  const garantiaPadrao = garantiaSugerida(oficina.garantiaDias);
+
   let resumo: ResumoOrcamento | null = null;
   if (orc) {
     const url = `${await urlBase()}/orcamento/${orc.token}`;
@@ -63,9 +85,12 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
       respostaNome: orc.respostaNome,
       respostaComentario: orc.respostaComentario,
       total: formatBRL(Number(orc.total)),
-      totalAprovado: orc.status === "parcial" ? formatBRL(totalItens(orc.itens.filter((i) => aprovados.has(i.id)))) : null,
+      totalAprovado: orc.status === "parcial" ? formatBRL(totalSelecionado(orc.itens, aprovados, Number(orc.desconto)).total) : null,
       recusados: respondido ? orc.itens.filter((i) => !aprovados.has(i.id)).length : 0,
-      desatualizado: orcamentoDesatualizado(orc.itens, itens),
+      // Itens ou desconto mudaram depois do envio
+      desatualizado:
+        orcamentoDesatualizado(orc.itens, itens) ||
+        Math.abs(calcularTotais(itens.map((i) => ({ ...i, recusado: false })), desconto).desconto - Number(orc.desconto)) > 0.009,
     };
   }
 
@@ -82,7 +107,10 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             <Badge tom={STATUS[os.status].tom}>{STATUS[os.status].label}</Badge>
             <EmpresaTag tipo={empresa.tipo} nome={empresa.nome} />
           </div>
-          <p className="text-muted">Entrada {formatEntrada(os.entradaEm).toLowerCase()}</p>
+          <p className="text-muted">
+            Entrada {formatEntrada(os.entradaEm).toLowerCase()}
+            {os.previsaoEntregaEm && !fechada && <> · previsão de entrega {formatData(os.previsaoEntregaEm)}</>}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           {whats && (
@@ -91,15 +119,23 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             </a>
           )}
           <MoverOS osId={os.id} status={os.status} grande podeFechar={pode("fecharOS")} />
+          {!fechada && pode("fecharOS") && (
+            <EntregarOS osId={os.id} kmEntrada={os.kmEntrada} garantiaPadrao={garantiaPadrao} textoGarantia={oficina.textoGarantia} />
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <Card>
-            <CardHeader title="Problema relatado" />
-            <p className="whitespace-pre-line px-5 py-4">{os.descricao}</p>
-          </Card>
+          <DadosOS
+            osId={os.id}
+            descricao={os.descricao}
+            responsavel={responsavel?.nome ?? null}
+            kmEntrada={os.kmEntrada}
+            previsao={os.previsaoEntregaEm ? dia(os.previsaoEntregaEm) : null}
+            tecnicos={tecnicos.map((t) => t.nome)}
+            editavel={!fechada && pode("abrirOS")}
+          />
 
           {os.checkinId && (
             <Card>
@@ -153,18 +189,39 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
                 )
               }
             />
-            <ItensOS osId={os.id} itens={itens} editavel={!fechada && pode("editarItens")} valores={valores} marcavel={!fechada} />
+            <ItensOS
+              osId={os.id}
+              itens={itens}
+              editavel={!fechada && pode("editarItens")}
+              valores={valores}
+              marcavel={!fechada}
+              empresas={opcoesEmpresas}
+              empresaOS={os.empresaId}
+              desconto={desconto}
+            />
           </Card>
 
           {valores && (
-          <OrcamentoOS
-            osId={os.id}
-            orcamento={resumo}
-            podeEnviar={!fechada && pode("orcamento")}
-            semItens={itens.length === 0}
-            padrao={{ observacao: oficina.obsOrcamento ?? "", dias: oficina.validadeOrcamentoDias }}
-          />
+            <OrcamentoOS
+              osId={os.id}
+              orcamento={resumo}
+              podeEnviar={!fechada && pode("orcamento")}
+              semItens={itens.length === 0}
+              padrao={{ observacao: oficina.obsOrcamento ?? "", dias: oficina.validadeOrcamentoDias }}
+            />
           )}
+
+          <FotosServico
+            osId={os.id}
+            podeAdicionar={pode("checkin")}
+            fotos={fotosServico.map((f) => ({
+              id: f.id,
+              url: urlArquivo(f.key),
+              legenda: f.legenda,
+              quando: formatEntrada(f.criadoEm),
+              podeRemover: f.criadoPor === userId || pode("editarItens"),
+            }))}
+          />
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
@@ -190,6 +247,12 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
                 )}
                 <dt className="text-muted">Km de entrada</dt>
                 <dd className="tabular-nums">{os.kmEntrada != null ? os.kmEntrada.toLocaleString("pt-BR") : "—"}</dd>
+                {os.kmSaida != null && (
+                  <>
+                    <dt className="text-muted">Km de saída</dt>
+                    <dd className="tabular-nums">{os.kmSaida.toLocaleString("pt-BR")}</dd>
+                  </>
+                )}
               </dl>
             </div>
           </Card>
@@ -213,7 +276,15 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
 
           <Card>
             <CardHeader title="Andamento" />
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-5 py-4 text-[13px]">
+            <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-5 py-4 text-[13px]">
+              <dt className="text-muted">Empresa</dt>
+              <dd>
+                {!fechada && pode("abrirOS") && opcoesEmpresas.length > 1 ? (
+                  <TransferirOS osId={os.id} empresaAtual={os.empresaId} empresas={opcoesEmpresas} />
+                ) : (
+                  empresa.nome
+                )}
+              </dd>
               <dt className="text-muted">Responsável</dt>
               <dd className="flex items-center gap-1.5">
                 {responsavel ? (
@@ -227,6 +298,12 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               </dd>
               <dt className="text-muted">Entrada</dt>
               <dd>{formatData(os.entradaEm)}</dd>
+              {os.previsaoEntregaEm && (
+                <>
+                  <dt className="text-muted">Previsão</dt>
+                  <dd>{formatData(os.previsaoEntregaEm)}</dd>
+                </>
+              )}
               {os.aprovacaoEnviadaEm && (
                 <>
                   <dt className="text-muted">Orçamento enviado</dt>
@@ -237,9 +314,49 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
                 <>
                   <dt className="text-muted">Entregue</dt>
                   <dd>{formatEntrada(os.entregueEm)}</dd>
+                  {os.garantiaAte && (
+                    <>
+                      <dt className="text-muted">Garantia até</dt>
+                      <dd>{formatData(os.garantiaAte)}</dd>
+                    </>
+                  )}
                 </>
               )}
             </dl>
+            {os.status === "entregue" && (os.entregaObs || os.entregaAssinaturaKey) && (
+              <div className="flex flex-col gap-2 border-t border-border px-5 py-4 text-[13px]">
+                {os.entregaObs && <p className="whitespace-pre-line">{os.entregaObs}</p>}
+                {os.entregaAssinaturaKey && (
+                  <>
+                    <p className="text-muted">Assinatura de retirada</p>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- arquivo autenticado servido por /arquivos */}
+                    <img
+                      src={urlArquivo(os.entregaAssinaturaKey)}
+                      alt="Assinatura de retirada do cliente"
+                      className="h-24 w-full rounded-md border border-border bg-white object-contain"
+                    />
+                  </>
+                )}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader title="Histórico" />
+            {eventos.length === 0 ? (
+              <p className="px-5 py-4 text-[13px] text-muted">Sem registros.</p>
+            ) : (
+              <ol className="flex max-h-96 flex-col gap-3 overflow-y-auto px-5 py-4 text-[13px]">
+                {eventos.map((e) => (
+                  <li key={e.id} className="flex flex-col">
+                    <span>{e.descricao}</span>
+                    <span className="text-xs text-muted">
+                      {e.usuarioNome ?? "—"} · {formatEntrada(e.criadoEm)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </Card>
         </div>
       </div>

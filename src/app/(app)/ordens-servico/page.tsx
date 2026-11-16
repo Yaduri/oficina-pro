@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCheck, Columns3, List, ListChecks, MessageCircle, Plus, Truck } from "lucide-react";
+import { AlertCircle, CheckCheck, ListChecks, MessageCircle, Plus, Truck } from "lucide-react";
 import Link from "next/link";
 import { Avatar, EmpresaTag, PageHeader, Placa, buttonClass } from "@/components/ui";
 import { empresasFiltradas } from "@/lib/oficina";
@@ -6,6 +6,7 @@ import { listarOSAbertas, type OSResumo } from "@/lib/queries";
 import { COLUNAS, STATUS } from "@/lib/os";
 import { formatBRL, formatHora, tempoDesde } from "@/lib/utils";
 import { MoverOS } from "./mover-os";
+import { AbasOS } from "./abas";
 
 export const metadata = { title: "Ordens de serviço" };
 
@@ -30,14 +31,7 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
         }
       />
 
-      <div className="flex gap-1 border-b border-border">
-        <span className="-mb-px flex items-center gap-2 border-b-2 border-foreground px-3 py-2 font-medium">
-          <Columns3 className="size-[18px]" strokeWidth={1.75} />Quadro
-        </span>
-        <span className="flex items-center gap-2 px-3 py-2 font-medium text-muted" title="Em breve">
-          <List className="size-[18px]" strokeWidth={1.75} />Lista
-        </span>
-      </div>
+      <AbasOS atual="quadro" empresaId={selecionada?.id} />
 
       {/* No celular as colunas rolam na horizontal */}
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 lg:overflow-visible">
@@ -99,7 +93,14 @@ function CartaoOS({ os, valores, podeFechar }: { os: OSResumo; valores: boolean;
         )}
       </div>
       </Link>
-      <MoverOS osId={os.id} status={os.status} podeFechar={podeFechar} />
+      <div className="flex items-center gap-2">
+        <MoverOS osId={os.id} status={os.status} podeFechar={podeFechar} />
+        {os.status === "pronto" && podeFechar && (
+          <Link href={`/ordens-servico/${os.id}#entregar`} className="text-xs font-medium underline-offset-4 hover:underline">
+            Entregar
+          </Link>
+        )}
+      </div>
     </article>
   );
 }

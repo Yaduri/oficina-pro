@@ -19,15 +19,11 @@ export function MoverOS({
   podeFechar?: boolean;
 }) {
   const [pending, start] = useTransition();
-  // Na tela da OS também é possível cancelar e reabrir uma OS entregue/cancelada
+  // A entrega tem formulário próprio ("Entregar veículo"). Na tela da OS também dá para cancelar
+  // e reabrir uma OS entregue/cancelada (escolhendo uma coluna do quadro).
   const fechada = status === "entregue" || status === "cancelada";
-  const opcoes: StatusOS[] = !podeFechar
-    ? fechada
-      ? [status]
-      : COLUNAS
-    : grande
-      ? [...COLUNAS, "entregue", "cancelada"]
-      : [...COLUNAS, "entregue"];
+  const base: StatusOS[] = podeFechar && grande ? [...COLUNAS, "cancelada"] : COLUNAS;
+  const opcoes: StatusOS[] = !podeFechar && fechada ? [status] : base.includes(status) ? base : [status, ...base];
 
   return (
     <label className="relative inline-flex items-center">
@@ -52,10 +48,10 @@ export function MoverOS({
           <option key={s} value={s}>
             {s === status
               ? STATUS[s].label
-              : s === "entregue"
-                ? "Entregar ao cliente"
-                : s === "cancelada"
-                  ? "Cancelar OS"
+              : s === "cancelada"
+                ? "Cancelar OS"
+                : fechada
+                  ? `Reabrir em: ${STATUS[s].label}`
                   : `${grande ? "" : "Mover: "}${STATUS[s].label}`}
           </option>
         ))}

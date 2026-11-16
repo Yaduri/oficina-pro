@@ -4,7 +4,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { CheckCircle2, Clock, MessageCircle, Phone, XCircle } from "lucide-react";
 import { getDb, schema } from "@/db";
 import { Badge, Placa } from "@/components/ui";
-import { STATUS_ORCAMENTO, orcamentoPorToken, totalItens } from "@/lib/orcamento";
+import { STATUS_ORCAMENTO, orcamentoPorToken } from "@/lib/orcamento";
+import { totalSelecionado } from "@/lib/os-total";
 import { formatBRL, formatData, formatEntrada, linkWhatsApp } from "@/lib/utils";
 import { identificacao } from "@/lib/identificacao";
 import { RespostaOrcamento } from "./resposta";
@@ -34,7 +35,8 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   const aberto = orc.status === "pendente" && !vencido && !osFechada;
   const aprovados = new Set(orc.itensAprovados ?? []);
   const respondido = orc.status === "aprovado" || orc.status === "parcial" || orc.status === "recusado";
-  const totalAprovado = totalItens(orc.itens.filter((i) => aprovados.has(i.id)));
+  const desconto = Number(orc.desconto);
+  const totalAprovado = totalSelecionado(orc.itens, aprovados, desconto).total;
   const id = identificacao(oficina, empresa);
   const whatsOficina = linkWhatsApp(oficina.whatsapp);
   const statusExibido = vencido
@@ -137,7 +139,7 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
         )}
 
         {aberto ? (
-          <RespostaOrcamento token={token} itens={orc.itens} nomeInicial={cliente?.nome ?? ""} />
+          <RespostaOrcamento token={token} itens={orc.itens} desconto={desconto} nomeInicial={cliente?.nome ?? ""} />
         ) : (
           <section className="rounded-lg border border-border bg-card shadow-card">
             <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold sm:px-5">Peças e serviços</h2>
@@ -160,6 +162,14 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
                 );
               })}
             </ul>
+            {desconto > 0 && (
+              <div className="flex justify-between border-t border-border px-4 py-2.5 text-[14px] text-foreground-2 sm:px-5">
+                <span>Desconto</span>
+                <span className="tabular-nums">
+                  − {formatBRL(respondido && orc.status !== "recusado" ? totalSelecionado(orc.itens, aprovados, desconto).desconto : desconto)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-border px-4 py-3 text-[15px] font-semibold sm:px-5">
               <span>{respondido && orc.status !== "recusado" ? "Total aprovado" : "Total"}</span>
               <span className="tabular-nums">

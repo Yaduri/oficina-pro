@@ -20,6 +20,7 @@ Complementa [arquitetura.md](arquitetura.md) (o "o quê" e o "porquê"); aqui es
 - [x] Configurações da oficina e das empresas (1.1)
 - [x] Usuários, papéis e convites (1.2)
 - [x] Checklist configurável no check-in (1.3)
+- [x] Ajustes da OS: edição, desconto, transferência, entrega, lista, histórico e fotos (1.5)
 
 ---
 
@@ -61,14 +62,15 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [ ] Enviar PDF pelo WhatsApp (link) e baixar
 
 ### 1.5 Ajustes da OS — **M**
-- [ ] Editar relato, responsável, km de entrada e previsão de entrega
-- [ ] Editar item (descrição, quantidade, valor) e escolher a empresa do item (OS mista)
-- [ ] Desconto na OS (valor ou %), por empresa
-- [ ] Transferir OS para a outra empresa (enquanto não faturada)
-- [ ] Entrega do veículo: confirmar km de saída, assinatura de retirada, data de garantia
-- [ ] Visualização em **lista** com filtros (status, empresa, período, técnico) além do quadro
-- [ ] Histórico de alterações da OS (quem mudou status, valores, itens)
-- [ ] Fotos durante o serviço (peça trocada, antes/depois)
+- [x] Editar relato, responsável, km de entrada e previsão de entrega
+- [x] Editar item (tipo, descrição, quantidade, valor) e escolher a empresa do item (OS mista, com subtotal por empresa)
+- [x] Desconto na OS (valor ou %); vai junto no orçamento e é aplicado proporcionalmente na aprovação parcial
+- [ ] Desconto separado por empresa em OS mista — fica para o faturamento (Fase 2), rateado pelo valor de cada empresa
+- [x] Transferir OS para a outra empresa (enquanto aberta)
+- [x] Entrega do veículo: km de saída, garantia (padrão configurável), observação e assinatura de retirada
+- [x] Visualização em **lista** com filtros (status, empresa, período, técnico, busca) além do quadro
+- [x] Histórico de alterações da OS (inclusive a resposta do cliente pelo link)
+- [x] Fotos durante o serviço (peça trocada, antes/depois), pelo celular
 
 ### 1.6 Cadastros que faltam — **M**
 - [ ] Excluir/arquivar cliente e veículo (bloquear se tiver OS; arquivar em vez de apagar)

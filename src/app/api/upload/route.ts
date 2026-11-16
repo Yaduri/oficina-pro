@@ -7,6 +7,8 @@ const MAX = 8 * 1024 * 1024;
 const PASTAS: Record<string, { max: number }> = {
   checkins: { max: MAX },
   logos: { max: 2 * 1024 * 1024 },
+  /** Fotos durante o serviço e assinatura de retirada */
+  os: { max: MAX },
 };
 
 /**

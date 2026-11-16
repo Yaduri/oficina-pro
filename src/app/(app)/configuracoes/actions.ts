@@ -166,8 +166,13 @@ export async function salvarTextos(_prev: ConfigState, form: FormData): Promise<
         .int("Use um número inteiro de dias")
         .min(1, "Validade mínima de 1 dia")
         .max(90, "Validade máxima de 90 dias"),
+      garantiaDias: z.coerce
+        .number({ error: "Garantia inválida" })
+        .int("Use um número inteiro de dias")
+        .min(0, "Garantia inválida")
+        .max(3650, "Garantia máxima de 10 anos"),
     })
-    .safeParse(campos(form, ["textoGarantia", "textoTermoCheckin", "obsOrcamento", "validadeOrcamentoDias"]));
+    .safeParse(campos(form, ["textoGarantia", "textoTermoCheckin", "obsOrcamento", "validadeOrcamentoDias", "garantiaDias"]));
   if (!dados.success) return { erro: dados.error.issues[0].message };
 
   const db = await getDb();

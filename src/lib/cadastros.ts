@@ -1,4 +1,5 @@
 import "server-only";
+import { totalOS } from "@/lib/queries";
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { formatPlaca, soDigitos } from "@/lib/utils";
@@ -8,7 +9,7 @@ import { formatPlaca, soDigitos } from "@/lib/utils";
  * Toda consulta filtra por oficina_id.
  */
 
-const { clientes, veiculos, ordensServico: os, osItens, empresas } = schema;
+const { clientes, veiculos, ordensServico: os, empresas } = schema;
 
 export type Cliente = typeof clientes.$inferSelect;
 export type Veiculo = typeof veiculos.$inferSelect;
@@ -85,7 +86,7 @@ export async function historicoCliente(oficinaId: string, empresaIds: string[], 
       modelo: veiculos.modelo,
       empresaNome: empresas.nome,
       empresaTipo: empresas.tipo,
-      total: sql<string>`coalesce((select sum(i.quantidade * i.valor_unitario) from ${osItens} i where i.os_id = ${os.id}), 0)`,
+      total: totalOS,
     })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
