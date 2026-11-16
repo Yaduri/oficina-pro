@@ -21,9 +21,21 @@ import {
 const id = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);
 const criadoEm = () => timestamp("criado_em", { withTimezone: true }).notNull().defaultNow();
 
+/** Colunas de endereço (CEP só com dígitos, UF com 2 letras) */
+const endereco = () => ({
+  cep: text("cep"),
+  logradouro: text("logradouro"),
+  numero: text("numero"),
+  complemento: text("complemento"),
+  bairro: text("bairro"),
+  cidade: text("cidade"),
+  uf: text("uf"),
+});
+
 export const tipoEmpresa = pgEnum("tipo_empresa", ["mecanica", "eletrica", "outra"]);
 export const papel = pgEnum("papel", ["dono", "gerente", "atendente", "tecnico", "financeiro"]);
 export const tipoPessoa = pgEnum("tipo_pessoa", ["pf", "pj"]);
+export const regimeTributario = pgEnum("regime_tributario", ["mei", "simples", "presumido", "real"]);
 export const statusOS = pgEnum("status_os", [
   "diagnostico",
   "aguardando_aprovacao",
@@ -43,6 +55,17 @@ export const oficinas = pgTable("oficinas", {
   /** Organization do Clerk; em contas sem organização usa "user_<id>" */
   clerkOrgId: text("clerk_org_id").notNull().unique(),
   nome: text("nome").notNull(),
+  telefone: text("telefone"),
+  whatsapp: text("whatsapp"),
+  email: text("email"),
+  ...endereco(),
+  /** Chave da logo no armazenamento */
+  logoKey: text("logo_key"),
+  /** Textos padrão usados no orçamento, termo de entrada e PDFs */
+  textoGarantia: text("texto_garantia"),
+  textoTermoCheckin: text("texto_termo_checkin"),
+  obsOrcamento: text("obs_orcamento"),
+  validadeOrcamentoDias: integer("validade_orcamento_dias").notNull().default(15),
   criadoEm: criadoEm(),
 });
 
@@ -52,12 +75,20 @@ export const empresas = pgTable(
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
     tipo: tipoEmpresa("tipo").notNull(),
+    /** Nome curto usado no sistema (ex.: "Mecânica") */
     nome: text("nome").notNull(),
     razaoSocial: text("razao_social"),
+    nomeFantasia: text("nome_fantasia"),
+    /** Só caracteres 0-9/A-Z (aceita o CNPJ alfanumérico) */
     cnpj: text("cnpj"),
-    regime: text("regime"),
+    regime: regimeTributario("regime"),
     inscricaoMunicipal: text("inscricao_municipal"),
     inscricaoEstadual: text("inscricao_estadual"),
+    telefone: text("telefone"),
+    email: text("email"),
+    /** Falso = usa o endereço da oficina */
+    enderecoProprio: boolean("endereco_proprio").notNull().default(false),
+    ...endereco(),
     criadoEm: criadoEm(),
   },
   (t) => [index("empresas_oficina_idx").on(t.oficinaId)],
@@ -142,6 +173,8 @@ export const checkins = pgTable(
     objetos: text("objetos"),
     /** Chave do arquivo da assinatura do cliente no armazenamento */
     assinaturaKey: text("assinatura_key"),
+    /** Texto do termo que o cliente viu ao assinar (cópia; mudanças nas Configurações não alteram) */
+    termo: text("termo"),
     criadoPor: text("criado_por").notNull(),
     criadoEm: criadoEm(),
   },

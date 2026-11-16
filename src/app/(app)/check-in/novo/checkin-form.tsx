@@ -55,11 +55,14 @@ export function CheckinForm({
   empresaPadrao,
   clientes,
   inicial,
+  termo,
 }: {
   empresas: { id: string; nome: string }[];
   empresaPadrao?: string;
   clientes: ClienteOpcao[];
   inicial: ResultadoPlaca | null;
+  /** Texto que o cliente lê antes de assinar */
+  termo: string;
 }) {
   const [state, dispatch, pending] = useActionState(criarCheckin, undefined);
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(inicial);
@@ -239,6 +242,7 @@ export function CheckinForm({
       </Secao>
 
       <Secao n={5} titulo="Assinatura do cliente" descricao="O cliente confirma o estado do veículo e os objetos deixados.">
+        <p className="text-[13px] text-foreground-2">{termo}</p>
         <Assinatura ref={assinatura} />
       </Secao>
 

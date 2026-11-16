@@ -19,7 +19,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
 async function carregar(id: string) {
   if (!UUID.test(id)) return null;
   const { oficina, empresas } = await getContexto();
-  return obterOS(oficina.id, empresas.map((e) => e.id), id);
+  const dados = await obterOS(oficina.id, empresas.map((e) => e.id), id);
+  return dados && { ...dados, oficina };
 }
 
 export async function generateMetadata({ params }: PageProps<"/ordens-servico/[id]">) {
@@ -30,7 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/ordens-servico/[i
 export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]">) {
   const dados = await carregar((await params).id);
   if (!dados) notFound();
-  const { os, veiculo, cliente, responsavel, empresa, itens } = dados;
+  const { os, veiculo, cliente, responsavel, empresa, itens, oficina } = dados;
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
   const fotos = os.checkinId ? await fotosDoCheckin(os.checkinId) : [];
@@ -137,7 +138,13 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             <ItensOS osId={os.id} itens={itens} editavel={!fechada} />
           </Card>
 
-          <OrcamentoOS osId={os.id} orcamento={resumo} podeEnviar={!fechada} semItens={itens.length === 0} />
+          <OrcamentoOS
+            osId={os.id}
+            orcamento={resumo}
+            podeEnviar={!fechada}
+            semItens={itens.length === 0}
+            padrao={{ observacao: oficina.obsOrcamento ?? "", dias: oficina.validadeOrcamentoDias }}
+          />
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">

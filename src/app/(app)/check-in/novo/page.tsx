@@ -5,6 +5,7 @@ import { empresasFiltradas } from "@/lib/oficina";
 import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
 import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { CheckinForm } from "./checkin-form";
+import { TERMO_PADRAO } from "@/lib/textos";
 
 export const metadata = { title: "Novo check-in" };
 
@@ -40,6 +41,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
           empresaPadrao={selecionada?.id}
           clientes={clientes}
           inicial={inicial}
+          termo={oficina.textoTermoCheckin ?? TERMO_PADRAO}
         />
       </Card>
     </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Settings } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Brand } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ type EmpresaResumo = { id: string; nome: string; tipo: TipoEmpresa };
 const dot: Record<TipoEmpresa, string> = { mecanica: "bg-mec", eletrica: "bg-ele", outra: "bg-muted" };
 const txt: Record<TipoEmpresa, string> = { mecanica: "text-mec", eletrica: "text-ele", outra: "text-foreground-2" };
 
-export function Topbar({ empresas, oficina }: { empresas: EmpresaResumo[]; oficina: string }) {
+export function Topbar({ empresas, oficina, admin }: { empresas: EmpresaResumo[]; oficina: string; admin: boolean }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const atual = params.get("empresa");
@@ -98,6 +98,20 @@ export function Topbar({ empresas, oficina }: { empresas: EmpresaResumo[]; ofici
         <button className="relative grid size-9 place-items-center rounded-md border border-border text-foreground-2 hover:bg-subtle" aria-label="Notificações">
           <Bell className="size-[18px]" strokeWidth={1.75} />
         </button>
+        {admin && (
+          <Link
+            href="/configuracoes"
+            aria-label="Configurações"
+            title="Configurações"
+            aria-current={pathname.startsWith("/configuracoes") ? "page" : undefined}
+            className={cn(
+              "grid size-9 place-items-center rounded-md border border-border text-foreground-2 hover:bg-subtle",
+              pathname.startsWith("/configuracoes") && "bg-subtle text-foreground",
+            )}
+          >
+            <Settings className="size-[18px]" strokeWidth={1.75} />
+          </Link>
+        )}
         <div className="grid size-9 place-items-center">
           <UserButton />
         </div>

@@ -7,7 +7,8 @@ import { obterCheckin } from "@/lib/checkin-dados";
 import { ROTULO_POSICAO, rotuloCombustivel, type Posicao } from "@/lib/checkin";
 import { STATUS } from "@/lib/os";
 import { urlArquivo } from "@/lib/storage";
-import { formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { formatEndereco, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { TERMO_PADRAO } from "@/lib/textos";
 import { Imprimir } from "./imprimir";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -33,7 +34,16 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
-          <p className="hidden text-sm font-semibold print:block">{oficina.nome} · Termo de entrada do veículo</p>
+          <div className="hidden items-center gap-3 border-b border-border pb-3 print:flex">
+            {oficina.logoKey && (
+              // eslint-disable-next-line @next/next/no-img-element -- arquivo autenticado servido por /arquivos
+              <img src={urlArquivo(oficina.logoKey)} alt="" className="size-12 object-contain" />
+            )}
+            <div className="text-xs">
+              <p className="text-sm font-semibold">{oficina.nome} · Termo de entrada do veículo</p>
+              {[formatEndereco(oficina), oficina.telefone && formatTelefone(oficina.telefone)].filter(Boolean).join(" · ")}
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2.5">
             <Placa placa={veiculo.placa} />
             <h1 className="text-[22px] font-semibold tracking-tight">{[veiculo.marca, veiculo.modelo].filter(Boolean).join(" ")}</h1>
@@ -135,9 +145,7 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
               ) : (
                 <p className="text-[13px] text-muted">O cliente não assinou.</p>
               )}
-              <p className="mt-2 text-xs text-muted">
-                Declaro que o veículo foi entregue no estado descrito acima, com os objetos informados.
-              </p>
+              <p className="mt-2 whitespace-pre-line text-xs text-muted">{checkin.termo ?? oficina.textoTermoCheckin ?? TERMO_PADRAO}</p>
             </div>
           </Card>
         </div>

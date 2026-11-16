@@ -5,14 +5,14 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { chaveOficina } from "@/lib/oficina";
+import { cnpjValido, normalizarCnpj } from "@/lib/utils";
 
 const empresaSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome da empresa"),
   cnpj: z
     .string()
-    .trim()
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v === "" || v.length === 14, "CNPJ deve ter 14 dígitos"),
+    .transform(normalizarCnpj)
+    .refine((v) => v === "" || cnpjValido(v), "CNPJ inválido"),
   tipo: z.enum(["mecanica", "eletrica", "outra"]),
 });
 

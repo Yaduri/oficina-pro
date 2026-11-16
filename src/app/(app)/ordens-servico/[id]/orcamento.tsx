@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Copy, ExternalLink, MessageCircle, Send } from "lucide-react";
-import { Badge, Button, Campo, Card, CardHeader, Erro, Select, Textarea, buttonClass, type Tom } from "@/components/ui";
+import { Badge, Button, Campo, Card, CardHeader, Erro, Input, Textarea, buttonClass, type Tom } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { cancelarOrcamento, enviarOrcamento } from "../actions";
 
@@ -25,16 +25,20 @@ export type ResumoOrcamento = {
   desatualizado: boolean;
 };
 
+export type PadraoOrcamento = { observacao: string; dias: number };
+
 export function OrcamentoOS({
   osId,
   orcamento,
   podeEnviar,
   semItens,
+  padrao,
 }: {
   osId: string;
   orcamento: ResumoOrcamento | null;
   podeEnviar: boolean;
   semItens: boolean;
+  padrao: PadraoOrcamento;
 }) {
   const [novo, setNovo] = useState(false);
   const mostrarForm = podeEnviar && (!orcamento || novo);
@@ -46,7 +50,7 @@ export function OrcamentoOS({
         {orcamento && <Detalhes osId={osId} o={orcamento} />}
 
         {mostrarForm ? (
-          <EnviarForm osId={osId} semItens={semItens} reenvio={!!orcamento} onDone={() => setNovo(false)} onCancel={orcamento ? () => setNovo(false) : undefined} />
+          <EnviarForm osId={osId} padrao={padrao} semItens={semItens} reenvio={!!orcamento} onDone={() => setNovo(false)} onCancel={orcamento ? () => setNovo(false) : undefined} />
         ) : (
           podeEnviar && (
             <Button className="self-start" onClick={() => setNovo(true)}>
@@ -160,12 +164,14 @@ function Detalhes({ osId, o }: { osId: string; o: ResumoOrcamento }) {
 
 function EnviarForm({
   osId,
+  padrao,
   semItens,
   reenvio,
   onDone,
   onCancel,
 }: {
   osId: string;
+  padrao: PadraoOrcamento;
   semItens: boolean;
   reenvio: boolean;
   onDone: () => void;
@@ -186,15 +192,17 @@ function EnviarForm({
         </p>
       )}
       <Campo label="Observações para o cliente" hint="(opcional)" htmlFor="obs-orcamento">
-        <Textarea id="obs-orcamento" name="observacao" rows={2} className="min-h-16" placeholder="Ex.: garantia de 90 dias, prazo de 2 dias úteis" />
+        <Textarea
+          id="obs-orcamento"
+          name="observacao"
+          rows={2}
+          className="min-h-16"
+          defaultValue={padrao.observacao}
+          placeholder="Ex.: prazo de 2 dias úteis após a chegada das peças"
+        />
       </Campo>
-      <Campo label="Validade" htmlFor="dias-orcamento">
-        <Select id="dias-orcamento" name="dias" defaultValue="15" className="h-10">
-          <option value="3">3 dias</option>
-          <option value="7">7 dias</option>
-          <option value="15">15 dias</option>
-          <option value="30">30 dias</option>
-        </Select>
+      <Campo label="Validade" hint="(dias)" htmlFor="dias-orcamento" className="max-w-40">
+        <Input id="dias-orcamento" name="dias" type="number" inputMode="numeric" min={1} max={90} defaultValue={padrao.dias} required className="h-10" />
       </Campo>
       <Erro>{state?.erro}</Erro>
       {semItens && <p className="text-[13px] text-muted">Adicione peças ou serviços para enviar o orçamento.</p>}

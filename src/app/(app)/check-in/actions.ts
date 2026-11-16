@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
+import { TERMO_PADRAO } from "@/lib/textos";
 import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-form";
 import { soDigitos } from "@/lib/utils";
 import { POSICOES } from "@/lib/checkin";
@@ -87,6 +88,7 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
         avarias: d.avarias,
         objetos: d.objetos,
         assinaturaKey: d.assinaturaKey || null,
+        termo: d.assinaturaKey ? (oficina.textoTermoCheckin ?? TERMO_PADRAO) : null,
         criadoPor: userId,
       })
       .returning({ id: schema.checkins.id });

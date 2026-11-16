@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, MessageCircle, Phone, XCircle } from "lucide-react";
 import { getDb, schema } from "@/db";
 import { Badge, Placa } from "@/components/ui";
 import { STATUS_ORCAMENTO, orcamentoPorToken, totalItens } from "@/lib/orcamento";
-import { formatBRL, formatData, formatDocumento, formatEntrada } from "@/lib/utils";
+import { formatBRL, formatData, formatEntrada, linkWhatsApp } from "@/lib/utils";
+import { identificacao } from "@/lib/identificacao";
 import { RespostaOrcamento } from "./resposta";
 import { Imprimir } from "./imprimir";
 
@@ -34,7 +35,8 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   const aprovados = new Set(orc.itensAprovados ?? []);
   const respondido = orc.status === "aprovado" || orc.status === "parcial" || orc.status === "recusado";
   const totalAprovado = totalItens(orc.itens.filter((i) => aprovados.has(i.id)));
-  const nomeEmpresa = empresa.razaoSocial || empresa.nome;
+  const id = identificacao(oficina, empresa);
+  const whatsOficina = linkWhatsApp(oficina.whatsapp);
   const statusExibido = vencido
     ? { label: "Vencido", tom: "neutro" as const }
     : STATUS_ORCAMENTO[orc.status];
@@ -42,13 +44,38 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-10">
-        <header className="flex flex-col gap-1">
-          <p className="text-[13px] font-medium uppercase tracking-wide text-muted">{oficina.nome}</p>
-          <h1 className="text-[22px] font-semibold tracking-tight">Orçamento · OS #{os.numero}</h1>
-          <p className="text-[13px] text-muted">
-            {nomeEmpresa}
-            {empresa.cnpj && ` · CNPJ ${formatDocumento(empresa.cnpj)}`}
-          </p>
+        <header className="flex flex-col gap-4">
+          <div className="flex items-center gap-3.5">
+            {oficina.logoKey && (
+              // eslint-disable-next-line @next/next/no-img-element -- servida pela rota do próprio orçamento
+              <img src={`/orcamento/${token}/logo`} alt="" className="size-14 shrink-0 rounded-md object-contain" />
+            )}
+            <div className="min-w-0">
+              <p className="font-semibold">{id.titulo}</p>
+              <p className="text-[13px] text-muted">
+                {id.razaoSocial}
+                {id.cnpj && ` · CNPJ ${id.cnpj}`}
+              </p>
+              {id.endereco && <p className="text-[13px] text-muted">{id.endereco}</p>}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <h1 className="text-[22px] font-semibold tracking-tight">Orçamento · OS #{os.numero}</h1>
+            <div className="flex flex-wrap gap-2 print:hidden">
+              {whatsOficina && (
+                <a href={whatsOficina} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium hover:bg-subtle">
+                  <MessageCircle className="size-4" aria-hidden />
+                  Falar com a oficina
+                </a>
+              )}
+              {id.telefone && (
+                <a href={`tel:${id.telefone.replace(/\D/g, "")}`} className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium hover:bg-subtle">
+                  <Phone className="size-4" aria-hidden />
+                  {id.telefone}
+                </a>
+              )}
+            </div>
+          </div>
         </header>
 
         {respondido && (
@@ -139,6 +166,13 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
                 {formatBRL(respondido && orc.status !== "recusado" ? totalAprovado : Number(orc.total))}
               </span>
             </div>
+          </section>
+        )}
+
+        {oficina.textoGarantia && (
+          <section className="rounded-lg border border-border bg-card p-4 shadow-card sm:px-5">
+            <h2 className="mb-1 text-[13px] font-semibold text-foreground-2">Garantia</h2>
+            <p className="whitespace-pre-line text-[14px]">{oficina.textoGarantia}</p>
           </section>
         )}
 

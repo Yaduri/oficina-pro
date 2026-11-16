@@ -6,6 +6,11 @@ import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 
 export type Empresa = typeof schema.empresas.$inferSelect;
+export type Oficina = typeof schema.oficinas.$inferSelect;
+export type Papel = (typeof schema.papel.enumValues)[number];
+
+/** Do maior para o menor poder */
+const ORDEM_PAPEIS: Papel[] = ["dono", "gerente", "financeiro", "atendente", "tecnico"];
 
 /** Chave da oficina: a Organization do Clerk ou, sem organização, o próprio usuário. */
 export async function chaveOficina() {
@@ -39,8 +44,18 @@ export const getContexto = cache(async () => {
     ? oficina.empresas
     : oficina.empresas.filter((e) => acessos.some((a) => a.empresaId === e.id));
 
-  return { userId, oficina, empresas: permitidas };
+  // Papel mais alto entre os acessos (sem registro: quem criou a oficina = dono)
+  const papel: Papel = acessos.length === 0 ? "dono" : ORDEM_PAPEIS.find((p) => acessos.some((a) => a.papel === p))!;
+
+  return { userId, oficina, empresas: permitidas, papel, admin: papel === "dono" || papel === "gerente" };
 });
+
+/** Telas e ações só para dono/gerente; os demais voltam para o início. */
+export async function exigirAdmin() {
+  const ctx = await getContexto();
+  if (!ctx.admin) redirect("/inicio");
+  return ctx;
+}
 
 /** Resolve o filtro ?empresa=<id> para a lista de empresas a exibir. */
 export async function empresasFiltradas(empresaParam?: string | string[]) {
