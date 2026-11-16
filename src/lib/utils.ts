@@ -55,3 +55,45 @@ export function iniciais(nome: string) {
 export function formatPlaca(placa: string) {
   return placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
+
+export function soDigitos(v: string | null | undefined) {
+  return (v ?? "").replace(/\D/g, "");
+}
+
+/** Placa antiga (ABC1234) ou Mercosul (ABC1D23) */
+export const PLACA_RE = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+
+/** CPF 000.000.000-00 / CNPJ 00.000.000/0000-00 */
+export function formatDocumento(doc: string | null | undefined) {
+  const d = soDigitos(doc);
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  return doc ?? "";
+}
+
+/** (11) 98765-4321 */
+export function formatTelefone(tel: string | null | undefined) {
+  const d = soDigitos(tel);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  return tel ?? "";
+}
+
+/** Link do WhatsApp para um telefone brasileiro */
+export function linkWhatsApp(tel: string | null | undefined) {
+  const d = soDigitos(tel);
+  if (d.length < 10) return null;
+  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}`;
+}
+
+/** Aceita "1.234,56", "1234,56" ou "1234.56" */
+export function parseValor(v: string | number | null | undefined) {
+  if (typeof v === "number") return v;
+  const s = (v ?? "").trim().replace(/\s|R\$/g, "");
+  if (!s) return NaN;
+  return Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
+}
+
+export function formatData(date: Date) {
+  return date.toLocaleDateString("pt-BR", { timeZone: TZ, day: "2-digit", month: "2-digit", year: "numeric" });
+}

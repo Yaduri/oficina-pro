@@ -145,3 +145,52 @@ export function PageHeader({ title, description, actions }: { title: string; des
     </div>
   );
 }
+
+/* ---------- Campo de formulário ---------- */
+export function Campo({
+  label,
+  htmlFor,
+  hint,
+  className,
+  children,
+}: {
+  label: ReactNode;
+  htmlFor: string;
+  hint?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+      <Label htmlFor={htmlFor}>
+        {label}
+        {hint && <span className="font-normal text-muted"> {hint}</span>}
+      </Label>
+      {children}
+    </div>
+  );
+}
+export function Select({ className, ...props }: ComponentProps<"select">) {
+  return <select className={cn(inputClass, "cursor-pointer", className)} {...props} />;
+}
+export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
+  return <textarea className={cn(inputClass, "h-auto min-h-24 py-2.5 leading-relaxed", className)} {...props} />;
+}
+export function Erro({ children }: { children?: ReactNode }) {
+  if (!children) return null;
+  return (
+    <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">
+      {children}
+    </p>
+  );
+}
+
+/* ---------- Estado vazio ---------- */
+export function Vazio({ titulo, children }: { titulo: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-6 py-12 text-center">
+      <p className="font-medium">{titulo}</p>
+      {children && <div className="max-w-sm text-[13px] text-muted">{children}</div>}
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCheck, Columns3, List, ListChecks, MessageCircle, Plus, Truck } from "lucide-react";
-import { Avatar, Button, EmpresaTag, PageHeader, Placa } from "@/components/ui";
+import Link from "next/link";
+import { Avatar, EmpresaTag, PageHeader, Placa, buttonClass } from "@/components/ui";
 import { empresasFiltradas } from "@/lib/oficina";
 import { listarOSAbertas, type OSResumo } from "@/lib/queries";
 import { COLUNAS, STATUS } from "@/lib/os";
@@ -10,7 +11,7 @@ export const metadata = { title: "Ordens de serviço" };
 
 export default async function OrdensServicoPage({ searchParams }: PageProps<"/ordens-servico">) {
   const { empresa } = await searchParams;
-  const { oficina, empresaIds } = await empresasFiltradas(empresa);
+  const { oficina, empresaIds, selecionada } = await empresasFiltradas(empresa);
   const abertas = await listarOSAbertas(oficina.id, empresaIds);
 
   return (
@@ -19,9 +20,9 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
         title="Ordens de serviço"
         description={`${abertas.length} ${abertas.length === 1 ? "aberta" : "abertas"} · use o menu do cartão para mudar o status`}
         actions={
-          <Button variant="primary" disabled title="Em breve">
+          <Link href={`/ordens-servico/nova${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("primary")}>
             <Plus />Nova OS
-          </Button>
+          </Link>
         }
       />
 
@@ -62,7 +63,8 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
 function CartaoOS({ os }: { os: OSResumo }) {
   const meta = metaDoCartao(os);
   return (
-    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3 shadow-card">
+    <article className="flex flex-col gap-2.5 rounded-lg border border-border bg-card p-3 shadow-card transition-colors hover:border-border-strong">
+      <Link href={`/ordens-servico/${os.id}`} className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
         <Placa placa={os.placa} />
         <span className="text-xs font-medium text-muted">#{os.numero}</span>
@@ -92,6 +94,7 @@ function CartaoOS({ os }: { os: OSResumo }) {
           <span className="text-muted">{tempoDesde(os.entradaEm)}</span>
         )}
       </div>
+      </Link>
       <MoverOS osId={os.id} status={os.status} />
     </article>
   );

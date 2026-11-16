@@ -100,12 +100,12 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                 </thead>
                 <tbody>
                   {abertas.map((o) => (
-                    <tr key={o.id} className="whitespace-nowrap [&:not(:last-child)>td]:border-b [&>td]:border-border">
+                    <tr key={o.id} className="relative whitespace-nowrap hover:bg-subtle [&:not(:last-child)>td]:border-b [&>td]:border-border">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Placa placa={o.placa} />
                           <div>
-                            <div className="font-medium">{o.modelo}</div>
+                            <Link href={`/ordens-servico/${o.id}`} className="font-medium after:absolute after:inset-0">{o.modelo}</Link>
                             <div className="text-[13px] text-muted">OS #{o.numero} · {formatEntrada(o.entradaEm)}</div>
                           </div>
                         </div>

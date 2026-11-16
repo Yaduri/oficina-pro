@@ -113,3 +113,23 @@ export async function atualizarStatusOS(oficinaId: string, empresaIds: string[],
     .returning({ id: os.id });
   return res.length > 0;
 }
+
+/** OS completa (com veículo, cliente, responsável, empresa e itens) */
+export async function obterOS(oficinaId: string, empresaIds: string[], id: string) {
+  if (empresaIds.length === 0) return null;
+  const db = await getDb();
+  const [row] = await db
+    .select({ os, veiculo: veiculos, cliente: clientes, responsavel: tecnicos, empresa: empresas })
+    .from(os)
+    .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
+    .innerJoin(empresas, eq(empresas.id, os.empresaId))
+    .leftJoin(clientes, eq(clientes.id, os.clienteId))
+    .leftJoin(tecnicos, eq(tecnicos.id, os.responsavelId))
+    .where(and(eq(os.id, id), eq(os.oficinaId, oficinaId), inArray(os.empresaId, empresaIds)));
+  if (!row) return null;
+  const itens = await db.select().from(osItens).where(eq(osItens.osId, id)).orderBy(asc(osItens.criadoEm));
+  return {
+    ...row,
+    itens: itens.map((i) => ({ ...i, quantidade: Number(i.quantidade), valorUnitario: Number(i.valorUnitario) })),
+  };
+}
