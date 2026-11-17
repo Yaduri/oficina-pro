@@ -20,6 +20,7 @@ import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
 import { TransferirOS } from "./transferir";
 import { FotosServico } from "./fotos-servico";
+import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -97,6 +98,13 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     };
   }
 
+  const documentos: DocumentoOpcao[] = [
+    { href: `/pdf/os/${os.id}`, label: "Ordem de serviço", detalhe: "Via do cliente" },
+    { href: `/pdf/os/${os.id}?via=oficina`, label: "Ordem de serviço", detalhe: "Via da oficina, com responsável e checklist" },
+    ...(valores && itens.length > 0 ? [{ href: `/pdf/orcamento/${os.id}`, label: "Orçamento", detalhe: orc ? "Como foi enviado ao cliente" : "Ainda não enviado" }] : []),
+    ...(os.checkinId ? [{ href: `/pdf/termo/${os.checkinId}`, label: "Termo de entrada", detalhe: "Fotos, checklist e assinatura" }] : []),
+  ];
+
   return (
     <>
       <Link href="/ordens-servico" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-muted hover:text-foreground">
@@ -121,6 +129,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               <MessageCircle />WhatsApp
             </a>
           )}
+          <DocumentosPdf documentos={documentos} enviar={valores ? { tipo: "os", id: os.id, label: "Enviar OS pelo WhatsApp" } : null} />
           <MoverOS osId={os.id} status={os.status} grande podeFechar={pode("fecharOS")} />
           {!fechada && pode("fecharOS") && (
             <EntregarOS osId={os.id} kmEntrada={os.kmEntrada} garantiaPadrao={garantiaPadrao} textoGarantia={oficina.textoGarantia} />

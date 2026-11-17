@@ -55,11 +55,11 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Mudança no checklist não altera check-ins antigos (cópia no momento do registro)
 
 ### 1.4 PDFs — **M**
-- [ ] Geração no servidor com logo e dados do CNPJ da OS
-- [ ] PDF do **orçamento** (botão na OS e na página do cliente)
-- [ ] PDF da **OS** (via da oficina e via do cliente, com assinatura de retirada)
-- [ ] PDF do **termo de entrada** (check-in com fotos e checklist)
-- [ ] Enviar PDF pelo WhatsApp (link) e baixar
+- [x] Geração no servidor com logo e dados do CNPJ da OS (@react-pdf/renderer; fotos reduzidas com sharp)
+- [x] PDF do **orçamento** (botão na OS e na página do cliente; mostra aprovado/recusado depois da resposta)
+- [x] PDF da **OS** (via da oficina e via do cliente, com assinatura de retirada)
+- [x] PDF do **termo de entrada** (check-in com fotos e checklist)
+- [x] Enviar PDF pelo WhatsApp (link público com token) e baixar
 
 ### 1.5 Ajustes da OS — **M**
 - [x] Editar relato, responsável, km de entrada e previsão de entrega

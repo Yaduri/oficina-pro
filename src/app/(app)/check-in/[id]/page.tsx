@@ -9,7 +9,7 @@ import { STATUS } from "@/lib/os";
 import { urlArquivo } from "@/lib/storage";
 import { formatEndereco, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
 import { TERMO_PADRAO } from "@/lib/textos";
-import { Imprimir } from "./imprimir";
+import { DocumentosPdf } from "@/components/documentos-pdf";
 import { ChecklistRegistrado } from "@/components/checklist-registrado";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -57,7 +57,10 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
               <MessageCircle />WhatsApp
             </a>
           )}
-          <Imprimir />
+          <DocumentosPdf
+            documentos={[{ href: `/pdf/termo/${checkin.id}`, label: "Termo de entrada", detalhe: "Fotos, checklist e assinatura" }]}
+            enviar={{ tipo: "termo", id: checkin.id, label: "Enviar termo pelo WhatsApp" }}
+          />
         </div>
       </div>
 

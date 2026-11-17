@@ -415,6 +415,24 @@ export const orcamentos = pgTable(
   (t) => [index("orcamentos_os_idx").on(t.osId), index("orcamentos_oficina_idx").on(t.oficinaId, t.criadoEm)],
 );
 
+/**
+ * Link público de um documento em PDF (OS ou termo de entrada) para mandar ao cliente
+ * pelo WhatsApp. O token é o segredo; um link por documento, reaproveitado.
+ */
+export const linksDocumento = pgTable(
+  "links_documento",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    tipo: text("tipo").$type<"os" | "termo">().notNull(),
+    /** id da OS ou do check-in */
+    refId: uuid("ref_id").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex("links_documento_ref_uq").on(t.tipo, t.refId)],
+);
+
 /** Histórico da OS: quem fez o quê e quando */
 export const osEventos = pgTable(
   "os_eventos",

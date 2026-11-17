@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
-import { CheckCircle2, Clock, MessageCircle, Phone, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Download, MessageCircle, Phone, XCircle } from "lucide-react";
 import { getDb, schema } from "@/db";
-import { Badge, Placa } from "@/components/ui";
+import { Badge, Placa, buttonClass } from "@/components/ui";
 import { STATUS_ORCAMENTO, orcamentoPorToken } from "@/lib/orcamento";
 import { totalSelecionado } from "@/lib/os-total";
 import { formatBRL, formatData, formatEntrada, linkWhatsApp } from "@/lib/utils";
 import { identificacao } from "@/lib/identificacao";
 import { RespostaOrcamento } from "./resposta";
-import { Imprimir } from "./imprimir";
 
 export const metadata: Metadata = { title: "Orçamento", robots: { index: false, follow: false } };
 
@@ -202,7 +201,10 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
             <Badge tom={statusExibido.tom} className="print:hidden">
               {statusExibido.label}
             </Badge>
-            <Imprimir />
+            <a href={`/orcamento/${token}/pdf?baixar=1`} className={buttonClass("ghost", "print:hidden")}>
+              <Download />
+              Baixar PDF
+            </a>
           </span>
         </footer>
       </main>
