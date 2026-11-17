@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
@@ -82,6 +82,11 @@ export async function prepararVeiculo(
 export async function gravarVeiculo(tx: DB, oficinaId: string, p: VeiculoPreparado, km: number | null) {
   const { veiculos, clientes } = schema;
   if (p.tipo === "existente") {
+    // Veículo (ou dono) arquivado que voltou à oficina: volta para a lista
+    await tx.update(veiculos).set({ arquivadoEm: null }).where(and(eq(veiculos.id, p.veiculoId), isNotNull(veiculos.arquivadoEm)));
+    if (p.clienteId) {
+      await tx.update(clientes).set({ arquivadoEm: null }).where(and(eq(clientes.id, p.clienteId), isNotNull(clientes.arquivadoEm)));
+    }
     if (km != null) {
       await tx
         .update(veiculos)

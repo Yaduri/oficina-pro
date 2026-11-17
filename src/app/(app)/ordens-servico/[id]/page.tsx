@@ -14,6 +14,7 @@ import { ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
 import { urlArquivo } from "@/lib/storage";
 import { MoverOS } from "../mover-os";
 import { ItensOS } from "./itens";
+import { listarCatalogo } from "@/lib/catalogo";
 import { OrcamentoOS, type ResumoOrcamento } from "./orcamento";
 import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
@@ -51,12 +52,14 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const valores = pode("verValores");
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
-  const [[fotos, checklist], orc, fotosServico, eventos, tecnicos] = await Promise.all([
+  const podeItens = !fechada && pode("editarItens");
+  const [[fotos, checklist], orc, fotosServico, eventos, tecnicos, catalogo] = await Promise.all([
     os.checkinId ? Promise.all([fotosDoCheckin(os.checkinId), checklistDoCheckin(os.checkinId)]) : Promise.resolve([[], null] as const),
     valores ? ultimoOrcamento(os.id) : Promise.resolve(null),
     fotosDaOS(os.id),
     eventosDaOS(os.id),
     listarTecnicos(oficina.id),
+    podeItens ? listarCatalogo(oficina.id, { soAtivos: true }) : Promise.resolve([]),
   ]);
   const desconto = { percentual: os.descontoPercentual != null ? Number(os.descontoPercentual) : null, valor: Number(os.descontoValor) };
   const opcoesEmpresas = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
@@ -192,12 +195,13 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             <ItensOS
               osId={os.id}
               itens={itens}
-              editavel={!fechada && pode("editarItens")}
+              editavel={podeItens}
               valores={valores}
               marcavel={!fechada}
               empresas={opcoesEmpresas}
               empresaOS={os.empresaId}
               desconto={desconto}
+              catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor, empresaId: c.empresaId }))}
             />
           </Card>
 

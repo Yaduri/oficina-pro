@@ -8,10 +8,11 @@ import { formatDocumento, formatTelefone } from "@/lib/utils";
 export const metadata = { title: "Clientes" };
 
 export default async function ClientesPage({ searchParams }: PageProps<"/clientes">) {
-  const { q } = await searchParams;
-  const busca = Array.isArray(q) ? q[0] : q;
+  const sp = await searchParams;
+  const busca = Array.isArray(sp.q) ? sp.q[0] : sp.q;
+  const arquivados = sp.arquivados === "1";
   const { oficina, pode } = await getContexto();
-  const clientes = await listarClientes(oficina.id, busca);
+  const clientes = await listarClientes(oficina.id, busca, arquivados);
 
   return (
     <>
@@ -27,18 +28,27 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
         }
       />
 
-      <form role="search" className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-        <label htmlFor="q" className="sr-only">Buscar cliente</label>
-        <Input id="q" name="q" defaultValue={busca} placeholder="Buscar por nome, placa, telefone ou CPF" className="pl-9" />
-      </form>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <form role="search" className="relative w-full max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
+          <label htmlFor="q" className="sr-only">Buscar cliente</label>
+          {arquivados && <input type="hidden" name="arquivados" value="1" />}
+          <Input id="q" name="q" defaultValue={busca} placeholder="Buscar por nome, placa, telefone ou CPF" className="pl-9" />
+        </form>
+        <Link href={arquivados ? "/clientes" : "/clientes?arquivados=1"} className="text-[13px] text-muted underline hover:text-foreground">
+          {arquivados ? "Ver clientes ativos" : "Ver arquivados"}
+        </Link>
+      </div>
+      {arquivados && <p className="-mt-2 text-[13px] text-muted">Mostrando clientes arquivados.</p>}
 
       <Card>
         {clientes.length === 0 ? (
           busca ? (
             <Vazio titulo={`Nenhum cliente encontrado para “${busca}”`}>
-              <Link href="/clientes" className="underline">Limpar busca</Link>
+              <Link href={arquivados ? "/clientes?arquivados=1" : "/clientes"} className="underline">Limpar busca</Link>
             </Vazio>
+          ) : arquivados ? (
+            <Vazio titulo="Nenhum cliente arquivado" />
           ) : (
             <Vazio titulo="Nenhum cliente cadastrado">
               Cadastre o primeiro cliente com o veículo dele. Também é possível cadastrar ao abrir uma OS.

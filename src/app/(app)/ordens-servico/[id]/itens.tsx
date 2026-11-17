@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, EmpresaTag, Erro, Input, inputClass, type TipoEmpresa } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
+import { BuscaCatalogo, type OpcaoCatalogo } from "@/components/busca-catalogo";
 import { calcularTotais } from "@/lib/os-total";
 import { cn, formatBRL } from "@/lib/utils";
 import { adicionarItem, marcarItem, removerItem } from "../actions";
@@ -20,6 +21,7 @@ type Item = {
   empresaId: string;
 };
 type EmpresaOpcao = { id: string; nome: string; tipo: TipoEmpresa };
+
 type Desconto = { percentual: number | null; valor: number };
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -34,6 +36,7 @@ export function ItensOS({
   empresas = [],
   empresaOS,
   desconto = { percentual: null, valor: 0 },
+  catalogo = [],
 }: {
   osId: string;
   itens: Item[];
@@ -48,6 +51,8 @@ export function ItensOS({
   /** Empresa dona da OS */
   empresaOS?: string;
   desconto?: Desconto;
+  /** Catálogo de serviços e peças (busca ao lançar item) */
+  catalogo?: OpcaoCatalogo[];
 }) {
   const t = calcularTotais(itens, desconto);
   const mista = itens.some((i) => i.empresaId !== empresaOS);
@@ -78,7 +83,7 @@ export function ItensOS({
         </ul>
       )}
 
-      {editavel && <NovoItem osId={osId} empresas={empresas} empresaOS={empresaOS} />}
+      {editavel && <NovoItem osId={osId} empresas={empresas} empresaOS={empresaOS} catalogo={catalogo} />}
 
       {valores && (
         <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 border-t border-border px-5 py-4 text-[13px]">
@@ -268,6 +273,7 @@ function FormItem({
   onDone,
   onCancel,
   limparAoSalvar = false,
+  catalogo = [],
 }: {
   acao: AcaoItem;
   item?: Item;
@@ -277,11 +283,20 @@ function FormItem({
   onDone?: () => void;
   onCancel?: () => void;
   limparAoSalvar?: boolean;
+  catalogo?: OpcaoCatalogo[];
 }) {
   const form = useRef<HTMLFormElement>(null);
+  const [catalogoId, setCatalogoId] = useState("");
+  const [texto, setTexto] = useState("");
   const { state, pending, onSubmit } = useFormAction(async (prev: Awaited<ReturnType<AcaoItem>>, dados: FormData) => {
     const r = await acao(prev, dados);
-    if (r?.ok) onDone?.();
+    if (r?.ok) {
+      onDone?.();
+      if (limparAoSalvar) {
+        setCatalogoId("");
+        setTexto("");
+      }
+    }
     return r;
   });
   useEffect(() => {
@@ -292,21 +307,50 @@ function FormItem({
   }, [state, limparAoSalvar]);
   const mista = empresas.length > 1;
 
+  /** Preenche tipo, descrição, valor e empresa a partir do catálogo */
+  function escolher(c: OpcaoCatalogo) {
+    const el = form.current?.elements;
+    if (!el) return;
+    const campo = (n: string) => el.namedItem(n) as HTMLInputElement | HTMLSelectElement | null;
+    campo("tipo")!.value = c.tipo;
+    setTexto(c.descricao);
+    campo("valor")!.value = valorTxt(c.valor);
+    const emp = campo("empresaId");
+    if (emp && c.empresaId && empresas.some((e) => e.id === c.empresaId)) emp.value = c.empresaId;
+    setCatalogoId(c.id);
+    (campo("quantidade") as HTMLInputElement | null)?.select();
+  }
+
   return (
     <form ref={form} onSubmit={onSubmit} className="flex flex-col gap-2">
+      <input type="hidden" name="catalogoItemId" value={catalogoId} />
       <div className={cn("grid grid-cols-[1fr_1fr] gap-2", mista ? "sm:grid-cols-[110px_1fr_72px_120px_130px_auto]" : "sm:grid-cols-[110px_1fr_72px_120px_auto]")}>
         <select name="tipo" aria-label="Tipo" defaultValue={item?.tipo ?? "servico"} className={cn(inputClass, "h-10")}>
           <option value="servico">Serviço</option>
           <option value="peca">Peça</option>
         </select>
-        <Input
-          name="descricao"
-          aria-label="Descrição"
-          placeholder="Descrição"
-          defaultValue={item?.descricao}
-          required
-          className="col-span-2 h-10 sm:col-span-1 max-sm:order-first"
-        />
+        {catalogo.length > 0 && !item ? (
+          <BuscaCatalogo
+            name="descricao"
+            catalogo={catalogo}
+            value={texto}
+            onChange={(t) => {
+              setTexto(t);
+              setCatalogoId("");
+            }}
+            onEscolher={escolher}
+            className="col-span-2 sm:col-span-1 max-sm:order-first"
+          />
+        ) : (
+          <Input
+            name="descricao"
+            aria-label="Descrição"
+            placeholder="Descrição"
+            defaultValue={item?.descricao}
+            required
+            className="col-span-2 h-10 sm:col-span-1 max-sm:order-first"
+          />
+        )}
         <Input name="quantidade" aria-label="Quantidade" defaultValue={item ? qtd(item.quantidade) : "1"} inputMode="decimal" className="h-10 text-right" />
         <Input
           name="valor"
@@ -343,10 +387,10 @@ function FormItem({
   );
 }
 
-function NovoItem({ osId, empresas, empresaOS }: { osId: string; empresas: EmpresaOpcao[]; empresaOS?: string }) {
+function NovoItem({ osId, empresas, empresaOS, catalogo }: { osId: string; empresas: EmpresaOpcao[]; empresaOS?: string; catalogo: OpcaoCatalogo[] }) {
   return (
     <div className="border-t border-border bg-subtle/60 px-4 py-3 sm:px-5">
-      <FormItem acao={adicionarItem.bind(null, osId)} empresas={empresas} empresaOS={empresaOS} rotulo="Adicionar" limparAoSalvar />
+      <FormItem acao={adicionarItem.bind(null, osId)} empresas={empresas} empresaOS={empresaOS} rotulo="Adicionar" limparAoSalvar catalogo={catalogo} />
     </div>
   );
 }

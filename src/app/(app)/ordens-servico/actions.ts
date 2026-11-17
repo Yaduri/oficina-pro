@@ -97,6 +97,7 @@ const itemSchema = z.object({
     .union([z.string(), z.number()])
     .transform(parseValor)
     .refine((n) => Number.isFinite(n) && n >= 0 && n < 10_000_000, "Valor inválido"),
+  catalogoItemId: z.uuid().optional().catch(undefined),
 });
 
 /* ---------- Criar OS ---------- */
@@ -182,15 +183,29 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
       .returning({ id: ordensServico.id });
 
     if (d.itens.length > 0) {
+      // Itens do catálogo: confere que são desta oficina e usa a empresa responsável, se o usuário a vê
+      const ids = [...new Set(d.itens.map((i) => i.catalogoItemId).filter((x): x is string => !!x))];
+      const doCatalogo = ids.length
+        ? await tx
+            .select({ id: schema.catalogoItens.id, empresaId: schema.catalogoItens.empresaId })
+            .from(schema.catalogoItens)
+            .where(and(eq(schema.catalogoItens.oficinaId, oficina.id), inArray(schema.catalogoItens.id, ids)))
+        : [];
+      const cat = new Map(doCatalogo.map((c) => [c.id, c]));
       await tx.insert(osItens).values(
-        d.itens.map((i) => ({
-          osId: nova.id,
-          empresaId: d.empresaId,
-          tipo: i.tipo,
-          descricao: i.descricao,
-          quantidade: String(i.quantidade),
-          valorUnitario: i.valor.toFixed(2),
-        })),
+        d.itens.map((i) => {
+          const c = i.catalogoItemId ? cat.get(i.catalogoItemId) : undefined;
+          const empresaItem = c?.empresaId && empresas.some((e) => e.id === c.empresaId) ? c.empresaId : d.empresaId;
+          return {
+            osId: nova.id,
+            empresaId: empresaItem,
+            catalogoItemId: c?.id ?? null,
+            tipo: i.tipo,
+            descricao: i.descricao,
+            quantidade: String(i.quantidade),
+            valorUnitario: i.valor.toFixed(2),
+          };
+        }),
       );
     }
     return nova.id;
@@ -240,9 +255,20 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
   const ctx = await getContexto();
   const empresaId = f(form, "empresaId") || r.os.empresaId;
   if (!ctx.empresas.some((e) => e.id === empresaId)) return { erro: "Empresa não permitida" };
+  // Item escolhido do catálogo: só guarda a ligação se for desta oficina
+  let catalogoItemId: string | null = null;
+  const cat = f(form, "catalogoItemId");
+  if (cat && z.uuid().safeParse(cat).success) {
+    const [c] = await r.db
+      .select({ id: schema.catalogoItens.id })
+      .from(schema.catalogoItens)
+      .where(and(eq(schema.catalogoItens.id, cat), eq(schema.catalogoItens.oficinaId, r.oficinaId)));
+    catalogoItemId = c?.id ?? null;
+  }
   await r.db.insert(schema.osItens).values({
     osId,
     empresaId,
+    catalogoItemId,
     tipo: item.data.tipo,
     descricao: item.data.descricao,
     quantidade: String(item.data.quantidade),

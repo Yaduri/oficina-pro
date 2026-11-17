@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormAction } from "@/lib/use-form-action";
-import { Button, Campo, Erro, Input, Select } from "@/components/ui";
+import { Button, Campo, Erro, Input, Select, Textarea } from "@/components/ui";
+import { CamposEndereco } from "@/components/campos-endereco";
 import type { Cliente, Veiculo } from "@/lib/cadastros";
+import { COMBUSTIVEIS } from "@/lib/veiculo";
 import { formatDocumento, formatTelefone } from "@/lib/utils";
 import { atualizarCliente, criarCliente, salvarVeiculo, type FormState } from "./actions";
 
@@ -37,9 +39,37 @@ function CamposCliente({ cliente }: { cliente?: Cliente }) {
       <Campo label="E-mail" hint="(opcional)" htmlFor="email" className="sm:col-span-2">
         <Input id="email" name="email" type="email" defaultValue={cliente?.email ?? ""} />
       </Campo>
+      <label className="flex items-start gap-2.5 rounded-md border border-border px-3 py-2.5 text-[13px] sm:col-span-6">
+        <input type="checkbox" name="aceitaWhatsapp" defaultChecked={cliente?.aceitaWhatsapp} className="mt-0.5 size-4 shrink-0 accent-zinc-900" />
+        <span>
+          <span className="font-medium">Cliente aceita receber mensagens pelo WhatsApp</span>
+          <span className="block text-muted">
+            Avisos de orçamento e de veículo pronto, lembretes de revisão (LGPD).
+            {cliente?.aceitaWhatsappEm && ` Consentimento registrado em ${new Date(cliente.aceitaWhatsappEm).toLocaleDateString("pt-BR")}.`}
+          </span>
+        </span>
+      </label>
+      <details className="group sm:col-span-6" open={temExtras(cliente) || undefined}>
+        <summary className="cursor-pointer select-none text-[13px] font-medium text-foreground-2 hover:text-foreground">
+          Endereço, aniversário e observações
+        </summary>
+        <div className="mt-4 flex flex-col gap-4">
+          <CamposEndereco inicial={cliente} idPrefixo={cliente ? `cli-${cliente.id}` : "cli-novo"} />
+          <div className="grid gap-4 sm:grid-cols-6">
+            <Campo label="Data de nascimento" hint="(opcional)" htmlFor="nascimento" className="sm:col-span-2">
+              <Input id="nascimento" name="nascimento" type="date" defaultValue={cliente?.nascimento ?? ""} />
+            </Campo>
+            <Campo label="Observações" hint="(opcional)" htmlFor="observacoes" className="sm:col-span-4">
+              <Textarea id="observacoes" name="observacoes" rows={2} className="min-h-10" defaultValue={cliente?.observacoes ?? ""} />
+            </Campo>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
+
+const temExtras = (c?: Cliente) => !!(c && (c.cep || c.logradouro || c.cidade || c.nascimento || c.observacoes));
 
 export function CamposVeiculo({ veiculo, prefixo = "", obrigatorio = true }: { veiculo?: Veiculo; prefixo?: string; obrigatorio?: boolean }) {
   const id = (n: string) => `${prefixo}${n}${veiculo ? `_${veiculo.id}` : ""}`;
@@ -72,6 +102,30 @@ export function CamposVeiculo({ veiculo, prefixo = "", obrigatorio = true }: { v
       </Campo>
       <Campo label="Km atual" htmlFor={id("km")} className="sm:col-span-2">
         <Input id={id("km")} name={`${prefixo}km`} inputMode="numeric" defaultValue={veiculo?.km ?? ""} />
+      </Campo>
+      <Campo label="Combustível" htmlFor={id("combustivel")} className="sm:col-span-2">
+        <Select id={id("combustivel")} name={`${prefixo}combustivel`} defaultValue={veiculo?.combustivel ?? ""}>
+          <option value="">—</option>
+          {COMBUSTIVEIS.map((c) => (
+            <option key={c.valor} value={c.valor}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
+      </Campo>
+      <Campo label="Chassi" hint="(opcional)" htmlFor={id("chassi")} className="sm:col-span-2">
+        <Input
+          id={id("chassi")}
+          name={`${prefixo}chassi`}
+          defaultValue={veiculo?.chassi ?? ""}
+          maxLength={20}
+          autoCapitalize="characters"
+          autoComplete="off"
+          className="uppercase"
+        />
+      </Campo>
+      <Campo label="Motor" hint="(opcional)" htmlFor={id("motor")} className="sm:col-span-2">
+        <Input id={id("motor")} name={`${prefixo}motor`} defaultValue={veiculo?.motor ?? ""} placeholder="1.0 12V / nº do motor" />
       </Campo>
     </div>
   );

@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
-import { historicoCliente, obterCliente } from "@/lib/cadastros";
+import { historicoCliente, obterCliente, usoDoCliente } from "@/lib/cadastros";
 import { STATUS } from "@/lib/os";
-import { formatBRL, formatData, formatDocumento, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { formatBRL, formatData, formatDocumento, formatEndereco, formatTelefone, linkWhatsApp } from "@/lib/utils";
+import { AcoesArquivo } from "../arquivar";
 import { EditarClienteForm } from "../forms";
 import { ListaVeiculos } from "../veiculos";
 
@@ -23,8 +24,17 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
   const editavel = pode("cadastros");
   const cliente = await obterCliente(oficina.id, id);
   if (!cliente) notFound();
-  const historico = await historicoCliente(oficina.id, empresas.map((e) => e.id), id);
+  const [historico, uso] = await Promise.all([
+    historicoCliente(oficina.id, empresas.map((e) => e.id), id),
+    editavel ? usoDoCliente(oficina.id, id) : 0,
+  ]);
   const whats = linkWhatsApp(cliente.telefone);
+  const ativos = cliente.veiculos.filter((v) => !v.arquivadoEm);
+  const arquivados = cliente.veiculos.filter((v) => v.arquivadoEm);
+  const endereco = formatEndereco(cliente);
+  const aniversario = cliente.nascimento
+    ? new Date(`${cliente.nascimento}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "long" })
+    : null;
 
   return (
     <>
@@ -32,8 +42,22 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
         <ArrowLeft className="size-4" />Clientes
       </Link>
       <PageHeader
-        title={cliente.nome}
-        description={[formatTelefone(cliente.telefone), formatDocumento(cliente.documento)].filter(Boolean).join(" · ") || undefined}
+        title={
+          <span className="flex flex-wrap items-center gap-2.5">
+            {cliente.nome}
+            {cliente.arquivadoEm && <Badge tom="neutro">Arquivado</Badge>}
+          </span>
+        }
+        description={
+          [
+            formatTelefone(cliente.telefone),
+            formatDocumento(cliente.documento),
+            aniversario && `Aniversário ${aniversario}`,
+            cliente.telefone && !cliente.aceitaWhatsapp && "Sem consentimento para WhatsApp",
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined
+        }
         actions={
           whats && (
             <a href={whats} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
@@ -47,14 +71,33 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader title="Veículos" />
-            <ListaVeiculos clienteId={cliente.id} veiculos={cliente.veiculos} editavel={editavel} abrirOS={pode("abrirOS")} />
+            <ListaVeiculos clienteId={cliente.id} veiculos={ativos} arquivados={arquivados} editavel={editavel} abrirOS={pode("abrirOS")} />
           </Card>
+
+          {(endereco || cliente.observacoes) && !editavel && (
+            <Card>
+              <CardHeader title="Endereço e observações" />
+              <div className="flex flex-col gap-2 p-5 text-sm">
+                {endereco && <p>{endereco}</p>}
+                {cliente.observacoes && <p className="whitespace-pre-line text-foreground-2">{cliente.observacoes}</p>}
+              </div>
+            </Card>
+          )}
 
           {editavel && (
             <Card>
               <CardHeader title="Dados do cliente" />
               <div className="p-5">
                 <EditarClienteForm cliente={cliente} />
+              </div>
+            </Card>
+          )}
+
+          {editavel && (
+            <Card>
+              <CardHeader title="Arquivar ou excluir" />
+              <div className="p-5">
+                <AcoesArquivo tipo="cliente" id={cliente.id} arquivado={!!cliente.arquivadoEm} temHistorico={uso > 0} rotulo={cliente.nome} />
               </div>
             </Card>
           )}

@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 
 const ABAS = [
   { href: "/configuracoes", label: "Oficina e empresas" },
+  { href: "/configuracoes/catalogo", label: "Serviços e peças" },
+  { href: "/configuracoes/tecnicos", label: "Técnicos" },
   { href: "/configuracoes/checklist", label: "Checklist" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
 ];

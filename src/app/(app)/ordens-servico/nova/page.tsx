@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
 import { Card, PageHeader } from "@/components/ui";
-import { getDb, schema } from "@/db";
 import { empresasFiltradas } from "@/lib/oficina";
 import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
+import { listarTecnicos } from "@/lib/queries";
+import { listarCatalogo } from "@/lib/catalogo";
 import type { ResultadoPlaca } from "../actions";
 import { NovaOSForm } from "./nova-os-form";
 
@@ -17,14 +17,10 @@ export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-se
   const { oficina, empresas, selecionada, pode } = await empresasFiltradas(param("empresa"));
   if (!pode("abrirOS")) redirect("/ordens-servico");
 
-  const db = await getDb();
-  const [clientes, tecnicos] = await Promise.all([
+  const [clientes, tecnicos, catalogo] = await Promise.all([
     opcoesClientes(oficina.id),
-    db
-      .select({ nome: schema.tecnicos.nome })
-      .from(schema.tecnicos)
-      .where(eq(schema.tecnicos.oficinaId, oficina.id))
-      .orderBy(asc(schema.tecnicos.nome)),
+    listarTecnicos(oficina.id),
+    pode("editarItens") ? listarCatalogo(oficina.id, { soAtivos: true }) : Promise.resolve([]),
   ]);
 
   // Vindo da ficha do cliente: veículo já escolhido
@@ -55,6 +51,7 @@ export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-se
           clientes={clientes}
           tecnicos={tecnicos.map((t) => t.nome)}
           inicial={inicial}
+          catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor, empresaId: c.empresaId }))}
         />
       </Card>
     </div>

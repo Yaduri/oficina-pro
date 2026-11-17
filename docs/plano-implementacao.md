@@ -45,7 +45,7 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Regras: ninguém altera o próprio acesso, gerente não mexe em dono, a oficina sempre tem um dono ativo
 - [x] Tela de acesso desativado
 - [ ] ~~Webhook do Clerk~~ — não é mais necessário (nome/e-mail copiados ao aceitar o convite)
-- [ ] Técnicos sem login continuam cadastráveis (já existe a tabela `tecnicos`; tela de cadastro fica com 1.6)
+- [x] Técnicos sem login continuam cadastráveis (Configurações → Técnicos, feito na 1.6)
 
 ### 1.3 Checklist configurável no check-in — **M**
 - [x] Configurações → Checklist: itens agrupados, ativar/desativar, ordenar, remover
@@ -73,13 +73,14 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Fotos durante o serviço (peça trocada, antes/depois), pelo celular
 
 ### 1.6 Cadastros que faltam — **M**
-- [ ] Excluir/arquivar cliente e veículo (bloquear se tiver OS; arquivar em vez de apagar)
-- [ ] Transferir veículo para outro dono (mantendo o histórico no veículo)
-- [ ] Cliente: endereço com CEP, aniversário, consentimento LGPD para contato por WhatsApp
-- [ ] Veículo: chassi, motor, combustível
-- [ ] **Catálogo de serviços**: descrição, valor, tempo padrão, empresa responsável, código de serviço municipal
-- [ ] **Catálogo de peças** (base que o estoque usa na Fase 4): código, descrição, preço de venda, empresa
-- [ ] Na OS: buscar no catálogo ao lançar item, com preço preenchido (e continuar podendo digitar livre)
+- [x] Excluir/arquivar cliente e veículo (só exclui o que nunca teve OS nem check-in; o resto é arquivado; volta sozinho se o veículo voltar à oficina)
+- [x] Transferir veículo para outro dono (mantendo o histórico no veículo; página do veículo com OS e trocas de dono)
+- [x] Cliente: endereço com CEP, aniversário, consentimento LGPD para contato por WhatsApp (com data), observações
+- [x] Veículo: chassi, motor, combustível
+- [x] **Catálogo de serviços**: descrição, valor, tempo padrão, empresa responsável, código de serviço municipal
+- [x] **Catálogo de peças** (base que o estoque usa na Fase 4): código, descrição, preço de venda, empresa
+- [x] Na OS e na Nova OS: buscar no catálogo ao lançar item, com preço preenchido (e continuar podendo digitar livre)
+- [x] Tela de técnicos: cadastrar, editar, empresa, ativar/desativar
 
 ### 1.7 Agenda — **M**
 - [ ] Agendamentos por dia/semana, por técnico e por empresa

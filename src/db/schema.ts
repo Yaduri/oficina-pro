@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -171,6 +172,14 @@ export const clientes = pgTable(
     documento: text("documento"),
     telefone: text("telefone"),
     email: text("email"),
+    ...endereco(),
+    /** Só dia e mês importam (lembrete de aniversário) */
+    nascimento: date("nascimento"),
+    /** LGPD: consentimento para receber mensagens por WhatsApp */
+    aceitaWhatsapp: boolean("aceita_whatsapp").notNull().default(false),
+    aceitaWhatsappEm: timestamp("aceita_whatsapp_em", { withTimezone: true }),
+    observacoes: text("observacoes"),
+    arquivadoEm: timestamp("arquivado_em", { withTimezone: true }),
     criadoEm: criadoEm(),
   },
   (t) => [index("clientes_oficina_idx").on(t.oficinaId)],
@@ -188,9 +197,53 @@ export const veiculos = pgTable(
     ano: integer("ano"),
     cor: text("cor"),
     km: integer("km"),
+    chassi: text("chassi"),
+    motor: text("motor"),
+    combustivel: text("combustivel"),
+    arquivadoEm: timestamp("arquivado_em", { withTimezone: true }),
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex("veiculos_placa_oficina_uq").on(t.oficinaId, t.placa)],
+);
+
+/** Troca de dono do veículo (as OS antigas continuam com o cliente da época) */
+export const veiculoTransferencias = pgTable(
+  "veiculo_transferencias",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    veiculoId: uuid("veiculo_id").notNull().references(() => veiculos.id, { onDelete: "cascade" }),
+    deClienteId: uuid("de_cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    paraClienteId: uuid("para_cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    /** Nomes guardados para o histórico sobreviver à exclusão do cliente */
+    deNome: text("de_nome"),
+    paraNome: text("para_nome"),
+    por: text("por"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("veiculo_transf_veiculo_idx").on(t.veiculoId)],
+);
+
+/** Catálogo de serviços e peças (base do estoque na Fase 4) */
+export const catalogoItens = pgTable(
+  "catalogo_itens",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    tipo: tipoItem("tipo").notNull(),
+    codigo: text("codigo"),
+    descricao: text("descricao").notNull(),
+    valor: numeric("valor", { precision: 12, scale: 2 }).notNull().default("0"),
+    /** Empresa que presta o serviço / vende a peça; nulo = a empresa da OS */
+    empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "set null" }),
+    /** Serviço: tempo padrão em minutos */
+    tempoMinutos: integer("tempo_minutos"),
+    /** Serviço: código da lista de serviços municipal (NFS-e) */
+    codigoServicoMunicipal: text("codigo_servico_municipal"),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("catalogo_oficina_idx").on(t.oficinaId, t.tipo)],
 );
 
 /* ---------- Operacional ---------- */
@@ -312,6 +365,8 @@ export const osItens = pgTable(
     descricao: text("descricao").notNull(),
     quantidade: numeric("quantidade", { precision: 10, scale: 2 }).notNull().default("1"),
     valorUnitario: numeric("valor_unitario", { precision: 12, scale: 2 }).notNull(),
+    /** Item escolhido do catálogo (o texto e o preço continuam editáveis) */
+    catalogoItemId: uuid("catalogo_item_id").references(() => catalogoItens.id, { onDelete: "set null" }),
     concluido: boolean("concluido").notNull().default(false),
     /** Recusado pelo cliente no orçamento: fica na OS riscado e fora do total */
     recusado: boolean("recusado").notNull().default(false),

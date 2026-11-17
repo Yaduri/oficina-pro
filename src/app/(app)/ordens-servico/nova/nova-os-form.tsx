@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button, Campo, Erro, Input, Textarea, inputClass } from "@/components/ui";
 import { SeletorVeiculo } from "@/components/seletor-veiculo";
+import { BuscaCatalogo, type OpcaoCatalogo } from "@/components/busca-catalogo";
 import { useFormAction } from "@/lib/use-form-action";
 import { cn, formatBRL, parseValor } from "@/lib/utils";
 import { criarOS, type ResultadoPlaca } from "../actions";
 
-type Item = { chave: number; tipo: "peca" | "servico"; descricao: string; quantidade: string; valor: string };
+type Item = { chave: number; tipo: "peca" | "servico"; descricao: string; quantidade: string; valor: string; catalogoItemId?: string };
 
 export function NovaOSForm({
   empresas,
@@ -16,12 +17,14 @@ export function NovaOSForm({
   clientes,
   tecnicos,
   inicial,
+  catalogo = [],
 }: {
   empresas: { id: string; nome: string }[];
   empresaPadrao: string;
   clientes: { id: string; nome: string; telefone: string | null }[];
   tecnicos: string[];
   inicial: ResultadoPlaca | null;
+  catalogo?: OpcaoCatalogo[];
 }) {
   const { state, pending, onSubmit } = useFormAction(criarOS);
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(inicial);
@@ -103,7 +106,7 @@ export function NovaOSForm({
           <h2 className="text-[15px] font-semibold">Peças e serviços</h2>
           <p className="text-[13px] text-muted">Opcional agora. Dá para lançar depois do diagnóstico.</p>
         </div>
-        <input type="hidden" name="itens" value={JSON.stringify(itens.map(({ tipo, descricao, quantidade, valor }) => ({ tipo, descricao, quantidade, valor })))} />
+        <input type="hidden" name="itens" value={JSON.stringify(itens.map(({ tipo, descricao, quantidade, valor, catalogoItemId }) => ({ tipo, descricao, quantidade, valor, catalogoItemId })))} />
         {itens.length > 0 && (
           <ul className="flex flex-col gap-2">
             {itens.map((i) => (
@@ -117,14 +120,32 @@ export function NovaOSForm({
                   <option value="servico">Serviço</option>
                   <option value="peca">Peça</option>
                 </select>
-                <Input
-                  aria-label="Descrição"
-                  value={i.descricao}
-                  onChange={(e) => setItem(i.chave, { descricao: e.target.value })}
-                  placeholder={i.tipo === "peca" ? "Ex.: Bateria 60Ah" : "Ex.: Troca de bateria"}
-                  className="col-span-2 h-10 sm:col-span-1"
-                  required
-                />
+                {catalogo.length > 0 ? (
+                  <BuscaCatalogo
+                    catalogo={catalogo}
+                    value={i.descricao}
+                    onChange={(t) => setItem(i.chave, { descricao: t, catalogoItemId: undefined })}
+                    onEscolher={(c) =>
+                      setItem(i.chave, {
+                        tipo: c.tipo,
+                        descricao: c.descricao,
+                        valor: c.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                        catalogoItemId: c.id,
+                      })
+                    }
+                    placeholder={i.tipo === "peca" ? "Ex.: Bateria 60Ah ou buscar no catálogo" : "Ex.: Troca de bateria ou buscar no catálogo"}
+                    className="col-span-2 sm:col-span-1"
+                  />
+                ) : (
+                  <Input
+                    aria-label="Descrição"
+                    value={i.descricao}
+                    onChange={(e) => setItem(i.chave, { descricao: e.target.value })}
+                    placeholder={i.tipo === "peca" ? "Ex.: Bateria 60Ah" : "Ex.: Troca de bateria"}
+                    className="col-span-2 h-10 sm:col-span-1"
+                    required
+                  />
+                )}
                 <div className="col-span-2 grid grid-cols-[80px_1fr_auto] gap-2 sm:contents">
                   <Input aria-label="Quantidade" value={i.quantidade} onChange={(e) => setItem(i.chave, { quantidade: e.target.value })} inputMode="decimal" className="h-10 text-right" />
                   <Input aria-label="Valor unitário (R$)" value={i.valor} onChange={(e) => setItem(i.chave, { valor: e.target.value })} inputMode="decimal" placeholder="R$ 0,00" className="h-10 text-right" required />
