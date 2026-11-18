@@ -3,7 +3,9 @@ import { Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, type TipoEmpresa } from "@/components/ui";
 import { empresasFiltradas } from "@/lib/oficina";
-import { agendaDeHoje, faturamentoDoMes, listarOSAbertas } from "@/lib/queries";
+import { faturamentoDoMes, listarOSAbertas } from "@/lib/queries";
+import { entregasPrevistas, listarAgendamentos } from "@/lib/agenda";
+import { STATUS_AGENDA, diaSP, inicioDoDia } from "@/lib/agenda-datas";
 import { STATUS } from "@/lib/os";
 import { cn, formatBRL, formatBRLInteiro, formatEntrada, formatHora } from "@/lib/utils";
 
@@ -20,10 +22,13 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
   const { empresa } = await searchParams;
   const { oficina, empresas, empresaIds, selecionada, pode } = await empresasFiltradas(empresa);
   const valores = pode("verValores");
-  const [abertas, faturamento, agenda, user] = await Promise.all([
+  const inicioHoje = inicioDoDia(diaSP(new Date()));
+  const fimHoje = new Date(inicioHoje.getTime() + 86_400_000);
+  const [abertas, faturamento, agenda, entregas, user] = await Promise.all([
     listarOSAbertas(oficina.id, empresaIds),
     faturamentoDoMes(oficina.id, empresaIds),
-    agendaDeHoje(oficina.id, empresaIds),
+    listarAgendamentos(oficina.id, empresaIds, inicioHoje, fimHoje),
+    entregasPrevistas(oficina.id, empresaIds, inicioHoje, fimHoje),
     currentUser(),
   ]);
 
@@ -126,23 +131,50 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
         </Card>
 
         <Card>
-          <CardHeader title="Agenda de hoje" action={<span className="text-[13px] text-muted">{agenda.length} {agenda.length === 1 ? "horário" : "horários"}</span>} />
-          {agenda.length === 0 ? (
+          <CardHeader
+            title="Agenda de hoje"
+            action={
+              <Link href="/agenda" className="text-[13px] font-medium underline-offset-4 hover:underline">
+                Ver agenda
+              </Link>
+            }
+          />
+          {agenda.length === 0 && entregas.length === 0 ? (
             <p className="px-5 py-8 text-center text-muted">Nada agendado para hoje.</p>
           ) : (
             <ul>
               {agenda.map((a) => (
-                <li key={a.id} className="flex gap-3.5 border-b border-border px-5 py-3.5 last:border-b-0">
-                  <span className="w-11 pt-px text-[13px] font-semibold tabular-nums">{formatHora(a.inicio)}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium">{a.titulo}</div>
-                    {a.detalhe && <div className="text-[13px] text-muted">{a.detalhe}</div>}
-                  </div>
-                  {a.tipo === "entrega" ? (
-                    <Badge tom="ok" className="self-start">Entrega</Badge>
-                  ) : a.empresaTipo && a.empresaNome ? (
-                    <EmpresaTag tipo={a.empresaTipo} nome={a.empresaNome.slice(0, 3)} className="self-start" />
-                  ) : null}
+                <li key={a.id} className="border-b border-border last:border-b-0">
+                  <Link href={`/agenda?data=${diaSP(a.inicio)}`} className="flex gap-3.5 px-5 py-3.5 hover:bg-subtle">
+                    <span className="w-11 pt-px text-[13px] font-semibold tabular-nums">{formatHora(a.inicio)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{a.titulo}</div>
+                      <div className="truncate text-[13px] text-muted">
+                        {[a.placa, a.cliente, a.tecnico].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    {a.status !== "agendado" ? (
+                      <Badge tom={STATUS_AGENDA[a.status].tom} className="self-start">
+                        {STATUS_AGENDA[a.status].label}
+                      </Badge>
+                    ) : a.empresaTipo && a.empresaNome ? (
+                      <EmpresaTag tipo={a.empresaTipo} nome={a.empresaNome.slice(0, 3)} className="self-start" />
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+              {entregas.map((e) => (
+                <li key={e.id} className="border-b border-border last:border-b-0">
+                  <Link href={`/ordens-servico/${e.id}`} className="flex gap-3.5 px-5 py-3.5 hover:bg-subtle">
+                    <span className="w-11 pt-px text-[13px] text-muted">Hoje</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">Entrega prevista · OS #{e.numero}</div>
+                      <div className="truncate text-[13px] text-muted">{[e.placa, e.modelo, e.cliente].filter(Boolean).join(" · ")}</div>
+                    </div>
+                    <Badge tom={STATUS[e.status].tom} className="self-start">
+                      {STATUS[e.status].label}
+                    </Badge>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRightLeft, Camera, Wrench } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, CalendarPlus, Camera, Wrench } from "lucide-react";
 import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { historicoVeiculo, obterVeiculo, opcoesClientes, usoDoVeiculo } from "@/lib/cadastros";
@@ -63,6 +63,12 @@ export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]"
         }
         actions={
           <div className="flex flex-wrap gap-2">
+            {pode("abrirOS") && (
+              <Link href={`/agenda/novo?veiculo=${v.id}`} className={buttonClass("secondary")}>
+                <CalendarPlus />
+                Agendar
+              </Link>
+            )}
             {pode("checkin") && (
               <Link href={`/check-in/novo?veiculo=${v.id}`} className={buttonClass("secondary")}>
                 <Camera />

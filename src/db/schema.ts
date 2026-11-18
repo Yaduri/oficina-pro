@@ -463,17 +463,28 @@ export const osFotos = pgTable(
   (t) => [index("os_fotos_os_idx").on(t.osId)],
 );
 
+/**
+ * Agendamento de serviço. O veículo (e o cliente) é cadastrado ao agendar; quando o carro
+ * chega, o agendamento vira check-in (status "atendido" + checkinId).
+ */
 export const agendamentos = pgTable(
   "agendamentos",
   {
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    /** Nulo = qualquer empresa */
     empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "set null" }),
     clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    veiculoId: uuid("veiculo_id").references(() => veiculos.id, { onDelete: "set null" }),
+    tecnicoId: uuid("tecnico_id").references(() => tecnicos.id, { onDelete: "set null" }),
+    /** O que vai ser feito (ex.: "Revisão 40 mil km") */
     titulo: text("titulo").notNull(),
     detalhe: text("detalhe"),
     inicio: timestamp("inicio", { withTimezone: true }).notNull(),
-    tipo: text("tipo").notNull().default("servico"), // servico | entrega
+    duracaoMin: integer("duracao_min").notNull().default(60),
+    status: text("status").$type<"agendado" | "confirmado" | "atendido" | "faltou" | "cancelado">().notNull().default("agendado"),
+    checkinId: uuid("checkin_id").references(() => checkins.id, { onDelete: "set null" }),
+    criadoPor: text("criado_por"),
     criadoEm: criadoEm(),
   },
   (t) => [index("agenda_inicio_idx").on(t.oficinaId, t.inicio)],

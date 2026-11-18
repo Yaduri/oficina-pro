@@ -1,0 +1,1 @@
+ALTER TABLE "agendamentos" DROP COLUMN "tipo";

@@ -7,6 +7,7 @@ import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { CheckinForm } from "./checkin-form";
 import { TERMO_PADRAO } from "@/lib/textos";
 import { listarChecklist } from "@/lib/checklist-dados";
+import { obterAgendamento } from "@/lib/agenda";
 
 export const metadata = { title: "Novo check-in" };
 
@@ -17,7 +18,18 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
   const [clientes, checklist] = await Promise.all([opcoesClientes(oficina.id), listarChecklist(oficina.id, true)]);
 
   let inicial: ResultadoPlaca | null = null;
-  const veiculoId = param("veiculo");
+  // Vindo da agenda: veículo, empresa e o serviço agendado já preenchidos
+  const agendamentoId = param("agendamento");
+  const ag = agendamentoId && /^[0-9a-f-]{36}$/i.test(agendamentoId) ? await obterAgendamento(oficina.id, agendamentoId) : null;
+  const agendamento =
+    ag && ag.agendamento.status !== "atendido"
+      ? {
+          id: ag.agendamento.id,
+          relato: [ag.agendamento.titulo, ag.agendamento.detalhe].filter(Boolean).join(" — "),
+          empresaId: ag.agendamento.empresaId,
+        }
+      : null;
+  const veiculoId = param("veiculo") ?? ag?.agendamento.veiculoId ?? undefined;
   if (veiculoId && /^[0-9a-f-]{36}$/i.test(veiculoId)) {
     const r = await obterVeiculo(oficina.id, veiculoId);
     if (r) {
@@ -39,7 +51,8 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
       <Card className="p-5 sm:p-6">
         <CheckinForm
           empresas={empresas.map((e) => ({ id: e.id, nome: e.nome }))}
-          empresaPadrao={selecionada?.id}
+          empresaPadrao={agendamento?.empresaId ?? selecionada?.id}
+          agendamento={agendamento}
           clientes={clientes}
           inicial={inicial}
           termo={oficina.textoTermoCheckin ?? TERMO_PADRAO}

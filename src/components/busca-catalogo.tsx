@@ -12,6 +12,8 @@ export type OpcaoCatalogo = {
   descricao: string;
   valor: number;
   empresaId: string | null;
+  /** Serviço: tempo padrão em minutos */
+  tempoMinutos?: number | null;
 };
 
 /**

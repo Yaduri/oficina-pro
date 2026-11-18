@@ -83,10 +83,10 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Tela de técnicos: cadastrar, editar, empresa, ativar/desativar
 
 ### 1.7 Agenda — **M**
-- [ ] Agendamentos por dia/semana, por técnico e por empresa
-- [ ] Agendar a partir do cliente/veículo; converter agendamento em check-in
-- [ ] Entregas previstas das OS aparecem na agenda
-- [ ] Início mostra os agendamentos do dia (já existe o espaço)
+- [x] Agendamentos por dia/semana, por técnico e por empresa (aviso de conflito de horário do técnico)
+- [x] Agendar a partir do cliente/veículo; converter agendamento em check-in (já preenchido); confirmar, faltou, cancelar, lembrete por WhatsApp
+- [x] Entregas previstas das OS aparecem na agenda
+- [x] Início mostra os agendamentos do dia e as entregas previstas
 
 ### 1.8 Busca, notificações e início — **M**
 - [ ] Busca global (placa, cliente, telefone, nº da OS) no topo, funcionando

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
@@ -141,12 +142,21 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
         .returning({ id: schema.ordensServico.id });
       await registrarEvento(tx, oficina.id, nova.id, "Abriu a OS pelo check-in", ctx);
     }
+    // Agendamento que virou este check-in
+    const agendamentoId = f(form, "agendamentoId");
+    if (agendamentoId && /^[0-9a-f-]{36}$/i.test(agendamentoId)) {
+      await tx
+        .update(schema.agendamentos)
+        .set({ status: "atendido", checkinId: checkin.id })
+        .where(and(eq(schema.agendamentos.id, agendamentoId), eq(schema.agendamentos.oficinaId, oficina.id)));
+    }
     return checkin.id;
   });
 
   revalidatePath("/check-in");
   revalidatePath("/ordens-servico");
   revalidatePath("/inicio");
+  revalidatePath("/agenda");
   revalidatePath("/clientes");
   redirect(`/check-in/${checkinId}`);
 }

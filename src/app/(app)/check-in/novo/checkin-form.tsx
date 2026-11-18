@@ -35,6 +35,7 @@ export function CheckinForm({
   inicial,
   termo,
   checklist,
+  agendamento = null,
 }: {
   empresas: { id: string; nome: string }[];
   empresaPadrao?: string;
@@ -44,6 +45,8 @@ export function CheckinForm({
   termo: string;
   /** Itens ativos do checklist da oficina */
   checklist: { id: string; grupo: string; descricao: string }[];
+  /** Check-in de um agendamento: o relato começa com o serviço agendado */
+  agendamento?: { id: string; relato: string } | null;
 }) {
   const [state, dispatch, pending] = useActionState(criarCheckin, undefined);
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(inicial);
@@ -224,7 +227,15 @@ export function CheckinForm({
           </div>
         </fieldset>
         <Campo label="O que o cliente relatou" htmlFor="relato">
-          <Textarea id="relato" name="relato" rows={3} required placeholder="Ex.: carro falhando quando frio, luz da bateria acende" />
+          <Textarea
+            id="relato"
+            name="relato"
+            rows={3}
+            required
+            defaultValue={agendamento?.relato}
+            placeholder="Ex.: carro falhando quando frio, luz da bateria acende"
+          />
+          {agendamento && <input type="hidden" name="agendamentoId" value={agendamento.id} />}
         </Campo>
       </Secao>
 

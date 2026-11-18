@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql } from "drizzle-or
 import { getDb, schema } from "@/db";
 import { ABERTAS, type StatusOS } from "@/lib/os";
 
-const { ordensServico: os, osItens, veiculos, clientes, tecnicos, empresas, agendamentos } = schema;
+const { ordensServico: os, osItens, veiculos, clientes, tecnicos, empresas } = schema;
 
 /** Total da OS = soma de quantidade × valor dos itens */
 const brutoOS = sql`coalesce((select sum(i.quantidade * i.valor_unitario) from ${osItens} i where i.os_id = ${os.id} and not i.recusado), 0)`;
@@ -139,31 +139,6 @@ export async function listarTecnicos(oficinaId: string) {
     .from(tecnicos)
     .where(and(eq(tecnicos.oficinaId, oficinaId), eq(tecnicos.ativo, true)))
     .orderBy(asc(tecnicos.nome));
-}
-
-/** Agenda de hoje (fuso de São Paulo) */
-export async function agendaDeHoje(oficinaId: string, empresaIds: string[]) {
-  const db = await getDb();
-  const agora = new Date();
-  const dia = agora.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); // AAAA-MM-DD
-  const inicio = new Date(`${dia}T00:00:00-03:00`);
-  const fim = new Date(inicio.getTime() + 86_400_000);
-  return db
-    .select({
-      id: agendamentos.id,
-      titulo: agendamentos.titulo,
-      detalhe: agendamentos.detalhe,
-      inicio: agendamentos.inicio,
-      tipo: agendamentos.tipo,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
-      empresaId: agendamentos.empresaId,
-    })
-    .from(agendamentos)
-    .leftJoin(empresas, eq(empresas.id, agendamentos.empresaId))
-    .where(and(eq(agendamentos.oficinaId, oficinaId), gte(agendamentos.inicio, inicio), lt(agendamentos.inicio, fim)))
-    .orderBy(asc(agendamentos.inicio))
-    .then((rows) => rows.filter((r) => !r.empresaId || empresaIds.includes(r.empresaId)));
 }
 
 /** Atualiza o status de uma OS da oficina, registrando datas relevantes */

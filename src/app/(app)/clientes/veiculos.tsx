@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Camera, ChevronRight, Pencil, Plus, Wrench } from "lucide-react";
+import { CalendarPlus, Camera, ChevronRight, Pencil, Plus, Wrench } from "lucide-react";
 import { Button, Placa, buttonClass } from "@/components/ui";
 import type { Veiculo } from "@/lib/cadastros";
 import { VeiculoForm } from "./forms";
@@ -49,6 +49,11 @@ export function ListaVeiculos({
                     <Button variant="ghost" className="px-2.5" onClick={() => setEditando(v.id)} aria-label={`Editar veículo ${v.placa}`}>
                       <Pencil />
                     </Button>
+                  )}
+                  {abrirOS && (
+                    <Link href={`/agenda/novo?veiculo=${v.id}`} className={buttonClass("ghost", "px-2.5")} aria-label={`Agendar serviço do veículo ${v.placa}`} title="Agendar">
+                      <CalendarPlus />
+                    </Link>
                   )}
                   <Link href={`/check-in/novo?veiculo=${v.id}`} className={buttonClass("ghost", "px-2.5")} aria-label={`Check-in do veículo ${v.placa}`} title="Check-in">
                     <Camera />
