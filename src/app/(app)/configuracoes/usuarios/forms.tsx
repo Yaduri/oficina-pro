@@ -2,31 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { Check, Copy, MessageCircle, Pencil, UserPlus } from "lucide-react";
-import { Avatar, Badge, Button, Campo, Erro, Input, buttonClass, type TipoEmpresa } from "@/components/ui";
+import { Avatar, Badge, Button, Campo, Erro, Input, buttonClass } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { PAPEIS, type Papel } from "@/lib/permissoes";
 import { cn } from "@/lib/utils";
 import { alterarAtivo, atualizarMembro, cancelarConvite, criarConvite } from "./actions";
 
-type EmpresaOpcao = { id: string; nome: string; tipo: TipoEmpresa };
-
-/* ---------- Papel + empresas ---------- */
+/* ---------- Papel ---------- */
 
 function CamposAcesso({
-  idPrefixo,
   papeis,
-  empresas,
-  podeTodas,
   inicial,
 }: {
-  idPrefixo: string;
   papeis: Papel[];
-  empresas: EmpresaOpcao[];
-  /** Quem está editando vê todas as empresas (só então pode dar "todas") */
-  podeTodas: boolean;
-  inicial?: { papel: Papel; todasEmpresas: boolean; empresaIds: string[] };
+  inicial?: { papel: Papel };
 }) {
-  const [todas, setTodas] = useState(podeTodas && (inicial?.todasEmpresas ?? true));
 
   return (
     <div className="flex flex-col gap-5">
@@ -53,49 +43,13 @@ function CamposAcesso({
         ))}
       </fieldset>
 
-      {empresas.length > 1 || !podeTodas ? (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">Empresas que pode acessar</legend>
-          {podeTodas && (
-            <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                name="todasEmpresas"
-                checked={todas}
-                onChange={(e) => setTodas(e.target.checked)}
-                className="size-[18px] cursor-pointer accent-zinc-900"
-              />
-              Todas as empresas
-            </label>
-          )}
-          {!todas && (
-            <div className="flex flex-col gap-2 sm:pl-7">
-              {empresas.map((e) => (
-                <label key={e.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
-                  <input
-                    type="checkbox"
-                    name="empresas"
-                    value={e.id}
-                    id={`${idPrefixo}-emp-${e.id}`}
-                    defaultChecked={inicial ? inicial.empresaIds.includes(e.id) : false}
-                    className="size-[18px] cursor-pointer accent-zinc-900"
-                  />
-                  {e.nome}
-                </label>
-              ))}
-            </div>
-          )}
-        </fieldset>
-      ) : (
-        <input type="hidden" name="todasEmpresas" value="on" />
-      )}
     </div>
   );
 }
 
 /* ---------- Convidar ---------- */
 
-export function ConvidarForm({ papeis, empresas, podeTodas }: { papeis: Papel[]; empresas: EmpresaOpcao[]; podeTodas: boolean }) {
+export function ConvidarForm({ papeis }: { papeis: Papel[] }) {
   const [aberto, setAberto] = useState(false);
   const [chave, setChave] = useState(0);
   const { state, pending, onSubmit } = useFormAction(async (prev: Awaited<ReturnType<typeof criarConvite>>, form: FormData) => {
@@ -128,7 +82,7 @@ export function ConvidarForm({ papeis, empresas, podeTodas }: { papeis: Papel[];
       <Campo label="Nome" hint="(para identificar o convite)" htmlFor="cv-nome">
         <Input id="cv-nome" name="nome" required minLength={2} maxLength={80} placeholder="Ex.: João (sócio)" />
       </Campo>
-      <CamposAcesso idPrefixo="cv" papeis={papeis} empresas={empresas} podeTodas={podeTodas} />
+      <CamposAcesso papeis={papeis} />
       <Erro>{state?.erro}</Erro>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={pending}>
@@ -146,7 +100,6 @@ export function ConvitePendente({
   id,
   nome,
   papel,
-  empresasTexto,
   expira,
   url,
   whatsapp,
@@ -155,7 +108,6 @@ export function ConvitePendente({
   id: string;
   nome: string;
   papel: Papel;
-  empresasTexto: string;
   expira: string;
   url: string;
   whatsapp: string;
@@ -170,7 +122,7 @@ export function ConvitePendente({
         <span className="font-medium">{nome}</span>
         <Badge tom="warn">Convite pendente</Badge>
         <span className="text-[13px] text-muted">
-          {PAPEIS[papel].label} · {empresasTexto} · vale até {expira}
+          {PAPEIS[papel].label} · vale até {expira}
         </span>
       </div>
       <div className="flex min-w-0 items-center rounded-md border border-border bg-subtle px-3 py-2">
@@ -217,17 +169,11 @@ export function MembroLinha({
   voce,
   editavel,
   papeis,
-  empresas,
-  podeTodas,
-  empresasTexto,
 }: {
-  membro: { id: string; nome: string | null; email: string | null; papel: Papel; ativo: boolean; todasEmpresas: boolean; empresaIds: string[] };
+  membro: { id: string; nome: string | null; email: string | null; papel: Papel; ativo: boolean };
   voce: boolean;
   editavel: boolean;
   papeis: Papel[];
-  empresas: EmpresaOpcao[];
-  podeTodas: boolean;
-  empresasTexto: string;
 }) {
   const [editando, setEditando] = useState(false);
   const [pending, start] = useTransition();
@@ -250,7 +196,7 @@ export function MembroLinha({
             {!membro.ativo && <Badge tom="danger">Desativado</Badge>}
           </p>
           <p className="truncate text-[13px] text-muted">
-            {[membro.nome && membro.email, PAPEIS[membro.papel].label, empresasTexto].filter(Boolean).join(" · ")}
+            {[membro.nome && membro.email, PAPEIS[membro.papel].label].filter(Boolean).join(" · ")}
           </p>
         </div>
         {editavel && !editando && (
@@ -281,13 +227,7 @@ export function MembroLinha({
 
       {editando && (
         <form onSubmit={onSubmit} className="flex flex-col gap-5 rounded-lg border border-border bg-subtle/60 p-4">
-          <CamposAcesso
-            idPrefixo={`m-${membro.id.slice(0, 8)}`}
-            papeis={papeis}
-            empresas={empresas}
-            podeTodas={podeTodas}
-            inicial={membro}
-          />
+          <CamposAcesso papeis={papeis} inicial={membro} />
           <Erro>{state?.erro}</Erro>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant="primary" disabled={salvando}>

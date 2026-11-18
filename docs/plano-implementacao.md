@@ -4,20 +4,20 @@ Plano completo para levar o sistema do estado atual até a versão final, sem la
 Complementa [arquitetura.md](arquitetura.md) (o "o quê" e o "porquê"); aqui está o "em que ordem" e o "quando está pronto".
 
 **Legenda:** `[x]` pronto · `[ ]` a fazer · Tamanho: **P** (uma sessão curta), **M** (uma sessão), **G** (duas ou mais sessões)
-**Regra de pronto para todo item:** funciona no celular e no computador, valida os dados no servidor, respeita oficina e CNPJ do usuário, foi testado no navegador e os dados de teste foram apagados.
+**Regra de pronto para todo item:** funciona no celular e no computador, valida os dados no servidor, respeita a oficina do usuário, foi testado no navegador e os dados de teste foram apagados.
 
 ---
 
 ## Situação atual (16/11/2026)
 
 - [x] Base: Next.js 16, Clerk (login), Drizzle + PGlite local, visual definido (design B)
-- [x] Cadastro inicial da oficina com as duas empresas (Mecânica e Autoelétrica)
+- [x] Cadastro inicial da oficina (nome e CNPJ)
 - [x] Clientes (PF/PJ, validação de CPF/CNPJ, telefone, WhatsApp) e veículos (placa Mercosul)
 - [x] Ordens de serviço: nova OS, quadro por status, tela da OS, itens de peça/serviço, totais
-- [x] Check-in pelo celular: fotos comprimidas, km, combustível, avarias, objetos, assinatura, uma OS por empresa
+- [x] Check-in pelo celular: fotos comprimidas, km, combustível, avarias, objetos, assinatura; cada check-in abre uma OS
 - [x] Arquivos no Cloudflare R2 (testado)
 - [x] Orçamento com link de aprovação (aprovação total, parcial ou recusa, sem login)
-- [x] Configurações da oficina e das empresas (1.1)
+- [x] Configurações da oficina e dos dados fiscais (1.1)
 - [x] Usuários, papéis e convites (1.2)
 - [x] Checklist configurável no check-in (1.3)
 - [x] Ajustes da OS: edição, desconto, transferência, entrega, lista, histórico e fotos (1.5)
@@ -28,17 +28,17 @@ Complementa [arquitetura.md](arquitetura.md) (o "o quê" e o "porquê"); aqui es
 
 Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sistema.
 
-### 1.1 Configurações da oficina e das empresas — **M**
+### 1.1 Configurações da oficina — **M**
 - [x] Tela **Configurações** (só dono/gerente)
 - [x] Oficina: nome, telefone, WhatsApp, endereço (CEP com preenchimento automático), logo (R2)
-- [x] Cada empresa: razão social, nome fantasia, CNPJ (validação, inclusive o CNPJ alfanumérico), IE, IM, regime tributário, endereço, telefone, e-mail
+- [x] Dados fiscais: razão social, nome fantasia, CNPJ (validação, inclusive o CNPJ alfanumérico), IE, IM, regime tributário
 - [x] Textos padrão: garantia de serviço, termo do check-in, observação padrão do orçamento, validade padrão do orçamento
 - [x] Dados usados no orçamento por link e no termo de entrada (PDFs na etapa 1.4)
 - [x] O check-in guarda a cópia do termo que o cliente leu ao assinar
 
 ### 1.2 Usuários, papéis e acessos — **G**
-- [x] Acessos no nosso banco (`membros`, `membro_empresas`, `convites`), sem Organizations do Clerk — ver arquitetura §4.1
-- [x] Convite por link de uso único (7 dias), enviado pelo WhatsApp, escolhendo papel e empresas
+- [x] Acessos no nosso banco (`membros`, `convites`), sem Organizations do Clerk — ver arquitetura §4.1
+- [x] Convite por link de uso único (7 dias), enviado pelo WhatsApp, escolhendo o papel
 - [x] Lista de usuários: alterar papel/acesso, desativar e reativar; convites pendentes com copiar/WhatsApp/cancelar
 - [x] Permissões aplicadas no servidor em todas as ações (técnico não vê valores, não abre OS, não lança itens, não entrega/cancela; financeiro não abre OS)
 - [x] Menu e botões escondidos conforme o papel
@@ -55,7 +55,7 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Mudança no checklist não altera check-ins antigos (cópia no momento do registro)
 
 ### 1.4 PDFs — **M**
-- [x] Geração no servidor com logo e dados do CNPJ da OS (@react-pdf/renderer; fotos reduzidas com sharp)
+- [x] Geração no servidor com logo e dados do CNPJ (@react-pdf/renderer; fotos reduzidas com sharp)
 - [x] PDF do **orçamento** (botão na OS e na página do cliente; mostra aprovado/recusado depois da resposta)
 - [x] PDF da **OS** (via da oficina e via do cliente, com assinatura de retirada)
 - [x] PDF do **termo de entrada** (check-in com fotos e checklist)
@@ -63,12 +63,10 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 
 ### 1.5 Ajustes da OS — **M**
 - [x] Editar relato, responsável, km de entrada e previsão de entrega
-- [x] Editar item (tipo, descrição, quantidade, valor) e escolher a empresa do item (OS mista, com subtotal por empresa)
+- [x] Editar item (tipo, descrição, quantidade, valor)
 - [x] Desconto na OS (valor ou %); vai junto no orçamento e é aplicado proporcionalmente na aprovação parcial
-- [ ] Desconto separado por empresa em OS mista — fica para o faturamento (Fase 2), rateado pelo valor de cada empresa
-- [x] Transferir OS para a outra empresa (enquanto aberta)
 - [x] Entrega do veículo: km de saída, garantia (padrão configurável), observação e assinatura de retirada
-- [x] Visualização em **lista** com filtros (status, empresa, período, técnico, busca) além do quadro
+- [x] Visualização em **lista** com filtros (status, período, técnico, busca) além do quadro
 - [x] Histórico de alterações da OS (inclusive a resposta do cliente pelo link)
 - [x] Fotos durante o serviço (peça trocada, antes/depois), pelo celular
 
@@ -77,13 +75,13 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Transferir veículo para outro dono (mantendo o histórico no veículo; página do veículo com OS e trocas de dono)
 - [x] Cliente: endereço com CEP, aniversário, consentimento LGPD para contato por WhatsApp (com data), observações
 - [x] Veículo: chassi, motor, combustível
-- [x] **Catálogo de serviços**: descrição, valor, tempo padrão, empresa responsável, código de serviço municipal
-- [x] **Catálogo de peças** (base que o estoque usa na Fase 4): código, descrição, preço de venda, empresa
+- [x] **Catálogo de serviços**: descrição, valor, tempo padrão, código de serviço municipal
+- [x] **Catálogo de peças** (base que o estoque usa na Fase 4): código, descrição, preço de venda
 - [x] Na OS e na Nova OS: buscar no catálogo ao lançar item, com preço preenchido (e continuar podendo digitar livre)
-- [x] Tela de técnicos: cadastrar, editar, empresa, ativar/desativar
+- [x] Tela de técnicos: cadastrar, editar, ativar/desativar
 
 ### 1.7 Agenda — **M**
-- [x] Agendamentos por dia/semana, por técnico e por empresa (aviso de conflito de horário do técnico)
+- [x] Agendamentos por dia/semana e por técnico (aviso de conflito de horário do técnico)
 - [x] Agendar a partir do cliente/veículo; converter agendamento em check-in (já preenchido); confirmar, faltou, cancelar, lembrete por WhatsApp
 - [x] Entregas previstas das OS aparecem na agenda
 - [x] Início mostra os agendamentos do dia e as entregas previstas
@@ -94,43 +92,48 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Previsão da peça (editar OS) e "Avisar cliente" quando a OS fica pronta (registra o aviso)
 - [x] Início com indicadores reais (pátio, aguardando aprovação, prontos e clientes não avisados, faturamento do mês e do dia pelas OS entregues; agendados hoje para quem não vê valores) — trocar para o financeiro na Fase 2
 
+### 1.8b Um CNPJ por conta (mudança de 18/11/2026) — **M**
+- [x] A oficina passa a ser o CNPJ: dados fiscais nas Configurações; sai a tabela de empresas e todo `empresa_id`
+- [x] Sem seletor de empresa no topo, sem etiquetas de mecânica/elétrica, sem OS mista e sem transferir OS
+- [x] Check-in abre uma OS; usuários sem escolha de empresas; catálogo, agenda e técnicos sem campo de empresa
+- [x] Cada login pertence a uma única oficina (convite recusa quem já está em outra)
+- [x] Migrações reunidas numa só (nada publicado ainda) e banco de desenvolvimento zerado
+
 ### 1.9 Celular como app (PWA) — **P**
 - [ ] Ícone na tela inicial, abre em tela cheia
 - [ ] Check-in tolera internet ruim (reenvio automático das fotos)
 
 ---
 
-## Fase 2 — Financeiro (sempre por CNPJ)
+## Fase 2 — Financeiro
 
-Objetivo: cada empresa tem seu caixa, contas e relatórios separados.
+Objetivo: caixa, contas e relatórios da oficina.
 
 ### 2.1 Recebimento na entrega — **G**
 - [ ] Ao entregar a OS: registrar pagamento (dinheiro, PIX, débito, crédito, boleto, a prazo), parcelas e taxa da maquininha
-- [ ] OS mista: duas cobranças, uma por CNPJ (decisão já tomada)
 - [ ] Gera **contas a receber** automaticamente; baixa automática quando à vista
-- [ ] Recibo (PDF) por empresa
+- [ ] Recibo (PDF)
 
 ### 2.2 Contas a receber e a pagar — **G**
 - [ ] Lançamentos com vencimento, categoria, centro de custo, anexo (boleto/nota no R2)
 - [ ] Contas recorrentes (aluguel, energia, internet)
-- [ ] Despesas compartilhadas entre as empresas com **rateio** (% configurável)
 - [ ] Baixa parcial, juros/multa, estorno
 - [ ] Alertas de vencimento
 
 ### 2.3 Caixa e bancos — **M**
-- [ ] Contas bancárias e caixa físico por empresa
+- [ ] Contas bancárias e caixa físico
 - [ ] Abertura/fechamento de caixa diário com conferência
 - [ ] Transferência entre contas
 - [ ] Conciliação por arquivo OFX do banco
 
 ### 2.4 Relatórios financeiros — **M**
-- [ ] Fluxo de caixa (realizado e previsto) por empresa e consolidado
-- [ ] DRE simplificada por empresa
+- [ ] Fluxo de caixa (realizado e previsto)
+- [ ] DRE simplificada
 - [ ] Faturamento por período, por serviço, por técnico, ticket médio
 - [ ] Exportar para Excel/CSV
 
 ### 2.5 Cobrança online — **M** (depende do gateway)
-- [ ] Escolher gateway (Asaas, Mercado Pago, Efí…) — um cadastro por CNPJ
+- [ ] Escolher gateway (Asaas, Mercado Pago, Efí…) — um cadastro por oficina
 - [ ] PIX com QR Code e link de pagamento no orçamento/OS
 - [ ] Baixa automática por webhook
 
@@ -140,21 +143,21 @@ Objetivo: cada empresa tem seu caixa, contas e relatórios separados.
 
 ---
 
-## Fase 3 — Fiscal (por CNPJ, via API)
+## Fase 3 — Fiscal (via API)
 
 Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do contador** (ver Decisões pendentes).
 
 ### 3.1 Integração base — **G**
 - [ ] Camada `ProvedorFiscal` (interface única) para poder trocar de provedor sem reescrever o sistema
 - [ ] Implementação **PlugNotas** (sandbox público, sem cadastro) para desenvolver e testar o fluxo
-- [ ] Implementação **Focus NFe** (homologação e depois produção) quando houver os certificados A1; o provedor é escolhido por empresa nas Configurações
-- [ ] Cadastro de cada empresa no provedor com o **certificado A1** (upload criptografado, aviso de vencimento)
-- [ ] Ambientes: homologação para testes e produção, por empresa
+- [ ] Implementação **Focus NFe** (homologação e depois produção) quando houver os certificados A1; o provedor é escolhido nas Configurações
+- [ ] Cadastro da oficina (CNPJ) no provedor com o **certificado A1** (upload criptografado, aviso de vencimento)
+- [ ] Ambientes: homologação para testes e produção
 - [ ] Fila de emissão com tentativas automáticas e webhook de retorno
 - [ ] Guardar XML e PDF de cada nota no R2 (obrigatório guardar por 5 anos)
 
 ### 3.2 NFS-e (serviços) — **G**
-- [ ] Emitir a partir da OS entregue (itens de serviço da empresa)
+- [ ] Emitir a partir da OS entregue (itens de serviço)
 - [ ] Código de serviço (LC 116, item 14.01), alíquota de ISS, retenções
 - [ ] Padrão nacional ou do município (confirmar com o contador)
 - [ ] Cancelamento e substituição dentro do prazo
@@ -167,7 +170,7 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 - [ ] Contingência
 
 ### 3.4 Contador — **P**
-- [ ] Exportação mensal (XMLs + relatório) por empresa, em ZIP
+- [ ] Exportação mensal (XMLs + relatório), em ZIP
 - [ ] Acesso de leitura para o contador (papel próprio)
 
 ### 3.5 Reforma tributária — **P**
@@ -178,7 +181,6 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 ## Fase 4 — Estoque e compras
 
 ### 4.1 Estoque — **G**
-- [ ] Estoque por empresa (recomendado separado — confirmar)
 - [ ] Entrada manual e **por XML da nota do fornecedor** (cadastra/atualiza peças e custo)
 - [ ] Baixa automática ao usar a peça na OS; devolução ao remover item
 - [ ] Estoque mínimo e lista de compras
@@ -215,7 +217,7 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 
 ### 6.1 Infraestrutura — **M**
 - [ ] Banco de produção (Supabase) com migrações automáticas
-- [ ] **Row Level Security** no banco (isolamento por oficina e por empresa, conforme arquitetura §4.2)
+- [ ] **Row Level Security** no banco (isolamento por oficina, conforme arquitetura §4.2)
 - [ ] Clerk em modo produção com domínio próprio (gerar novas chaves; a secret atual foi exposta no chat e deve ser trocada)
 - [ ] Deploy (Cloudflare ou Vercel), domínio e HTTPS; `APP_URL` configurado
 - [ ] Bucket R2 de produção separado do de testes
@@ -243,9 +245,9 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 | Decisão | Com quem | Bloqueia |
 |---|---|---|
 | Vendem peças ou só serviço? | Sócios + contador | 3.3, 4.1 |
-| Regime tributário de cada CNPJ | Contador | 1.1, Fase 3 |
+| Regime tributário do CNPJ | Contador | 1.1, Fase 3 |
 | Município usa NFS-e nacional? | Contador / prefeitura | 3.2 |
-| Certificado A1 de cada empresa | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
+| Certificado A1 do CNPJ | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
 | Estoque separado ou compartilhado? | Sócios | 4.1 |
 | ~~Provedor fiscal~~ | **Decidido:** desenvolver no sandbox do PlugNotas; produção na Focus NFe quando houver os certificados | — |
 | Gateway de pagamento (PIX/link) | Sócios | 2.5 |
@@ -253,7 +255,7 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 | Uso próprio ou vender para outras oficinas? | Sócios | Planos/assinatura (fora deste plano) |
 
 ### Provedor fiscal — situação pesquisada em 16/11/2026
-- **Focus NFe** (recomendado): 30 dias de teste grátis em todos os planos e token de homologação. Plano **Start** R$ 119,90/mês com até 3 CNPJs e 100 documentos por CNPJ — cobre as duas empresas. Inclui NFS-e, NF-e e NFC-e.
+- **Focus NFe** (recomendado): 30 dias de teste grátis em todos os planos e token de homologação. Plano **Start** R$ 119,90/mês com até 3 CNPJs e 100 documentos por CNPJ. Inclui NFS-e, NF-e e NFC-e.
 - **PlugNotas (TecnoSpeed)**: sandbox público com token fixo, sem cadastro — bom para desenvolver, mas as respostas são simuladas. Preço sob consulta.
 - **Nuvem Fiscal**: há relatos (fórum do Projeto ACBr, abr/2026) de desativação do serviço e migração para a ACBr API. Evitar até confirmar.
 

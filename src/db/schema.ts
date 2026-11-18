@@ -8,7 +8,6 @@ import {
   numeric,
   pgEnum,
   pgTable,
-  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -17,7 +16,7 @@ import {
 
 /*
  * Modelo de dados — ver docs/arquitetura.md, seção 3.
- * Regra: toda tabela tem oficina_id; financeiro/fiscal e OS têm também empresa_id.
+ * Regra: toda tabela tem oficina_id. Cada oficina é uma empresa com um único CNPJ.
  */
 
 const id = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);
@@ -34,7 +33,6 @@ const endereco = () => ({
   uf: text("uf"),
 });
 
-export const tipoEmpresa = pgEnum("tipo_empresa", ["mecanica", "eletrica", "outra"]);
 export const papel = pgEnum("papel", ["dono", "gerente", "atendente", "tecnico", "financeiro"]);
 export const tipoPessoa = pgEnum("tipo_pessoa", ["pf", "pj"]);
 export const regimeTributario = pgEnum("regime_tributario", ["mei", "simples", "presumido", "real"]);
@@ -50,13 +48,21 @@ export const statusOS = pgEnum("status_os", [
 export const tipoItem = pgEnum("tipo_item", ["peca", "servico"]);
 export const statusOrcamento = pgEnum("status_orcamento", ["pendente", "aprovado", "parcial", "recusado", "substituido"]);
 
-/* ---------- Oficina (tenant) e empresas (CNPJs) ---------- */
+/* ---------- Oficina (tenant = um CNPJ) ---------- */
 
 export const oficinas = pgTable("oficinas", {
   id: id(),
   /** Organization do Clerk; em contas sem organização usa "user_<id>" */
   clerkOrgId: text("clerk_org_id").notNull().unique(),
+  /** Nome usado no sistema e nos documentos quando não há nome fantasia */
   nome: text("nome").notNull(),
+  razaoSocial: text("razao_social"),
+  nomeFantasia: text("nome_fantasia"),
+  /** Só caracteres 0-9/A-Z (aceita o CNPJ alfanumérico) */
+  cnpj: text("cnpj"),
+  regime: regimeTributario("regime"),
+  inscricaoMunicipal: text("inscricao_municipal"),
+  inscricaoEstadual: text("inscricao_estadual"),
   telefone: text("telefone"),
   whatsapp: text("whatsapp"),
   email: text("email"),
@@ -73,34 +79,8 @@ export const oficinas = pgTable("oficinas", {
   criadoEm: criadoEm(),
 });
 
-export const empresas = pgTable(
-  "empresas",
-  {
-    id: id(),
-    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
-    tipo: tipoEmpresa("tipo").notNull(),
-    /** Nome curto usado no sistema (ex.: "Mecânica") */
-    nome: text("nome").notNull(),
-    razaoSocial: text("razao_social"),
-    nomeFantasia: text("nome_fantasia"),
-    /** Só caracteres 0-9/A-Z (aceita o CNPJ alfanumérico) */
-    cnpj: text("cnpj"),
-    regime: regimeTributario("regime"),
-    inscricaoMunicipal: text("inscricao_municipal"),
-    inscricaoEstadual: text("inscricao_estadual"),
-    telefone: text("telefone"),
-    email: text("email"),
-    /** Falso = usa o endereço da oficina */
-    enderecoProprio: boolean("endereco_proprio").notNull().default(false),
-    ...endereco(),
-    criadoEm: criadoEm(),
-  },
-  (t) => [index("empresas_oficina_idx").on(t.oficinaId)],
-);
-
 /**
  * Usuário (login do Clerk) que faz parte da oficina, com um papel.
- * todasEmpresas = vê todos os CNPJs; senão, só os de membro_empresas.
  */
 export const membros = pgTable(
   "membros",
@@ -112,22 +92,12 @@ export const membros = pgTable(
     nome: text("nome"),
     email: text("email"),
     papel: papel("papel").notNull(),
-    todasEmpresas: boolean("todas_empresas").notNull().default(true),
     ativo: boolean("ativo").notNull().default(true),
     /** Última vez que abriu o sino: o que é mais novo conta como não lido */
     notificacoesLidasEm: timestamp("notificacoes_lidas_em", { withTimezone: true }),
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex("membros_oficina_usuario_uq").on(t.oficinaId, t.clerkUserId), index("membros_usuario_idx").on(t.clerkUserId)],
-);
-
-export const membroEmpresas = pgTable(
-  "membro_empresas",
-  {
-    membroId: uuid("membro_id").notNull().references(() => membros.id, { onDelete: "cascade" }),
-    empresaId: uuid("empresa_id").notNull().references(() => empresas.id, { onDelete: "cascade" }),
-  },
-  (t) => [primaryKey({ columns: [t.membroId, t.empresaId] })],
 );
 
 /** Convite por link (enviado pelo WhatsApp). Quem abre, entra/cria a conta e aceita. */
@@ -140,8 +110,6 @@ export const convites = pgTable(
     /** Para quem é (só para identificar na lista) */
     nome: text("nome").notNull(),
     papel: papel("papel").notNull(),
-    todasEmpresas: boolean("todas_empresas").notNull().default(true),
-    empresaIds: jsonb("empresa_ids").$type<string[]>().notNull().default([]),
     criadoPor: text("criado_por").notNull(),
     criadoEm: criadoEm(),
     expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
@@ -156,7 +124,6 @@ export const convites = pgTable(
 export const tecnicos = pgTable("tecnicos", {
   id: id(),
   oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
-  empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "set null" }),
   nome: text("nome").notNull(),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: criadoEm(),
@@ -236,8 +203,6 @@ export const catalogoItens = pgTable(
     codigo: text("codigo"),
     descricao: text("descricao").notNull(),
     valor: numeric("valor", { precision: 12, scale: 2 }).notNull().default("0"),
-    /** Empresa que presta o serviço / vende a peça; nulo = a empresa da OS */
-    empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "set null" }),
     /** Serviço: tempo padrão em minutos */
     tempoMinutos: integer("tempo_minutos"),
     /** Serviço: código da lista de serviços municipal (NFS-e) */
@@ -275,8 +240,7 @@ export type ItemChecklistRegistrado = {
 };
 
 /**
- * Recepção do veículo (feita no celular). Um check-in pode gerar uma OS por empresa
- * (ex.: o carro entra para a mecânica e para a elétrica ao mesmo tempo).
+ * Recepção do veículo (feita no celular). Cada check-in abre uma OS.
  */
 export const checkins = pgTable(
   "checkins",
@@ -322,8 +286,6 @@ export const ordensServico = pgTable(
   {
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
-    /** Empresa dona da OS (decisão: cada OS pertence a uma empresa) */
-    empresaId: uuid("empresa_id").notNull().references(() => empresas.id),
     numero: integer("numero").notNull(),
     checkinId: uuid("checkin_id").references(() => checkins.id, { onDelete: "set null" }),
     veiculoId: uuid("veiculo_id").notNull().references(() => veiculos.id),
@@ -361,8 +323,6 @@ export const osItens = pgTable(
   {
     id: id(),
     osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
-    /** Padrão = empresa da OS; difere apenas em OS mista */
-    empresaId: uuid("empresa_id").notNull().references(() => empresas.id),
     tipo: tipoItem("tipo").notNull(),
     descricao: text("descricao").notNull(),
     quantidade: numeric("quantidade", { precision: 10, scale: 2 }).notNull().default("1"),
@@ -474,8 +434,6 @@ export const agendamentos = pgTable(
   {
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
-    /** Nulo = qualquer empresa */
-    empresaId: uuid("empresa_id").references(() => empresas.id, { onDelete: "set null" }),
     clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
     veiculoId: uuid("veiculo_id").references(() => veiculos.id, { onDelete: "set null" }),
     tecnicoId: uuid("tecnico_id").references(() => tecnicos.id, { onDelete: "set null" }),
@@ -494,12 +452,7 @@ export const agendamentos = pgTable(
 
 /* ---------- Relações ---------- */
 
-export const oficinasRelations = relations(oficinas, ({ many }) => ({ empresas: many(empresas) }));
-export const empresasRelations = relations(empresas, ({ one }) => ({
-  oficina: one(oficinas, { fields: [empresas.oficinaId], references: [oficinas.id] }),
-}));
 export const ordensServicoRelations = relations(ordensServico, ({ one, many }) => ({
-  empresa: one(empresas, { fields: [ordensServico.empresaId], references: [empresas.id] }),
   veiculo: one(veiculos, { fields: [ordensServico.veiculoId], references: [veiculos.id] }),
   cliente: one(clientes, { fields: [ordensServico.clienteId], references: [clientes.id] }),
   responsavel: one(tecnicos, { fields: [ordensServico.responsavelId], references: [tecnicos.id] }),

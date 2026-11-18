@@ -13,9 +13,9 @@ export const metadata = { title: "Editar agendamento" };
 export default async function EditarAgendamentoPage({ params }: PageProps<"/agenda/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { oficina, empresas } = await exigir("abrirOS");
+  const { oficina } = await exigir("abrirOS");
   const r = await obterAgendamento(oficina.id, id);
-  if (!r || (r.agendamento.empresaId && !empresas.some((e) => e.id === r.agendamento.empresaId))) notFound();
+  if (!r) notFound();
   const a = r.agendamento;
   const d = await dadosDoFormulario(a.veiculoId);
   const dia = diaSP(a.inicio);
@@ -36,12 +36,10 @@ export default async function EditarAgendamentoPage({ params }: PageProps<"/agen
             duracao: a.duracaoMin,
             titulo: a.titulo,
             detalhe: a.detalhe ?? "",
-            empresaId: a.empresaId ?? "",
             tecnicoId: a.tecnicoId ?? "",
           }}
           inicial={d.inicial}
           clientes={d.clientes}
-          empresas={d.empresas}
           tecnicos={d.tecnicos}
           catalogo={d.catalogo}
         />

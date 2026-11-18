@@ -18,7 +18,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
     <>
       <PageHeader
         title="Clientes"
-        description="Clientes e veículos são compartilhados entre as empresas da oficina"
+        description="Clientes e veículos da oficina"
         actions={
           pode("cadastros") && (
             <Link href="/clientes/novo" className={buttonClass("primary")}>

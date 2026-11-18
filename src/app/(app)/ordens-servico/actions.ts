@@ -29,7 +29,7 @@ export async function moverOS(osId: string, status: string) {
   if (!parsed.success) return { ok: false, erro: "Dados inválidos" };
 
   const ctx = await getContexto();
-  const { oficina, empresas, pode } = ctx;
+  const { oficina, pode } = ctx;
   // A entrega tem formulário próprio (km de saída, garantia, assinatura)
   if (parsed.data.status === "entregue") return { ok: false, erro: "Use “Entregar veículo” na tela da OS" };
   if (!pode("fecharOS")) {
@@ -47,7 +47,7 @@ export async function moverOS(osId: string, status: string) {
     .select({ status: schema.ordensServico.status })
     .from(schema.ordensServico)
     .where(and(eq(schema.ordensServico.id, parsed.data.osId), eq(schema.ordensServico.oficinaId, oficina.id)));
-  const ok = await atualizarStatusOS(oficina.id, empresas.map((e) => e.id), parsed.data.osId, parsed.data.status);
+  const ok = await atualizarStatusOS(oficina.id, parsed.data.osId, parsed.data.status);
   if (!ok) return { ok: false, erro: "OS não encontrada" };
   if (antes && antes.status !== parsed.data.status) {
     await registrarEvento(db, oficina.id, parsed.data.osId, `Status: ${STATUS[antes.status].label} → ${STATUS[parsed.data.status].label}`, ctx);
@@ -105,7 +105,6 @@ const itemSchema = z.object({
 export type NovaOSState = { erro?: string } | undefined;
 
 const novaOSSchema = z.object({
-  empresaId: z.uuid("Escolha a empresa"),
   veiculoId: z.string(),
   descricao: z.string().trim().min(3, "Descreva o problema relatado pelo cliente"),
   kmEntrada: z
@@ -119,7 +118,7 @@ const novaOSSchema = z.object({
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaOSState> {
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, pode } = await getContexto();
   if (!pode("abrirOS")) return { erro: "Seu usuário não tem permissão para isso" };
 
   let itens: unknown = [];
@@ -129,7 +128,6 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
     return { erro: "Itens inválidos" };
   }
   const dados = novaOSSchema.safeParse({
-    empresaId: f(form, "empresaId"),
     veiculoId: f(form, "veiculoId"),
     descricao: f(form, "descricao"),
     kmEntrada: f(form, "kmEntrada"),
@@ -138,7 +136,6 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
   });
   if (!dados.success) return { erro: dados.error.issues[0].message };
   const d = dados.data;
-  if (!empresas.some((e) => e.id === d.empresaId)) return { erro: "Empresa não permitida" };
 
   const prep = await prepararVeiculo(oficina.id, form);
   if ("erro" in prep) return prep;
@@ -161,7 +158,7 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
         (
           await tx
             .insert(tecnicos)
-            .values({ oficinaId: oficina.id, empresaId: d.empresaId, nome: d.responsavel })
+            .values({ oficinaId: oficina.id, nome: d.responsavel })
             .returning({ id: tecnicos.id })
         )[0].id;
     }
@@ -172,7 +169,6 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
       .insert(ordensServico)
       .values({
         oficinaId: oficina.id,
-        empresaId: d.empresaId,
         numero: proximo,
         veiculoId,
         clienteId,
@@ -183,11 +179,11 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
       .returning({ id: ordensServico.id });
 
     if (d.itens.length > 0) {
-      // Itens do catálogo: confere que são desta oficina e usa a empresa responsável, se o usuário a vê
+      // Itens do catálogo: só guarda a ligação se forem desta oficina
       const ids = [...new Set(d.itens.map((i) => i.catalogoItemId).filter((x): x is string => !!x))];
       const doCatalogo = ids.length
         ? await tx
-            .select({ id: schema.catalogoItens.id, empresaId: schema.catalogoItens.empresaId })
+            .select({ id: schema.catalogoItens.id })
             .from(schema.catalogoItens)
             .where(and(eq(schema.catalogoItens.oficinaId, oficina.id), inArray(schema.catalogoItens.id, ids)))
         : [];
@@ -195,10 +191,8 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
       await tx.insert(osItens).values(
         d.itens.map((i) => {
           const c = i.catalogoItemId ? cat.get(i.catalogoItemId) : undefined;
-          const empresaItem = c?.empresaId && empresas.some((e) => e.id === c.empresaId) ? c.empresaId : d.empresaId;
           return {
             osId: nova.id,
-            empresaId: empresaItem,
             catalogoItemId: c?.id ?? null,
             tipo: i.tipo,
             descricao: i.descricao,
@@ -223,19 +217,13 @@ const uuid = (v: string) => z.uuid().safeParse(v).success;
 
 async function osDaOficina(osId: string, itemId?: string, acao?: Acao) {
   if (!uuid(osId) || (itemId !== undefined && !uuid(itemId))) return null;
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, pode } = await getContexto();
   if (acao && !pode(acao)) return null;
   const db = await getDb();
   const [o] = await db
-    .select({ id: schema.ordensServico.id, empresaId: schema.ordensServico.empresaId })
+    .select({ id: schema.ordensServico.id })
     .from(schema.ordensServico)
-    .where(
-      and(
-        eq(schema.ordensServico.id, osId),
-        eq(schema.ordensServico.oficinaId, oficina.id),
-        inArray(schema.ordensServico.empresaId, empresas.map((e) => e.id)),
-      ),
-    );
+    .where(and(eq(schema.ordensServico.id, osId), eq(schema.ordensServico.oficinaId, oficina.id)));
   return o ? { db, os: o, oficinaId: oficina.id } : null;
 }
 
@@ -251,10 +239,6 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
   if (!item.success) return { erro: item.error.issues[0].message };
   const r = await osDaOficina(osId, undefined, "editarItens");
   if (!r) return { erro: "OS não encontrada ou sem permissão" };
-  // OS mista: o item pode ser de outra empresa que o usuário vê
-  const ctx = await getContexto();
-  const empresaId = f(form, "empresaId") || r.os.empresaId;
-  if (!ctx.empresas.some((e) => e.id === empresaId)) return { erro: "Empresa não permitida" };
   // Item escolhido do catálogo: só guarda a ligação se for desta oficina
   let catalogoItemId: string | null = null;
   const cat = f(form, "catalogoItemId");
@@ -267,7 +251,6 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
   }
   await r.db.insert(schema.osItens).values({
     osId,
-    empresaId,
     catalogoItemId,
     tipo: item.data.tipo,
     descricao: item.data.descricao,

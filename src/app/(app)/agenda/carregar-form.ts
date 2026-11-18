@@ -7,7 +7,7 @@ import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 
 /** Dados comuns das telas de novo agendamento e de edição */
 export async function dadosDoFormulario(veiculoId?: string | null) {
-  const { oficina, empresas } = await getContexto();
+  const { oficina } = await getContexto();
   const [clientes, tecnicos, catalogo, v] = await Promise.all([
     opcoesClientes(oficina.id),
     listarTecnicos(oficina.id),
@@ -27,14 +27,12 @@ export async function dadosDoFormulario(veiculoId?: string | null) {
     inicial,
     clientes,
     tecnicos,
-    empresas: empresas.map((e) => ({ id: e.id, nome: e.nome })),
     catalogo: catalogo.map((c) => ({
       id: c.id,
       tipo: c.tipo,
       codigo: c.codigo,
       descricao: c.descricao,
       valor: c.valor,
-      empresaId: c.empresaId,
       tempoMinutos: c.tempoMinutos,
     })),
   };

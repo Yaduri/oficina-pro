@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { STATUS } from "@/lib/os";
@@ -20,13 +20,11 @@ const { ordensServico: os, veiculos, clientes } = schema;
 
 /**
  * Busca do topo: nº da OS, placa, nome, telefone ou CPF/CNPJ.
- * OS só das empresas que o usuário vê; clientes e veículos são da oficina toda.
  */
 export async function buscarTudo(texto: string): Promise<ResultadoBusca[]> {
   const q = texto.trim().slice(0, 60);
   if (q.length < 2) return [];
-  const { oficina, empresas } = await getContexto();
-  const empresaIds = empresas.map((e) => e.id);
+  const { oficina } = await getContexto();
   const db = await getDb();
   const digitos = soDigitos(q);
   const placa = formatPlaca(q).replace(/[^A-Z0-9]/g, "");
@@ -39,13 +37,13 @@ export async function buscarTudo(texto: string): Promise<ResultadoBusca[]> {
   if (placa.length >= 3) condOS.push(sql`${veiculos.placa} like ${`%${placa}%`}`);
   if (q.length >= 3 && !numero) condOS.push(ilike(clientes.nome, like));
   const ordens =
-    condOS.length && empresaIds.length
+    condOS.length
       ? await db
           .select({ id: os.id, numero: os.numero, status: os.status, placa: veiculos.placa, modelo: veiculos.modelo, cliente: clientes.nome })
           .from(os)
           .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
           .leftJoin(clientes, eq(clientes.id, os.clienteId))
-          .where(and(eq(os.oficinaId, oficina.id), inArray(os.empresaId, empresaIds), or(...condOS)))
+          .where(and(eq(os.oficinaId, oficina.id), or(...condOS)))
           .orderBy(desc(os.entradaEm))
           .limit(6)
       : [];

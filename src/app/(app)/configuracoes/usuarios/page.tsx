@@ -10,23 +10,18 @@ import { ConvidarForm, ConvitePendente, MembroLinha } from "./forms";
 export const metadata = { title: "Usuários" };
 
 export default async function UsuariosPage() {
-  const { oficina, empresas, papel, userId } = await exigir("usuarios");
+  const { oficina, papel, userId } = await exigir("usuarios");
   const [membros, convites, base] = await Promise.all([listarMembros(oficina.id), convitesPendentes(oficina.id), urlBase()]);
 
   const papeis = ORDEM_PAPEIS.filter((p) => podeGerenciarPapel(papel, p));
-  const podeTodas = empresas.length === oficina.empresas.length;
-  const opcoesEmpresas = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
-  const nomeEmpresa = new Map(oficina.empresas.map((e) => [e.id, e.nome]));
-  const textoEmpresas = (todas: boolean, ids: string[]) =>
-    todas ? "Todas as empresas" : ids.map((id) => nomeEmpresa.get(id)).filter(Boolean).join(", ") || "Nenhuma empresa";
 
   return (
     <>
-      <PageHeader title="Configurações" description="Quem acessa a oficina, com qual papel e em quais empresas (CNPJs)." />
+      <PageHeader title="Configurações" description="Quem acessa a oficina e com qual papel." />
       <AbasConfig />
 
       <div className="flex flex-col gap-3">
-        <ConvidarForm papeis={papeis} empresas={opcoesEmpresas} podeTodas={podeTodas} />
+        <ConvidarForm papeis={papeis} />
       </div>
 
       {convites.length > 0 && (
@@ -45,7 +40,6 @@ export default async function UsuariosPage() {
                     id={c.id}
                     nome={c.nome}
                     papel={c.papel}
-                    empresasTexto={textoEmpresas(c.todasEmpresas, c.empresaIds)}
                     expira={formatData(c.expiraEm)}
                     url={url}
                     whatsapp={`https://wa.me/?text=${encodeURIComponent(texto)}`}
@@ -74,9 +68,6 @@ export default async function UsuariosPage() {
                   voce={m.clerkUserId === userId}
                   editavel={m.clerkUserId !== userId && podeGerenciarPapel(papel, m.papel)}
                   papeis={papeis}
-                  empresas={opcoesEmpresas}
-                  podeTodas={podeTodas}
-                  empresasTexto={textoEmpresas(m.todasEmpresas, m.empresaIds)}
                 />
               ))}
             </ul>

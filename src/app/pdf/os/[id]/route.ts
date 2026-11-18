@@ -8,10 +8,10 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export async function GET(req: Request, ctx: RouteContext<"/pdf/os/[id]">) {
   const { id } = await ctx.params;
   if (!UUID.test(id)) return new Response("Não encontrado", { status: 404 });
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, pode } = await getContexto();
   const url = new URL(req.url);
   const via = url.searchParams.get("via") === "oficina" ? "oficina" : "cliente";
-  const r = await pdfOS(oficina.id, empresas.map((e) => e.id), id, { via, valores: pode("verValores") });
+  const r = await pdfOS(oficina.id, id, { via, valores: pode("verValores") });
   if (!r) return new Response("Não encontrado", { status: 404 });
   return respostaPdf(r.doc, r.nome.replace(".pdf", via === "oficina" ? "-via-oficina.pdf" : ".pdf"), url.searchParams.has("baixar"));
 }

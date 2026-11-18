@@ -15,13 +15,12 @@ import { linkWhatsApp } from "@/lib/utils";
 export async function enviarDocumento(tipo: "os" | "termo", id: string): Promise<{ erro?: string; whatsapp?: string | null; url?: string }> {
   if (!z.uuid().safeParse(id).success || (tipo !== "os" && tipo !== "termo")) return { erro: "Documento não encontrado" };
   const ctx = await getContexto();
-  const empresaIds = ctx.empresas.map((e) => e.id);
 
   let telefone: string | null = null;
   let mensagem = "";
   if (tipo === "os") {
     if (!ctx.pode("verValores")) return { erro: "Seu usuário não tem permissão para isso" };
-    const d = await obterOS(ctx.oficina.id, empresaIds, id);
+    const d = await obterOS(ctx.oficina.id, id);
     if (!d) return { erro: "OS não encontrada" };
     telefone = d.cliente?.telefone ?? null;
     const nome = d.cliente ? `, ${d.cliente.nome.split(" ")[0]}` : "";
@@ -30,8 +29,6 @@ export async function enviarDocumento(tipo: "os" | "termo", id: string): Promise
   } else {
     const d = await obterCheckin(ctx.oficina.id, id);
     if (!d) return { erro: "Check-in não encontrado" };
-    const visiveis = new Set(empresaIds);
-    if (d.ordens.length > 0 && !d.ordens.some((o) => visiveis.has(o.empresaId))) return { erro: "Check-in não encontrado" };
     telefone = d.cliente?.telefone ?? null;
     const nome = d.cliente ? `, ${d.cliente.nome.split(" ")[0]}` : "";
     mensagem = `Olá${nome}! Segue o termo de entrada do veículo ${d.veiculo.placa}, com as fotos e o checklist da chegada:`;

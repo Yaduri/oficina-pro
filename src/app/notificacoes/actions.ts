@@ -28,16 +28,14 @@ const { ordensServico: os, orcamentos, veiculos, clientes, osEventos, membros } 
 
 /**
  * Notificações calculadas a partir dos dados (nada é gravado além de "lido até").
- * Só das empresas que o usuário vê; orçamentos só para quem vê valores.
+ * Orçamentos só para quem vê valores.
  */
 export async function minhasNotificacoes(): Promise<{ itens: Notificacao[]; novas: number }> {
   const ctx = await getContexto();
-  const empresaIds = ctx.empresas.map((e) => e.id);
-  if (empresaIds.length === 0) return { itens: [], novas: 0 };
   const db = await getDb();
   const agora = Date.now();
   const hoje = inicioDoDia(diaSP(new Date()));
-  const base = and(eq(os.oficinaId, ctx.oficina.id), inArray(os.empresaId, empresaIds));
+  const base = eq(os.oficinaId, ctx.oficina.id);
   const veiculo = (placa: string, modelo: string, numero: number) => `OS #${numero} · ${placa} ${modelo}`;
   const itens: Omit<Notificacao, "nova">[] = [];
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { Avatar, Badge, Card, CardHeader, EmpresaTag, Placa, buttonClass } from "@/components/ui";
+import { Avatar, Badge, Card, CardHeader, Placa, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { eventosDaOS, fotosDaOS, listarTecnicos, obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
@@ -18,7 +18,6 @@ import { listarCatalogo } from "@/lib/catalogo";
 import { OrcamentoOS, type ResumoOrcamento } from "./orcamento";
 import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
-import { TransferirOS } from "./transferir";
 import { FotosServico } from "./fotos-servico";
 import { AvisarCliente } from "./avisar";
 import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
@@ -27,9 +26,9 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 async function carregar(id: string) {
   if (!UUID.test(id)) return null;
-  const { oficina, empresas, pode, userId } = await getContexto();
-  const dados = await obterOS(oficina.id, empresas.map((e) => e.id), id);
-  return dados && { ...dados, oficina, pode, empresas, userId };
+  const { oficina, pode, userId } = await getContexto();
+  const dados = await obterOS(oficina.id, id);
+  return dados && { ...dados, oficina, pode, userId };
 }
 
 export async function generateMetadata({ params }: PageProps<"/ordens-servico/[id]">) {
@@ -50,7 +49,7 @@ function garantiaSugerida(dias: number) {
 export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]">) {
   const dados = await carregar((await params).id);
   if (!dados) notFound();
-  const { os, veiculo, cliente, responsavel, empresa, itens, oficina, pode, empresas, userId } = dados;
+  const { os, veiculo, cliente, responsavel, itens, oficina, pode, userId } = dados;
   const valores = pode("verValores");
   const fechada = os.status === "entregue" || os.status === "cancelada";
   const whats = linkWhatsApp(cliente?.telefone);
@@ -64,7 +63,6 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     podeItens ? listarCatalogo(oficina.id, { soAtivos: true }) : Promise.resolve([]),
   ]);
   const desconto = { percentual: os.descontoPercentual != null ? Number(os.descontoPercentual) : null, valor: Number(os.descontoValor) };
-  const opcoesEmpresas = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
   const garantiaPadrao = garantiaSugerida(oficina.garantiaDias);
 
   let resumo: ResumoOrcamento | null = null;
@@ -103,7 +101,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const msgPronto =
     whats &&
     `${whats}?text=${encodeURIComponent(
-      `Olá${cliente ? `, ${cliente.nome.split(" ")[0]}` : ""}! Seu ${veiculoTxt} (${veiculo.placa}) está pronto para retirada na ${empresa.nomeFantasia || oficina.nome}.${
+      `Olá${cliente ? `, ${cliente.nome.split(" ")[0]}` : ""}! Seu ${veiculoTxt} (${veiculo.placa}) está pronto para retirada na ${oficina.nomeFantasia || oficina.nome}.${
         valores && calcularTotais(itens, desconto).total > 0 ? ` Total: ${formatBRL(calcularTotais(itens, desconto).total)}.` : ""
       }`,
     )}`;
@@ -126,7 +124,6 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="text-[22px] font-semibold tracking-tight">OS #{os.numero}</h1>
             <Badge tom={STATUS[os.status].tom}>{STATUS[os.status].label}</Badge>
-            <EmpresaTag tipo={empresa.tipo} nome={empresa.nome} />
           </div>
           <p className="text-muted">
             Entrada {formatEntrada(os.entradaEm).toLowerCase()}
@@ -221,10 +218,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               editavel={podeItens}
               valores={valores}
               marcavel={!fechada}
-              empresas={opcoesEmpresas}
-              empresaOS={os.empresaId}
               desconto={desconto}
-              catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor, empresaId: c.empresaId }))}
+              catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor }))}
             />
           </Card>
 
@@ -304,14 +299,6 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
           <Card>
             <CardHeader title="Andamento" />
             <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-5 py-4 text-[13px]">
-              <dt className="text-muted">Empresa</dt>
-              <dd>
-                {!fechada && pode("abrirOS") && opcoesEmpresas.length > 1 ? (
-                  <TransferirOS osId={os.id} empresaAtual={os.empresaId} empresas={opcoesEmpresas} />
-                ) : (
-                  empresa.nome
-                )}
-              </dd>
               <dt className="text-muted">Responsável</dt>
               <dd className="flex items-center gap-1.5">
                 {responsavel ? (

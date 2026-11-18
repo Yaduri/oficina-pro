@@ -13,8 +13,8 @@ export async function GET(req: Request, ctx: RouteContext<"/documento/[token]">)
   if (!link) return new Response("Não encontrado", { status: 404 });
   const r =
     link.tipo === "os"
-      ? await pdfOS(link.oficinaId, null, link.refId, { via: "cliente", valores: true })
-      : await pdfTermo(link.oficinaId, null, link.refId);
+      ? await pdfOS(link.oficinaId, link.refId, { via: "cliente", valores: true })
+      : await pdfTermo(link.oficinaId, link.refId);
   if (!r) return new Response("Não encontrado", { status: 404 });
   return respostaPdf(r.doc, r.nome, new URL(req.url).searchParams.has("baixar"));
 }

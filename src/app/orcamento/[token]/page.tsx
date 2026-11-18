@@ -18,7 +18,7 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   const { token } = await params;
   const dados = await orcamentoPorToken(token);
   if (!dados) notFound();
-  const { orcamento: orc, os, veiculo, cliente, empresa, oficina } = dados;
+  const { orcamento: orc, os, veiculo, cliente, oficina } = dados;
 
   // Primeira visualização pelo cliente
   if (!orc.vistoEm && orc.status === "pendente") {
@@ -36,7 +36,7 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   const respondido = orc.status === "aprovado" || orc.status === "parcial" || orc.status === "recusado";
   const desconto = Number(orc.desconto);
   const totalAprovado = totalSelecionado(orc.itens, aprovados, desconto).total;
-  const id = identificacao(oficina, empresa);
+  const id = identificacao(oficina);
   const whatsOficina = linkWhatsApp(oficina.whatsapp);
   const statusExibido = vencido
     ? { label: "Vencido", tom: "neutro" as const }

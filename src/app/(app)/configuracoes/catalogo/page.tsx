@@ -11,9 +11,8 @@ export const metadata = { title: "Serviços e peças" };
 export default async function CatalogoPage({ searchParams }: PageProps<"/configuracoes/catalogo">) {
   const { tipo: t } = await searchParams;
   const tipo = t === "peca" ? "peca" : "servico";
-  const { oficina, empresas } = await exigirAdmin();
+  const { oficina } = await exigirAdmin();
   const itens = (await listarCatalogo(oficina.id, { tipo })).map((i) => ({ ...i, tempo: formatTempo(i.tempoMinutos) }));
-  const opcoes = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
 
   return (
     <>
@@ -42,11 +41,11 @@ export default async function CatalogoPage({ searchParams }: PageProps<"/configu
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <ListaCatalogo tipo={tipo} itens={itens} empresas={opcoes} />
+        <ListaCatalogo tipo={tipo} itens={itens} />
         <Card>
           <CardHeader title={tipo === "servico" ? "Novo serviço" : "Nova peça"} />
           <div className="p-5">
-            <FormItemCatalogo key={tipo} tipo={tipo} empresas={opcoes} />
+            <FormItemCatalogo key={tipo} tipo={tipo} />
           </div>
         </Card>
       </div>

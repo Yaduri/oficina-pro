@@ -15,8 +15,7 @@ export default async function OnboardingPage() {
       <main className="mx-auto my-10 w-full max-w-[560px] rounded-xl border border-border bg-card p-6 shadow-pop sm:p-10">
         <h1 className="text-2xl font-semibold tracking-tight">Cadastre sua oficina</h1>
         <p className="mt-1.5 text-[15px] text-muted">
-          Uma oficina pode ter mais de uma empresa (CNPJ). Cada empresa tem suas próprias ordens de serviço, notas e
-          financeiro.
+          Cada conta é uma oficina com um CNPJ. Você pode convidar quantas pessoas da equipe quiser.
         </p>
         <OnboardingForm />
         <p className="mt-6 border-t border-border pt-4 text-[13px] text-muted">

@@ -9,11 +9,6 @@ import { parseValor } from "@/lib/utils";
 
 export type CatalogoState = { erro?: string; ok?: boolean } | undefined;
 
-const opcional = z
-  .string()
-  .trim()
-  .transform((v) => v || null);
-
 /** "1h30", "1:30", "90", "1,5h" → minutos */
 function lerTempo(v: string): number | null | undefined {
   const t = v.trim().toLowerCase().replace(/\s/g, "");
@@ -37,7 +32,6 @@ const itemSchema = z.object({
     .string()
     .transform((v) => (v.trim() ? parseValor(v) : 0))
     .refine((n) => Number.isFinite(n) && n >= 0 && n < 10_000_000, "Valor inválido"),
-  empresaId: opcional,
   tempo: z
     .string()
     .transform(lerTempo)
@@ -70,13 +64,11 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
     codigo: f(form, "codigo"),
     descricao: f(form, "descricao"),
     valor: f(form, "valor"),
-    empresaId: f(form, "empresaId"),
     tempo: f(form, "tempo"),
     codigoServicoMunicipal: f(form, "codigoServicoMunicipal"),
   });
   if (!p.success) return { erro: p.error.issues[0].message };
   const d = p.data;
-  if (d.empresaId && !ctx.empresas.some((e) => e.id === d.empresaId)) return { erro: "Empresa inválida" };
 
   const db = await getDb();
   const c = schema.catalogoItens;
@@ -92,7 +84,6 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
     codigo: d.codigo,
     descricao: d.descricao,
     valor: d.valor.toFixed(2),
-    empresaId: d.empresaId,
     tempoMinutos: d.tipo === "servico" ? d.tempo : null,
     codigoServicoMunicipal: d.tipo === "servico" ? d.codigoServicoMunicipal : null,
   };

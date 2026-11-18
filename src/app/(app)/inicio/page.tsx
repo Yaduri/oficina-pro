@@ -1,52 +1,39 @@
 import Link from "next/link";
 import { CalendarDays, Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
-import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, type TipoEmpresa } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Badge, Card, CardHeader, PageHeader, Placa } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { faturamentoDoMes, listarOSAbertas } from "@/lib/queries";
 import { entregasPrevistas, listarAgendamentos } from "@/lib/agenda";
 import { STATUS_AGENDA, diaSP, inicioDoDia } from "@/lib/agenda-datas";
 import { STATUS } from "@/lib/os";
-import { cn, formatBRL, formatBRLInteiro, formatEntrada, formatHora } from "@/lib/utils";
+import { formatBRL, formatBRLInteiro, formatEntrada, formatHora } from "@/lib/utils";
 
 export const metadata = { title: "Início" };
-
-const barra: Record<TipoEmpresa, string> = { mecanica: "bg-mec", eletrica: "bg-amber-500", outra: "bg-zinc-400" };
 
 function saudacao() {
   const h = Number(new Date().toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit" }));
   return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
 }
 
-export default async function InicioPage({ searchParams }: PageProps<"/inicio">) {
-  const { empresa } = await searchParams;
-  const { oficina, empresas, empresaIds, selecionada, pode } = await empresasFiltradas(empresa);
+export default async function InicioPage() {
+  const { oficina, pode } = await getContexto();
   const valores = pode("verValores");
   const inicioHoje = inicioDoDia(diaSP(new Date()));
   const fimHoje = new Date(inicioHoje.getTime() + 86_400_000);
   const [abertas, faturamento, agenda, entregas, user] = await Promise.all([
-    listarOSAbertas(oficina.id, empresaIds),
-    faturamentoDoMes(oficina.id, empresaIds),
-    listarAgendamentos(oficina.id, empresaIds, inicioHoje, fimHoje),
-    entregasPrevistas(oficina.id, empresaIds, inicioHoje, fimHoje),
+    listarOSAbertas(oficina.id),
+    faturamentoDoMes(oficina.id),
+    listarAgendamentos(oficina.id, inicioHoje, fimHoje),
+    entregasPrevistas(oficina.id, inicioHoje, fimHoje),
     currentUser(),
   ]);
 
-  const visiveis = selecionada ? [selecionada] : empresas;
-  const porEmpresa = visiveis.map((e) => ({
-    ...e,
-    patio: abertas.filter((o) => o.empresaId === e.id).length,
-    faturado: faturamento.find((f) => f.empresaId === e.id)?.total ?? 0,
-    hoje: faturamento.find((f) => f.empresaId === e.id)?.hoje ?? 0,
-  }));
-  const faturadoHoje = porEmpresa.reduce((s, e) => s + e.hoje, 0);
   const agendadosHoje = agenda.filter((a) => a.status !== "cancelado");
-  const totalFaturado = porEmpresa.reduce((s, e) => s + e.faturado, 0);
   const aguardando = abertas.filter((o) => o.status === "aguardando_aprovacao");
   const prontos = abertas.filter((o) => o.status === "pronto");
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", day: "numeric", month: "long" });
   const hojeFmt = hoje.charAt(0).toUpperCase() + hoje.slice(1);
-  const qs = selecionada ? `?empresa=${selecionada.id}` : "";
 
   return (
     <>
@@ -54,16 +41,14 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
         title={`${saudacao()}${user?.firstName ? `, ${user.firstName}` : ""}`}
         description={
           <>
-            {hojeFmt} · {selecionada ? selecionada.nome : `resumo de ${empresas.length > 1 ? "todas as empresas" : oficina.nome}`}
+            {hojeFmt} · {oficina.nomeFantasia || oficina.nome}
           </>
         }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Car} label="Veículos no pátio" value={String(abertas.length)}>
-          {porEmpresa.length > 1 && (
-            <Legenda itens={porEmpresa.map((e) => ({ tipo: e.tipo, texto: `${e.patio} ${e.nome.toLowerCase()}` }))} />
-          )}
+          <span className="text-[13px] text-muted">OS abertas</span>
         </Kpi>
         <Kpi icon={Clock} label="Aguardando aprovação" value={String(aguardando.length)}>
           {valores && <span className="text-[13px] text-muted">{formatBRL(aguardando.reduce((s, o) => s + o.total, 0))} em orçamentos</span>}
@@ -86,18 +71,8 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
           </Kpi>
         )}
         {valores && (
-        <Kpi icon={TrendingUp} label="Faturamento do mês" value={formatBRLInteiro(totalFaturado)}>
-          <span className="text-[13px] text-muted">{formatBRL(faturadoHoje)} hoje (OS entregues)</span>
-          {porEmpresa.length > 1 && (
-            <>
-              <div className="flex h-1.5 overflow-hidden rounded-full bg-subtle">
-                {porEmpresa.map((e) => (
-                  <span key={e.id} className={barra[e.tipo]} style={{ width: totalFaturado ? `${(e.faturado / totalFaturado) * 100}%` : "0%" }} />
-                ))}
-              </div>
-              <Legenda itens={porEmpresa.map((e) => ({ tipo: e.tipo, texto: formatBRLInteiro(e.faturado) }))} />
-            </>
-          )}
+        <Kpi icon={TrendingUp} label="Faturamento do mês" value={formatBRLInteiro(faturamento.mes)}>
+          <span className="text-[13px] text-muted">{formatBRL(faturamento.hoje)} hoje (OS entregues)</span>
         </Kpi>
         )}
       </div>
@@ -106,7 +81,7 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
         <Card className="overflow-hidden">
           <CardHeader
             title="No pátio agora"
-            action={<Link href={`/ordens-servico${qs}`} className="text-[13px] font-medium text-foreground underline-offset-4 hover:underline">Ver ordens de serviço</Link>}
+            action={<Link href="/ordens-servico" className="text-[13px] font-medium text-foreground underline-offset-4 hover:underline">Ver ordens de serviço</Link>}
           />
           {abertas.length === 0 ? (
             <p className="px-5 py-10 text-center text-muted">Nenhum veículo no pátio.</p>
@@ -117,7 +92,6 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                   <tr className="text-left text-xs text-muted">
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Veículo</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Cliente</th>
-                    <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Empresa</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Status</th>
                     {valores && <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 text-right font-medium">Valor</th>}
                   </tr>
@@ -135,7 +109,6 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                         </div>
                       </td>
                       <td className="px-4 py-3">{o.cliente ?? "—"}</td>
-                      <td className="px-4 py-3"><EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} /></td>
                       <td className="px-4 py-3"><Badge tom={STATUS[o.status].tom}>{STATUS[o.status].label}</Badge></td>
                       {valores && <td className="px-4 py-3 text-right tabular-nums">{o.total ? formatBRL(o.total) : <span className="text-muted">—</span>}</td>}
                     </tr>
@@ -169,13 +142,11 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
                         {[a.placa, a.cliente, a.tecnico].filter(Boolean).join(" · ")}
                       </div>
                     </div>
-                    {a.status !== "agendado" ? (
+                    {a.status !== "agendado" && (
                       <Badge tom={STATUS_AGENDA[a.status].tom} className="self-start">
                         {STATUS_AGENDA[a.status].label}
                       </Badge>
-                    ) : a.empresaTipo && a.empresaNome ? (
-                      <EmpresaTag tipo={a.empresaTipo} nome={a.empresaNome.slice(0, 3)} className="self-start" />
-                    ) : null}
+                    )}
                   </Link>
                 </li>
               ))}
@@ -211,18 +182,5 @@ function Kpi({ icon: Icon, label, value, children }: { icon: typeof Car; label: 
       <div className="text-[26px] font-semibold tracking-tight tabular-nums">{value}</div>
       {children}
     </Card>
-  );
-}
-
-function Legenda({ itens }: { itens: { tipo: TipoEmpresa; texto: string }[] }) {
-  return (
-    <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[13px] text-muted">
-      {itens.map((i, idx) => (
-        <span key={idx} className="flex items-center gap-1.5">
-          <span className={cn("size-2 rounded-full", barra[i.tipo])} />
-          {i.texto}
-        </span>
-      ))}
-    </div>
   );
 }

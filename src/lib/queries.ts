@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql } from "drizzle-or
 import { getDb, schema } from "@/db";
 import { ABERTAS, type StatusOS } from "@/lib/os";
 
-const { ordensServico: os, osItens, veiculos, clientes, tecnicos, empresas } = schema;
+const { ordensServico: os, osItens, veiculos, clientes, tecnicos } = schema;
 
 /** Total da OS = soma de quantidade × valor dos itens */
 const brutoOS = sql`coalesce((select sum(i.quantidade * i.valor_unitario) from ${osItens} i where i.os_id = ${os.id} and not i.recusado), 0)`;
@@ -15,8 +15,7 @@ const itensFeitos = sql<number>`(select count(*) from ${osItens} i where i.os_id
 export type OSResumo = Awaited<ReturnType<typeof listarOSAbertas>>[number];
 
 /** OS em andamento (no pátio), mais recentes primeiro */
-export async function listarOSAbertas(oficinaId: string, empresaIds: string[]) {
-  if (empresaIds.length === 0) return [];
+export async function listarOSAbertas(oficinaId: string) {
   const db = await getDb();
   const rows = await db
     .select({
@@ -32,19 +31,15 @@ export async function listarOSAbertas(oficinaId: string, empresaIds: string[]) {
       modelo: veiculos.modelo,
       cliente: clientes.nome,
       responsavel: tecnicos.nome,
-      empresaId: empresas.id,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
       total: totalOS,
       itensTotal,
       itensFeitos,
     })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
     .leftJoin(tecnicos, eq(tecnicos.id, os.responsavelId))
-    .where(and(eq(os.oficinaId, oficinaId), inArray(os.empresaId, empresaIds), inArray(os.status, ABERTAS)))
+    .where(and(eq(os.oficinaId, oficinaId), inArray(os.status, ABERTAS)))
     .orderBy(desc(os.entradaEm));
   return rows.map((r) => ({ ...r, total: Number(r.total) }));
 }
@@ -53,13 +48,11 @@ function inicioDoMes(now = new Date()) {
   return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-/** Faturamento do mês por empresa (OS entregues no mês) */
-export async function faturamentoDoMes(oficinaId: string, empresaIds: string[]) {
-  if (empresaIds.length === 0) return [];
+/** Faturamento do mês e de hoje (OS entregues) */
+export async function faturamentoDoMes(oficinaId: string) {
   const db = await getDb();
   const rows = await db
     .select({
-      empresaId: os.empresaId,
       total: sql<string>`coalesce(sum(${totalOS}), 0)`,
       hoje: sql<string>`coalesce(sum(${totalOS}) filter (where ${os.entregueEm} >= ${inicioDeHoje().toISOString()}::timestamptz), 0)`,
     })
@@ -67,13 +60,11 @@ export async function faturamentoDoMes(oficinaId: string, empresaIds: string[]) 
     .where(
       and(
         eq(os.oficinaId, oficinaId),
-        inArray(os.empresaId, empresaIds),
         eq(os.status, "entregue"),
         gte(os.entregueEm, inicioDoMes()),
       ),
-    )
-    .groupBy(os.empresaId);
-  return rows.map((r) => ({ empresaId: r.empresaId, total: Number(r.total), hoje: Number(r.hoje) }));
+    );
+  return { mes: Number(rows[0]?.total ?? 0), hoje: Number(rows[0]?.hoje ?? 0) };
 }
 
 export type FiltroOS = {
@@ -85,10 +76,9 @@ export type FiltroOS = {
 };
 
 /** Lista de OS (abertas e fechadas) com filtros, mais recentes primeiro */
-export async function listarOS(oficinaId: string, empresaIds: string[], filtro: FiltroOS) {
-  if (empresaIds.length === 0) return [];
+export async function listarOS(oficinaId: string, filtro: FiltroOS) {
   const db = await getDb();
-  const cond = [eq(os.oficinaId, oficinaId), inArray(os.empresaId, empresaIds)];
+  const cond = [eq(os.oficinaId, oficinaId)];
   if (filtro.status?.length) cond.push(inArray(os.status, filtro.status));
   if (filtro.de) cond.push(gte(os.entradaEm, filtro.de));
   if (filtro.ate) cond.push(lt(os.entradaEm, filtro.ate));
@@ -117,13 +107,10 @@ export async function listarOS(oficinaId: string, empresaIds: string[], filtro: 
       modelo: veiculos.modelo,
       cliente: clientes.nome,
       responsavel: tecnicos.nome,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
       total: totalOS,
     })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
     .leftJoin(tecnicos, eq(tecnicos.id, os.responsavelId))
     .where(and(...cond))
@@ -143,7 +130,7 @@ export async function listarTecnicos(oficinaId: string) {
 }
 
 /** Atualiza o status de uma OS da oficina, registrando datas relevantes */
-export async function atualizarStatusOS(oficinaId: string, empresaIds: string[], osId: string, status: StatusOS) {
+export async function atualizarStatusOS(oficinaId: string, osId: string, status: StatusOS) {
   const db = await getDb();
   const agora = new Date();
   const extra: Partial<typeof os.$inferInsert> = {};
@@ -152,23 +139,21 @@ export async function atualizarStatusOS(oficinaId: string, empresaIds: string[],
   const res = await db
     .update(os)
     .set({ status, ...extra })
-    .where(and(eq(os.id, osId), eq(os.oficinaId, oficinaId), inArray(os.empresaId, empresaIds)))
+    .where(and(eq(os.id, osId), eq(os.oficinaId, oficinaId)))
     .returning({ id: os.id });
   return res.length > 0;
 }
 
-/** OS completa (com veículo, cliente, responsável, empresa e itens) */
-export async function obterOS(oficinaId: string, empresaIds: string[], id: string) {
-  if (empresaIds.length === 0) return null;
+/** OS completa (com veículo, cliente, responsável e itens) */
+export async function obterOS(oficinaId: string, id: string) {
   const db = await getDb();
   const [row] = await db
-    .select({ os, veiculo: veiculos, cliente: clientes, responsavel: tecnicos, empresa: empresas })
+    .select({ os, veiculo: veiculos, cliente: clientes, responsavel: tecnicos })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
     .leftJoin(tecnicos, eq(tecnicos.id, os.responsavelId))
-    .where(and(eq(os.id, id), eq(os.oficinaId, oficinaId), inArray(os.empresaId, empresaIds)));
+    .where(and(eq(os.id, id), eq(os.oficinaId, oficinaId)));
   if (!row) return null;
   const itens = await db.select().from(osItens).where(eq(osItens.osId, id)).orderBy(asc(osItens.criadoEm));
   return {

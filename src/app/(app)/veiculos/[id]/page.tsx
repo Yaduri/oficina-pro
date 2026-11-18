@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, CalendarPlus, Camera, Wrench } from "lucide-react";
-import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
+import { Badge, Card, CardHeader, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { historicoVeiculo, obterVeiculo, opcoesClientes, usoDoVeiculo } from "@/lib/cadastros";
 import { STATUS } from "@/lib/os";
@@ -22,13 +22,13 @@ export async function generateMetadata({ params }: PageProps<"/veiculos/[id]">) 
 export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]">) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, pode } = await getContexto();
   const r = await obterVeiculo(oficina.id, id);
   if (!r) notFound();
   const { veiculo: v, cliente } = r;
   const editavel = pode("cadastros");
   const [hist, uso, clientes] = await Promise.all([
-    historicoVeiculo(oficina.id, empresas.map((e) => e.id), v.id),
+    historicoVeiculo(oficina.id, v.id),
     usoDoVeiculo(oficina.id, v.id),
     editavel ? opcoesClientes(oficina.id) : [],
   ]);
@@ -160,7 +160,6 @@ export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]"
                       </div>
                       <p className="text-[13px] text-foreground-2">{o.descricao}</p>
                       <div className="flex flex-wrap items-center gap-2">
-                        <EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} />
                         <Badge tom={STATUS[o.status].tom}>{STATUS[o.status].label}</Badge>
                         {o.cliente && cliente && o.cliente !== cliente.nome && (
                           <span className="text-[12px] text-muted">Dono na época: {o.cliente}</span>

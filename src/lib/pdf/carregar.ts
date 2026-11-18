@@ -8,21 +8,22 @@ import { documentoOS, documentoOrcamento, documentoTermo } from "./gerar";
 
 /*
  * Busca no banco e monta cada PDF. Quem chama já conferiu o acesso:
- * usuário logado (empresas que ele vê) ou token de link público.
+ * usuário logado da oficina ou token de link público.
  */
 
 async function oficinaCompleta(oficinaId: string) {
   const db = await getDb();
-  return db.query.oficinas.findFirst({ where: eq(schema.oficinas.id, oficinaId), with: { empresas: true } });
+  const [o] = await db.select().from(schema.oficinas).where(eq(schema.oficinas.id, oficinaId));
+  return o ?? null;
 }
 
 const placaArquivo = (placa: string) => placa.replace(/[^A-Z0-9]/gi, "");
 
-/** PDF da OS; `empresaIds` limita às empresas que o usuário vê (nulo = todas, link público) */
-export async function pdfOS(oficinaId: string, empresaIds: string[] | null, osId: string, opcoes: { via: "cliente" | "oficina"; valores: boolean }) {
+/** PDF da OS da oficina */
+export async function pdfOS(oficinaId: string, osId: string, opcoes: { via: "cliente" | "oficina"; valores: boolean }) {
   const oficina = await oficinaCompleta(oficinaId);
   if (!oficina) return null;
-  const dados = await obterOS(oficinaId, empresaIds ?? oficina.empresas.map((e) => e.id), osId);
+  const dados = await obterOS(oficinaId, osId);
   if (!dados) return null;
   let checklist = null;
   if (opcoes.via === "oficina" && dados.os.checkinId) {
@@ -43,7 +44,6 @@ export async function pdfOS(oficinaId: string, empresaIds: string[] | null, osId
   const doc = await documentoOS({
     oficina,
     entreguePor,
-    empresa: dados.empresa,
     os: dados.os,
     veiculo: dados.veiculo,
     cliente: dados.cliente,
@@ -57,15 +57,14 @@ export async function pdfOS(oficinaId: string, empresaIds: string[] | null, osId
 }
 
 /** PDF do orçamento a partir da OS (usuário logado) */
-export async function pdfOrcamentoDaOS(oficinaId: string, empresaIds: string[], osId: string) {
+export async function pdfOrcamentoDaOS(oficinaId: string, osId: string) {
   const oficina = await oficinaCompleta(oficinaId);
   if (!oficina) return null;
-  const dados = await obterOS(oficinaId, empresaIds, osId);
+  const dados = await obterOS(oficinaId, osId);
   if (!dados) return null;
   const orcamento = await ultimoOrcamento(osId);
   const doc = await documentoOrcamento({
     oficina,
-    empresa: dados.empresa,
     os: dados.os,
     veiculo: dados.veiculo,
     cliente: dados.cliente,
@@ -82,7 +81,6 @@ export async function pdfOrcamentoPorToken(token: string) {
   if (!r) return null;
   const doc = await documentoOrcamento({
     oficina: r.oficina,
-    empresa: r.empresa,
     os: r.os,
     veiculo: r.veiculo,
     cliente: r.cliente,
@@ -92,18 +90,14 @@ export async function pdfOrcamentoPorToken(token: string) {
   return { doc, nome: `Orcamento-OS-${r.os.numero}-${placaArquivo(r.veiculo.placa)}.pdf` };
 }
 
-/** PDF do termo de entrada; `empresaIds` como em pdfOS */
-export async function pdfTermo(oficinaId: string, empresaIds: string[] | null, checkinId: string) {
+/** PDF do termo de entrada */
+export async function pdfTermo(oficinaId: string, checkinId: string) {
   const oficina = await oficinaCompleta(oficinaId);
   if (!oficina) return null;
   const dados = await obterCheckin(oficinaId, checkinId);
   if (!dados) return null;
-  const visiveis = new Set(empresaIds ?? oficina.empresas.map((e) => e.id));
-  if (dados.ordens.length > 0 && !dados.ordens.some((o) => visiveis.has(o.empresaId))) return null;
-  const idsEmpresas = new Set(dados.ordens.map((o) => o.empresaId));
   const doc = await documentoTermo({
     oficina,
-    empresas: oficina.empresas.filter((e) => idsEmpresas.has(e.id)),
     checkin: dados.checkin,
     veiculo: dados.veiculo,
     cliente: dados.cliente,

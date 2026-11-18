@@ -1,11 +1,11 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
-import { and, asc, desc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 
-const { membros, membroEmpresas, convites, oficinas } = schema;
+const { membros, convites, oficinas } = schema;
 
-/** Membros da oficina com as empresas de cada um (preenche nome/e-mail que faltarem pelo Clerk) */
+/** Membros da oficina (preenche nome/e-mail que faltarem pelo Clerk) */
 export async function listarMembros(oficinaId: string) {
   const db = await getDb();
   const lista = await db.select().from(membros).where(eq(membros.oficinaId, oficinaId)).orderBy(desc(membros.ativo), asc(membros.criadoEm));
@@ -27,14 +27,7 @@ export async function listarMembros(oficinaId: string) {
     }
   }
 
-  const ids = lista.map((m) => m.id);
-  const vinculos = ids.length
-    ? await db.select().from(membroEmpresas).where(inArray(membroEmpresas.membroId, ids))
-    : [];
-  return lista.map((m) => ({
-    ...m,
-    empresaIds: vinculos.filter((v) => v.membroId === m.id).map((v) => v.empresaId),
-  }));
+  return lista;
 }
 
 export async function convitesPendentes(oficinaId: string) {
@@ -55,7 +48,7 @@ export async function convitesPendentes(oficinaId: string) {
 
 export const TOKEN_CONVITE_RE = /^[A-Za-z0-9_-]{32}$/;
 
-/** Convite pelo token, com a oficina e as empresas */
+/** Convite pelo token, com a oficina */
 export async function conviteDoToken(token: string) {
   if (!TOKEN_CONVITE_RE.test(token)) return null;
   const db = await getDb();
@@ -64,13 +57,7 @@ export async function conviteDoToken(token: string) {
     .from(convites)
     .innerJoin(oficinas, eq(oficinas.id, convites.oficinaId))
     .where(eq(convites.token, token));
-  if (!row) return null;
-  const empresas = await db
-    .select({ id: schema.empresas.id, nome: schema.empresas.nome, tipo: schema.empresas.tipo })
-    .from(schema.empresas)
-    .where(eq(schema.empresas.oficinaId, row.oficina.id))
-    .orderBy(asc(schema.empresas.criadoEm));
-  return { ...row, empresas };
+  return row ?? null;
 }
 
 export type SituacaoConvite = "valido" | "aceito" | "cancelado" | "expirado";

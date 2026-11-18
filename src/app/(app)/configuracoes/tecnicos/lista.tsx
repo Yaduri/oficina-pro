@@ -2,15 +2,14 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Avatar, Button, Campo, Card, CardHeader, EmpresaTag, Erro, Input, Select, Vazio, type TipoEmpresa } from "@/components/ui";
+import { Avatar, Button, Campo, Card, CardHeader, Erro, Input, Vazio } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { cn } from "@/lib/utils";
 import { alternarTecnico, excluirTecnico, salvarTecnico } from "./actions";
 
-type Tecnico = { id: string; nome: string; empresaId: string | null; ativo: boolean; abertas: number; total: number };
-type Empresa = { id: string; nome: string; tipo: TipoEmpresa };
+type Tecnico = { id: string; nome: string; ativo: boolean; abertas: number; total: number };
 
-export function FormTecnico({ tecnico, empresas, onDone }: { tecnico?: Tecnico; empresas: Empresa[]; onDone?: () => void }) {
+export function FormTecnico({ tecnico, onDone }: { tecnico?: Tecnico; onDone?: () => void }) {
   const form = useRef<HTMLFormElement>(null);
   const { state, pending, onSubmit } = useFormAction(salvarTecnico.bind(null, tecnico?.id ?? null));
   useEffect(() => {
@@ -28,18 +27,6 @@ export function FormTecnico({ tecnico, empresas, onDone }: { tecnico?: Tecnico; 
       <Campo label="Nome" htmlFor={`tec-${pid}-nome`}>
         <Input id={`tec-${pid}-nome`} name="nome" defaultValue={tecnico?.nome} required autoComplete="off" />
       </Campo>
-      {empresas.length > 1 && (
-        <Campo label="Empresa" htmlFor={`tec-${pid}-emp`}>
-          <Select id={`tec-${pid}-emp`} name="empresaId" defaultValue={tecnico?.empresaId ?? ""}>
-            <option value="">As duas</option>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nome}
-              </option>
-            ))}
-          </Select>
-        </Campo>
-      )}
       <Erro>{state?.erro}</Erro>
       <div className="flex justify-end gap-2">
         {onDone && (
@@ -56,7 +43,7 @@ export function FormTecnico({ tecnico, empresas, onDone }: { tecnico?: Tecnico; 
   );
 }
 
-export function ListaTecnicos({ tecnicos, empresas }: { tecnicos: Tecnico[]; empresas: Empresa[] }) {
+export function ListaTecnicos({ tecnicos }: { tecnicos: Tecnico[] }) {
   const [editando, setEditando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string>();
   const [pending, start] = useTransition();
@@ -71,11 +58,10 @@ export function ListaTecnicos({ tecnicos, empresas }: { tecnicos: Tecnico[]; emp
       ) : (
         <ul className={cn("divide-y divide-border", pending && "opacity-60")}>
           {tecnicos.map((t) => {
-            const empresa = empresas.find((e) => e.id === t.empresaId);
             if (editando === t.id) {
               return (
                 <li key={t.id} className="bg-subtle/60 px-4 py-4 sm:px-5">
-                  <FormTecnico tecnico={t} empresas={empresas} onDone={() => setEditando(null)} />
+                  <FormTecnico tecnico={t} onDone={() => setEditando(null)} />
                 </li>
               );
             }
@@ -85,7 +71,6 @@ export function ListaTecnicos({ tecnicos, empresas }: { tecnicos: Tecnico[]; emp
                 <div className="min-w-0 flex-1 basis-40">
                   <p className="font-medium">{t.nome}</p>
                   <p className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
-                    {empresa ? <EmpresaTag tipo={empresa.tipo} nome={empresa.nome} /> : empresas.length > 1 && <span>As duas empresas</span>}
                     <span>
                       {t.abertas > 0 ? `${t.abertas} OS em andamento · ` : ""}
                       {t.total} OS no total

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { getContexto } from "@/lib/oficina";
 import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
 import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { CheckinForm } from "./checkin-form";
@@ -14,11 +14,11 @@ export const metadata = { title: "Novo check-in" };
 export default async function NovoCheckinPage({ searchParams }: PageProps<"/check-in/novo">) {
   const sp = await searchParams;
   const param = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]);
-  const { oficina, empresas, selecionada } = await empresasFiltradas(param("empresa"));
+  const { oficina } = await getContexto();
   const [clientes, checklist] = await Promise.all([opcoesClientes(oficina.id), listarChecklist(oficina.id, true)]);
 
   let inicial: ResultadoPlaca | null = null;
-  // Vindo da agenda: veículo, empresa e o serviço agendado já preenchidos
+  // Vindo da agenda: veículo e o serviço agendado já preenchidos
   const agendamentoId = param("agendamento");
   const ag = agendamentoId && /^[0-9a-f-]{36}$/i.test(agendamentoId) ? await obterAgendamento(oficina.id, agendamentoId) : null;
   const agendamento =
@@ -26,7 +26,6 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
       ? {
           id: ag.agendamento.id,
           relato: [ag.agendamento.titulo, ag.agendamento.detalhe].filter(Boolean).join(" — "),
-          empresaId: ag.agendamento.empresaId,
         }
       : null;
   const veiculoId = param("veiculo") ?? ag?.agendamento.veiculoId ?? undefined;
@@ -47,11 +46,9 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
       <Link href="/check-in" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-muted hover:text-foreground">
         <ArrowLeft className="size-4" />Check-in
       </Link>
-      <PageHeader title="Novo check-in" description="Registre a chegada do veículo. Ao final, as OS são abertas automaticamente." />
+      <PageHeader title="Novo check-in" description="Registre a chegada do veículo. Ao final, a OS é aberta automaticamente." />
       <Card className="p-5 sm:p-6">
         <CheckinForm
-          empresas={empresas.map((e) => ({ id: e.id, nome: e.nome }))}
-          empresaPadrao={agendamento?.empresaId ?? selecionada?.id}
           agendamento={agendamento}
           clientes={clientes}
           inicial={inicial}

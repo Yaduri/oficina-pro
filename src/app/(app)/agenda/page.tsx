@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarDays, ChevronLeft, ChevronRight, PackageCheck, Plus } from "lucide-react";
-import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Badge, Card, CardHeader, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { listarTecnicos } from "@/lib/queries";
 import { entregasPrevistas, listarAgendamentos, type EntregaPrevista } from "@/lib/agenda";
 import { DIA_RE, diaSP, inicioDaSemana, inicioDoDia, nomeDoDia, somarDias } from "@/lib/agenda-datas";
@@ -15,7 +15,7 @@ export const metadata = { title: "Agenda" };
 export default async function AgendaPage({ searchParams }: PageProps<"/agenda">) {
   const sp = await searchParams;
   const p = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]) ?? "";
-  const { oficina, empresaIds, selecionada, pode } = await empresasFiltradas(p("empresa") || undefined);
+  const { oficina, pode } = await getContexto();
   const podeEditar = pode("abrirOS");
 
   const hoje = diaSP(new Date());
@@ -29,15 +29,15 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
   const tecnicos = await listarTecnicos(oficina.id);
   const tecnicoId = tecnicos.some((t) => t.id === p("tecnico")) ? p("tecnico") : undefined;
   const [agenda, entregas] = await Promise.all([
-    listarAgendamentos(oficina.id, empresaIds, de, ate, { tecnicoId, incluirCancelados: !semana }),
-    entregasPrevistas(oficina.id, empresaIds, de, ate, tecnicoId),
+    listarAgendamentos(oficina.id, de, ate, { tecnicoId, incluirCancelados: !semana }),
+    entregasPrevistas(oficina.id, de, ate, tecnicoId),
   ]);
   const itens: AgendamentoTela[] = agenda.map((a) => ({ ...a, inicio: a.inicio.toISOString() }));
 
   // Mantém filtros ao navegar
   const link = (mudar: Record<string, string | undefined>) => {
     const q = new URLSearchParams();
-    const atual = { data: dia, vista: semana ? "semana" : undefined, tecnico: tecnicoId, empresa: selecionada?.id, ...mudar };
+    const atual = { data: dia, vista: semana ? "semana" : undefined, tecnico: tecnicoId, ...mudar };
     for (const [k, v] of Object.entries(atual)) if (v) q.set(k, v);
     return `/agenda?${q.toString()}`;
   };
@@ -174,7 +174,6 @@ function Entregas({ entregas }: { entregas: EntregaPrevista[] }) {
                 <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
                   <Placa placa={e.placa} />
                   {[e.modelo, e.cliente].filter(Boolean).join(" · ")}
-                  <EmpresaTag tipo={e.empresaTipo} nome={e.empresaNome} />
                 </div>
               </Link>
             </li>

@@ -13,12 +13,6 @@
   --primary: #18181b;
   --primary-hover: #27272a;
 
-  /* Cores fixas por empresa */
-  --mec: #2563eb;
-  --mec-soft: #eff6ff;
-  --ele: #b45309;
-  --ele-soft: #fffbeb;
-
   --ok: #15803d;
   --ok-soft: #f0fdf4;
   --warn: #b45309;
@@ -40,10 +34,6 @@
   --color-muted: var(--muted);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
-  --color-mec: var(--mec);
-  --color-mec-soft: var(--mec-soft);
-  --color-ele: var(--ele);
-  --color-ele-soft: var(--ele-soft);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);

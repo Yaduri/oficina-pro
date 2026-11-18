@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { Button, Campo, Card, CardHeader, EmpresaTag, Erro, Input, Select, Vazio, type TipoEmpresa } from "@/components/ui";
+import { Button, Campo, Card, CardHeader, Erro, Input, Vazio } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { cn, formatBRL } from "@/lib/utils";
 import { alternarItemCatalogo, removerItemCatalogo, salvarItemCatalogo } from "./actions";
@@ -14,19 +14,17 @@ type Item = {
   codigo: string | null;
   descricao: string;
   valor: number;
-  empresaId: string | null;
   tempoMinutos: number | null;
   tempo: string | null;
   codigoServicoMunicipal: string | null;
   ativo: boolean;
 };
-type Empresa = { id: string; nome: string; tipo: TipoEmpresa };
 
 const valorTxt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ---------- Formulário (novo e edição) ---------- */
 
-export function FormItemCatalogo({ tipo, item, empresas, onDone }: { tipo: Tipo; item?: Item; empresas: Empresa[]; onDone?: () => void }) {
+export function FormItemCatalogo({ tipo, item, onDone }: { tipo: Tipo; item?: Item; onDone?: () => void }) {
   const form = useRef<HTMLFormElement>(null);
   const { state, pending, onSubmit } = useFormAction(salvarItemCatalogo.bind(null, item?.id ?? null));
   useEffect(() => {
@@ -60,18 +58,6 @@ export function FormItemCatalogo({ tipo, item, empresas, onDone }: { tipo: Tipo;
           </Campo>
         )}
       </div>
-      {empresas.length > 1 && (
-        <Campo label={servico ? "Quem faz" : "Quem vende"} htmlFor={`${pid}-emp`}>
-          <Select id={`${pid}-emp`} name="empresaId" defaultValue={item?.empresaId ?? ""}>
-            <option value="">A empresa da OS</option>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nome}
-              </option>
-            ))}
-          </Select>
-        </Campo>
-      )}
       {servico && (
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Código interno" hint="(opcional)" htmlFor={`${pid}-cod`}>
@@ -100,7 +86,7 @@ export function FormItemCatalogo({ tipo, item, empresas, onDone }: { tipo: Tipo;
 
 /* ---------- Lista ---------- */
 
-export function ListaCatalogo({ tipo, itens, empresas }: { tipo: Tipo; itens: Item[]; empresas: Empresa[] }) {
+export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
   const [busca, setBusca] = useState("");
   const [editando, setEditando] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -135,11 +121,10 @@ export function ListaCatalogo({ tipo, itens, empresas }: { tipo: Tipo; itens: It
       ) : (
         <ul className={cn("divide-y divide-border", pending && "opacity-60")}>
           {filtrados.map((i) => {
-            const empresa = empresas.find((e) => e.id === i.empresaId);
             if (editando === i.id) {
               return (
                 <li key={i.id} className="bg-subtle/60 px-4 py-4 sm:px-5">
-                  <FormItemCatalogo tipo={tipo} item={i} empresas={empresas} onDone={() => setEditando(null)} />
+                  <FormItemCatalogo tipo={tipo} item={i} onDone={() => setEditando(null)} />
                 </li>
               );
             }
@@ -151,7 +136,6 @@ export function ListaCatalogo({ tipo, itens, empresas }: { tipo: Tipo; itens: It
                     {i.codigo && <span>Cód. {i.codigo}</span>}
                     {i.tempo && <span>{i.tempo}</span>}
                     {i.codigoServicoMunicipal && <span>NFS-e {i.codigoServicoMunicipal}</span>}
-                    {empresa && <EmpresaTag tipo={empresa.tipo} nome={empresa.nome} />}
                     {!i.ativo && <span>Desativado</span>}
                   </p>
                 </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, MessageCircle } from "lucide-react";
-import { Badge, Card, CardHeader, EmpresaTag, Placa, buttonClass } from "@/components/ui";
+import { Badge, Card, CardHeader, Placa, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { obterCheckin } from "@/lib/checkin-dados";
 import { ROTULO_POSICAO, rotuloCombustivel, type Posicao } from "@/lib/checkin";
@@ -19,12 +19,10 @@ export const metadata = { title: "Check-in" };
 export default async function CheckinPage({ params }: PageProps<"/check-in/[id]">) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const { oficina, empresas } = await getContexto();
+  const { oficina } = await getContexto();
   const dados = await obterCheckin(oficina.id, id);
   if (!dados) notFound();
   const { checkin, veiculo, cliente, fotos, ordens } = dados;
-  const visiveis = new Set(empresas.map((e) => e.id));
-  if (ordens.length > 0 && !ordens.some((o) => visiveis.has(o.empresaId))) notFound();
   const whats = linkWhatsApp(cliente?.telefone);
 
   return (
@@ -144,7 +142,6 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
                   <li key={o.id}>
                     <Link href={`/ordens-servico/${o.id}`} className="flex flex-wrap items-center gap-2 px-5 py-3 hover:bg-subtle">
                       <span className="font-medium">OS #{o.numero}</span>
-                      <EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} />
                       <Badge tom={STATUS[o.status].tom} className="ml-auto">
                         {STATUS[o.status].label}
                       </Badge>

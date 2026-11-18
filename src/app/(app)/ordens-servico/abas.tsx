@@ -3,11 +3,10 @@ import { Columns3, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Alterna entre o quadro (OS abertas) e a lista com filtros (todas as OS) */
-export function AbasOS({ atual, empresaId }: { atual: "quadro" | "lista"; empresaId?: string }) {
-  const qs = empresaId ? `?empresa=${empresaId}` : "";
+export function AbasOS({ atual }: { atual: "quadro" | "lista" }) {
   const aba = (href: string, ativo: boolean, icone: React.ReactNode, label: string) => (
     <Link
-      href={`${href}${qs}`}
+      href={href}
       aria-current={ativo ? "page" : undefined}
       className={cn(
         "-mb-px flex items-center gap-2 border-b-2 px-3 py-2 font-medium",

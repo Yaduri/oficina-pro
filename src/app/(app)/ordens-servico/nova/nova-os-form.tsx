@@ -12,15 +12,11 @@ import { criarOS, type ResultadoPlaca } from "../actions";
 type Item = { chave: number; tipo: "peca" | "servico"; descricao: string; quantidade: string; valor: string; catalogoItemId?: string };
 
 export function NovaOSForm({
-  empresas,
-  empresaPadrao,
   clientes,
   tecnicos,
   inicial,
   catalogo = [],
 }: {
-  empresas: { id: string; nome: string }[];
-  empresaPadrao: string;
   clientes: { id: string; nome: string; telefone: string | null }[];
   tecnicos: string[];
   inicial: ResultadoPlaca | null;
@@ -47,26 +43,6 @@ export function NovaOSForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-6">
-      {/* Empresa */}
-      {empresas.length > 1 ? (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">Empresa da OS</legend>
-          <div className="flex flex-wrap gap-2">
-            {empresas.map((e) => (
-              <label
-                key={e.id}
-                className="flex h-11 cursor-pointer items-center gap-2 rounded-md border border-border-strong bg-white px-3.5 has-checked:border-primary has-checked:ring-3 has-checked:ring-zinc-900/10"
-              >
-                <input type="radio" name="empresaId" value={e.id} defaultChecked={e.id === empresaPadrao} className="accent-zinc-900" required />
-                {e.nome}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-      ) : (
-        <input type="hidden" name="empresaId" value={empresas[0]?.id} />
-      )}
-
       {/* Veículo */}
       <section className="flex flex-col gap-4 border-t border-border pt-6">
         <h2 className="text-[15px] font-semibold">Veículo e cliente</h2>
@@ -90,7 +66,7 @@ export function NovaOSForm({
             />
           </Campo>
           <Campo label="Responsável" htmlFor="responsavel" hint="(opcional)">
-            <Input id="responsavel" name="responsavel" list="tecnicos" autoComplete="off" placeholder="Nome do mecânico / eletricista" />
+            <Input id="responsavel" name="responsavel" list="tecnicos" autoComplete="off" placeholder="Nome do técnico" />
             <datalist id="tecnicos">
               {tecnicos.map((t) => (
                 <option key={t} value={t} />

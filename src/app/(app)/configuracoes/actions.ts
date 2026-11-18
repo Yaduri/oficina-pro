@@ -83,16 +83,12 @@ export async function salvarOficina(_prev: ConfigState, form: FormData): Promise
   return { ok: true };
 }
 
-/* ---------- Empresa (CNPJ) ---------- */
+/* ---------- Dados fiscais (CNPJ) ---------- */
 
-export async function salvarEmpresa(empresaId: string, _prev: ConfigState, form: FormData): Promise<ConfigState> {
-  const { oficina, empresas } = await exigirAdmin();
-  if (!empresas.some((e) => e.id === empresaId)) return { erro: "Empresa não encontrada" };
-
-  const proprio = form.get("enderecoProprio") === "on";
+export async function salvarFiscal(_prev: ConfigState, form: FormData): Promise<ConfigState> {
+  const { oficina } = await exigirAdmin();
   const dados = z
     .object({
-      nome: z.string().trim().min(2, "Informe como a empresa aparece no sistema").max(40, "Nome muito longo (até 40 letras)"),
       razaoSocial: opcional(),
       nomeFantasia: opcional(),
       cnpj: z
@@ -102,52 +98,20 @@ export async function salvarEmpresa(empresaId: string, _prev: ConfigState, form:
         .transform((v) => v || null),
       inscricaoEstadual: opcional(30),
       inscricaoMunicipal: opcional(30),
-      regime: z
-        .enum(["", "mei", "simples", "presumido", "real"])
-        .transform((v) => v || null),
-      telefone,
-      email,
+      regime: z.enum(["", "mei", "simples", "presumido", "real"]).transform((v) => v || null),
     })
-    .and(enderecoSchema)
-    .safeParse(
-      campos(form, [
-        "nome",
-        "razaoSocial",
-        "nomeFantasia",
-        "cnpj",
-        "inscricaoEstadual",
-        "inscricaoMunicipal",
-        "regime",
-        "telefone",
-        "email",
-        ...CAMPOS_ENDERECO,
-      ]),
-    );
+    .safeParse(campos(form, ["razaoSocial", "nomeFantasia", "cnpj", "inscricaoEstadual", "inscricaoMunicipal", "regime"]));
   if (!dados.success) return { erro: dados.error.issues[0].message };
 
   const db = await getDb();
   if (dados.data.cnpj) {
     const [repetido] = await db
-      .select({ id: schema.empresas.id })
-      .from(schema.empresas)
-      .where(
-        and(
-          eq(schema.empresas.oficinaId, oficina.id),
-          eq(schema.empresas.cnpj, dados.data.cnpj),
-          ne(schema.empresas.id, empresaId),
-        ),
-      );
-    if (repetido) return { erro: "Este CNPJ já está em outra empresa da oficina" };
+      .select({ id: schema.oficinas.id })
+      .from(schema.oficinas)
+      .where(and(eq(schema.oficinas.cnpj, dados.data.cnpj), ne(schema.oficinas.id, oficina.id)));
+    if (repetido) return { erro: "Este CNPJ já está cadastrado em outra conta" };
   }
-
-  // Sem endereço próprio, a empresa usa o da oficina: limpa os campos
-  const end = proprio
-    ? {}
-    : { cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null, uf: null };
-  await db
-    .update(schema.empresas)
-    .set({ ...dados.data, ...end, enderecoProprio: proprio })
-    .where(and(eq(schema.empresas.id, empresaId), eq(schema.empresas.oficinaId, oficina.id)));
+  await db.update(schema.oficinas).set(dados.data).where(eq(schema.oficinas.id, oficina.id));
   revalidar();
   return { ok: true };
 }

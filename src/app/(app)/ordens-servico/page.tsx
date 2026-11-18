@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCheck, ListChecks, MessageCircle, Plus, Truck } from "lucide-react";
 import Link from "next/link";
-import { Avatar, EmpresaTag, PageHeader, Placa, buttonClass } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Avatar, PageHeader, Placa, buttonClass } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { listarOSAbertas, type OSResumo } from "@/lib/queries";
 import { COLUNAS, STATUS } from "@/lib/os";
 import { formatBRL, formatHora, tempoDesde } from "@/lib/utils";
@@ -10,12 +10,11 @@ import { AbasOS } from "./abas";
 
 export const metadata = { title: "Ordens de serviço" };
 
-export default async function OrdensServicoPage({ searchParams }: PageProps<"/ordens-servico">) {
-  const { empresa } = await searchParams;
-  const { oficina, empresaIds, selecionada, pode } = await empresasFiltradas(empresa);
+export default async function OrdensServicoPage() {
+  const { oficina, pode } = await getContexto();
   const valores = pode("verValores");
   const podeFechar = pode("fecharOS");
-  const abertas = await listarOSAbertas(oficina.id, empresaIds);
+  const abertas = await listarOSAbertas(oficina.id);
 
   return (
     <>
@@ -24,14 +23,14 @@ export default async function OrdensServicoPage({ searchParams }: PageProps<"/or
         description={`${abertas.length} ${abertas.length === 1 ? "aberta" : "abertas"} · use o menu do cartão para mudar o status`}
         actions={
           pode("abrirOS") && (
-            <Link href={`/ordens-servico/nova${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("primary")}>
+            <Link href="/ordens-servico/nova" className={buttonClass("primary")}>
               <Plus />Nova OS
             </Link>
           )
         }
       />
 
-      <AbasOS atual="quadro" empresaId={selecionada?.id} />
+      <AbasOS atual="quadro" />
 
       {/* No celular as colunas rolam na horizontal */}
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-5 lg:overflow-visible">
@@ -72,7 +71,6 @@ function CartaoOS({ os, valores, podeFechar }: { os: OSResumo; valores: boolean;
         <p className="mt-px text-[13px] text-muted">{os.descricao}</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-muted">
-        <EmpresaTag tipo={os.empresaTipo} nome={os.empresaNome} />
         {meta}
       </div>
       <div className="flex items-center justify-between border-t border-border pt-2.5 text-[13px]">

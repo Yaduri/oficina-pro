@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
-import { EmpresaTag, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { exigirAdmin } from "@/lib/oficina";
 import { formatDocumento } from "@/lib/utils";
-import { EmpresaForm, OficinaForm, TextosForm } from "./forms";
+import { FiscalForm, OficinaForm, TextosForm } from "./forms";
 import { AbasConfig } from "./abas";
 
 export const metadata = { title: "Configurações" };
 
 export default async function ConfiguracoesPage() {
-  const { oficina, empresas } = await exigirAdmin();
+  const { oficina } = await exigirAdmin();
 
   return (
     <>
-      <PageHeader title="Configurações" description="Dados da oficina e de cada CNPJ, usados no orçamento, no termo de entrada, nos PDFs e nas notas fiscais." />
+      <PageHeader title="Configurações" description="Dados da oficina e do CNPJ, usados no orçamento, no termo de entrada, nos PDFs e nas notas fiscais." />
 
       <AbasConfig />
 
@@ -20,11 +20,9 @@ export default async function ConfiguracoesPage() {
         <a href="#oficina" className="rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
           Oficina
         </a>
-        {empresas.map((e) => (
-          <a key={e.id} href={`#empresa-${e.id}`} className="whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
-            {e.nome}
-          </a>
-        ))}
+        <a href="#fiscal" className="whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
+          Dados fiscais
+        </a>
         <a href="#textos" className="whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
           Textos padrão
         </a>
@@ -34,21 +32,13 @@ export default async function ConfiguracoesPage() {
         <OficinaForm oficina={oficina} />
       </Secao>
 
-      {empresas.map((e) => (
-        <Secao
-          key={e.id}
-          id={`empresa-${e.id}`}
-          titulo={<EmpresaTag tipo={e.tipo} nome={e.nome} />}
-          descricao={
-            <>
-              Dados do CNPJ{e.cnpj ? ` ${formatDocumento(e.cnpj)}` : ""}. Aparecem nos documentos das OS desta empresa e serão usados
-              na emissão de notas fiscais.
-            </>
-          }
-        >
-          <EmpresaForm empresa={e} />
-        </Secao>
-      ))}
+      <Secao
+        id="fiscal"
+        titulo="Dados fiscais"
+        descricao={<>CNPJ{oficina.cnpj ? ` ${formatDocumento(oficina.cnpj)}` : ""}, razão social e tributação. Aparecem nos documentos e serão usados na emissão de notas fiscais.</>}
+      >
+        <FiscalForm fiscal={oficina} />
+      </Secao>
 
       <Secao id="textos" titulo="Textos padrão" descricao="Garantia, termo de entrada do veículo e padrões do orçamento.">
         <TextosForm textos={oficina} />

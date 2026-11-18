@@ -1,16 +1,15 @@
 import "server-only";
-import { and, asc, eq, gte, inArray, isNotNull, lt, notInArray, or, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, lt, notInArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 
-const { agendamentos: ag, veiculos, clientes, tecnicos, empresas, ordensServico: os } = schema;
+const { agendamentos: ag, veiculos, clientes, tecnicos, ordensServico: os } = schema;
 
 export type ItemAgenda = Awaited<ReturnType<typeof listarAgendamentos>>[number];
 export type EntregaPrevista = Awaited<ReturnType<typeof entregasPrevistas>>[number];
 
-/** Agendamentos entre `de` e `ate` (empresa nula = visível para todos) */
+/** Agendamentos entre `de` e `ate` */
 export async function listarAgendamentos(
   oficinaId: string,
-  empresaIds: string[],
   de: Date,
   ate: Date,
   filtro: { tecnicoId?: string; incluirCancelados?: boolean } = {},
@@ -20,7 +19,6 @@ export async function listarAgendamentos(
     eq(ag.oficinaId, oficinaId),
     gte(ag.inicio, de),
     lt(ag.inicio, ate),
-    empresaIds.length ? or(isNull(ag.empresaId), inArray(ag.empresaId, empresaIds))! : isNull(ag.empresaId),
   ];
   if (filtro.tecnicoId) cond.push(eq(ag.tecnicoId, filtro.tecnicoId));
   if (!filtro.incluirCancelados) cond.push(notInArray(ag.status, ["cancelado"]));
@@ -33,9 +31,6 @@ export async function listarAgendamentos(
       duracaoMin: ag.duracaoMin,
       status: ag.status,
       checkinId: ag.checkinId,
-      empresaId: ag.empresaId,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
       tecnicoId: ag.tecnicoId,
       tecnico: tecnicos.nome,
       veiculoId: ag.veiculoId,
@@ -48,7 +43,6 @@ export async function listarAgendamentos(
       aceitaWhatsapp: clientes.aceitaWhatsapp,
     })
     .from(ag)
-    .leftJoin(empresas, eq(empresas.id, ag.empresaId))
     .leftJoin(tecnicos, eq(tecnicos.id, ag.tecnicoId))
     .leftJoin(veiculos, eq(veiculos.id, ag.veiculoId))
     .leftJoin(clientes, eq(clientes.id, ag.clienteId))
@@ -57,12 +51,10 @@ export async function listarAgendamentos(
 }
 
 /** OS abertas com previsão de entrega entre `de` e `ate` */
-export async function entregasPrevistas(oficinaId: string, empresaIds: string[], de: Date, ate: Date, tecnicoId?: string) {
-  if (empresaIds.length === 0) return [];
+export async function entregasPrevistas(oficinaId: string, de: Date, ate: Date, tecnicoId?: string) {
   const db = await getDb();
   const cond = [
     eq(os.oficinaId, oficinaId),
-    inArray(os.empresaId, empresaIds),
     isNotNull(os.previsaoEntregaEm),
     gte(os.previsaoEntregaEm, de),
     lt(os.previsaoEntregaEm, ate),
@@ -78,12 +70,9 @@ export async function entregasPrevistas(oficinaId: string, empresaIds: string[],
       placa: veiculos.placa,
       modelo: veiculos.modelo,
       cliente: clientes.nome,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
     })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
     .where(and(...cond))
     .orderBy(asc(os.previsaoEntregaEm), asc(os.numero));

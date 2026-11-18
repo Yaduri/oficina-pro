@@ -1,12 +1,12 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import type { ItemOrcamento } from "@/db/schema";
 import type { Tom } from "@/components/ui";
 
-const { orcamentos, ordensServico: os, veiculos, clientes, empresas, oficinas } = schema;
+const { orcamentos, ordensServico: os, veiculos, clientes, oficinas } = schema;
 
 export type StatusOrcamento = (typeof schema.statusOrcamento.enumValues)[number];
 export type Orcamento = typeof orcamentos.$inferSelect;
@@ -60,11 +60,10 @@ export async function orcamentoPorToken(token: string) {
   if (!TOKEN_RE.test(token)) return null;
   const db = await getDb();
   const [row] = await db
-    .select({ orcamento: orcamentos, os, veiculo: veiculos, cliente: clientes, empresa: empresas, oficina: oficinas })
+    .select({ orcamento: orcamentos, os, veiculo: veiculos, cliente: clientes, oficina: oficinas })
     .from(orcamentos)
     .innerJoin(os, eq(os.id, orcamentos.osId))
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .innerJoin(oficinas, eq(oficinas.id, orcamentos.oficinaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
     .where(eq(orcamentos.token, token));
@@ -72,8 +71,7 @@ export async function orcamentoPorToken(token: string) {
 }
 
 /** Lista para a tela Orçamentos (último envio de cada OS) */
-export async function listarOrcamentos(oficinaId: string, empresaIds: string[]) {
-  if (empresaIds.length === 0) return [];
+export async function listarOrcamentos(oficinaId: string) {
   const db = await getDb();
   const rows = await db
     .select({
@@ -89,15 +87,12 @@ export async function listarOrcamentos(oficinaId: string, empresaIds: string[]) 
       marca: veiculos.marca,
       modelo: veiculos.modelo,
       cliente: clientes.nome,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
     })
     .from(orcamentos)
     .innerJoin(os, eq(os.id, orcamentos.osId))
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .leftJoin(clientes, eq(clientes.id, os.clienteId))
-    .where(and(eq(orcamentos.oficinaId, oficinaId), inArray(os.empresaId, empresaIds)))
+    .where(and(eq(orcamentos.oficinaId, oficinaId)))
     .orderBy(desc(orcamentos.criadoEm))
     .limit(200);
   // Só o envio mais recente de cada OS

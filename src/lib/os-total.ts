@@ -1,5 +1,5 @@
 /** Totais da OS a partir dos itens (itens recusados pelo cliente ficam fora) */
-export type ItemValor = { tipo: "peca" | "servico"; quantidade: number; valorUnitario: number; recusado?: boolean; empresaId?: string };
+export type ItemValor = { tipo: "peca" | "servico"; quantidade: number; valorUnitario: number; recusado?: boolean };
 
 export function calcularTotais(itens: ItemValor[], desconto: { percentual: number | null; valor: number }) {
   const soma = (l: ItemValor[]) => l.reduce((s, i) => s + i.quantidade * i.valorUnitario, 0);

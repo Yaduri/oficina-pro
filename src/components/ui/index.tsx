@@ -34,28 +34,6 @@ export function CardHeader({ title, action }: { title: ReactNode; action?: React
   );
 }
 
-/* ---------- Empresa (Mecânica / Elétrica) ---------- */
-export type TipoEmpresa = "mecanica" | "eletrica" | "outra";
-const empresaStyle: Record<TipoEmpresa, string> = {
-  mecanica: "bg-mec-soft text-mec",
-  eletrica: "bg-ele-soft text-ele",
-  outra: "bg-subtle text-foreground-2",
-};
-export function EmpresaTag({ tipo, nome, className }: { tipo: TipoEmpresa; nome: string; className?: string }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        "before:size-1.5 before:rounded-full before:bg-current",
-        empresaStyle[tipo],
-        className,
-      )}
-    >
-      {nome}
-    </span>
-  );
-}
-
 /* ---------- Status ---------- */
 export type Tom = "neutro" | "info" | "ok" | "warn" | "danger";
 const tomStyle: Record<Tom, string> = {

@@ -1,18 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight, Eye } from "lucide-react";
-import { Badge, Card, EmpresaTag, PageHeader, Placa, Vazio } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Badge, Card, PageHeader, Placa, Vazio } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { STATUS_ORCAMENTO, listarOrcamentos } from "@/lib/orcamento";
 import { formatBRL, formatEntrada } from "@/lib/utils";
 
 export const metadata = { title: "Orçamentos" };
 
-export default async function OrcamentosPage({ searchParams }: PageProps<"/orcamentos">) {
-  const { empresa } = await searchParams;
-  const { oficina, empresaIds, pode } = await empresasFiltradas(empresa);
+export default async function OrcamentosPage() {
+  const { oficina, pode } = await getContexto();
   if (!pode("verValores")) redirect("/inicio");
-  const lista = await listarOrcamentos(oficina.id, empresaIds);
+  const lista = await listarOrcamentos(oficina.id);
   const pendentes = lista.filter((o) => o.status === "pendente");
   const outros = lista.filter((o) => o.status !== "pendente");
 
@@ -71,9 +70,6 @@ function Secao({ titulo, itens, vazio }: { titulo: string; itens: Linha[]; vazio
                         </>
                       )}
                     </p>
-                  </div>
-                  <div className="hidden sm:block">
-                    <EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} />
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span className="font-medium tabular-nums">{formatBRL(Number(o.total))}</span>

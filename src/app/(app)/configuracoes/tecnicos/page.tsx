@@ -9,7 +9,7 @@ import { FormTecnico, ListaTecnicos } from "./lista";
 export const metadata = { title: "Técnicos" };
 
 export default async function TecnicosPage() {
-  const { oficina, empresas } = await exigirAdmin();
+  const { oficina } = await exigirAdmin();
   const db = await getDb();
   const { tecnicos: t, ordensServico: os } = schema;
   const abertas = sql.join(
@@ -20,7 +20,6 @@ export default async function TecnicosPage() {
     .select({
       id: t.id,
       nome: t.nome,
-      empresaId: t.empresaId,
       ativo: t.ativo,
       total: sql<number>`count(${os.id})::int`,
       abertas: sql<number>`count(${os.id}) filter (where ${os.status} in (${abertas}))::int`,
@@ -30,19 +29,18 @@ export default async function TecnicosPage() {
     .where(and(eq(t.oficinaId, oficina.id)))
     .groupBy(t.id)
     .orderBy(sql`${t.ativo} desc`, asc(t.nome));
-  const opcoes = empresas.map((e) => ({ id: e.id, nome: e.nome, tipo: e.tipo }));
 
   return (
     <>
       <PageHeader title="Configurações" description="Quem trabalha nos carros. Aparecem como responsável da OS e não precisam de login." />
       <AbasConfig />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <ListaTecnicos tecnicos={tecnicos} empresas={opcoes} />
+        <ListaTecnicos tecnicos={tecnicos} />
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader title="Novo técnico" />
             <div className="p-5">
-              <FormTecnico empresas={opcoes} />
+              <FormTecnico />
             </div>
           </Card>
           <p className="px-1 text-[13px] text-muted">

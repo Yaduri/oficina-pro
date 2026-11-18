@@ -22,7 +22,6 @@ const dadosSchema = z.object({
     .string()
     .max(1000, "Observação muito longa")
     .transform((v) => v || null),
-  empresaId: z.string().transform((v) => v || null),
   tecnicoId: z.string().transform((v) => v || null),
 });
 
@@ -41,12 +40,10 @@ export async function salvarAgendamento(id: string | null, _prev: AgendaState, f
     duracao: f(form, "duracao") || "60",
     titulo: f(form, "titulo"),
     detalhe: f(form, "detalhe"),
-    empresaId: f(form, "empresaId"),
     tecnicoId: f(form, "tecnicoId"),
   });
   if (!p.success) return { erro: p.error.issues[0].message };
   const d = p.data;
-  if (d.empresaId && !ctx.empresas.some((e) => e.id === d.empresaId)) return { erro: "Empresa não permitida" };
   if (id && !z.uuid().safeParse(id).success) return { erro: "Agendamento não encontrado" };
   const inicio = dataHora(d.dia, d.hora);
   if (Number.isNaN(inicio.getTime())) return { erro: "Data ou horário inválido" };
@@ -88,7 +85,6 @@ export async function salvarAgendamento(id: string | null, _prev: AgendaState, f
     const tx = txRaw as unknown as DB;
     const { veiculoId, clienteId } = await gravarVeiculo(tx, ctx.oficina.id, prep.ok, null);
     const valores = {
-      empresaId: d.empresaId,
       tecnicoId: d.tecnicoId,
       veiculoId,
       clienteId,

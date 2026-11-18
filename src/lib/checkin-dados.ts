@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 
-const { checkins, checkinFotos, veiculos, clientes, ordensServico: os, empresas } = schema;
+const { checkins, checkinFotos, veiculos, clientes, ordensServico: os } = schema;
 
 /** OS geradas por cada check-in, para exibir junto */
 async function osDosCheckins(ids: string[]) {
@@ -14,17 +14,13 @@ async function osDosCheckins(ids: string[]) {
       id: os.id,
       numero: os.numero,
       status: os.status,
-      empresaId: empresas.id,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
     })
     .from(os)
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
     .where(inArray(os.checkinId, ids))
     .orderBy(asc(os.numero));
 }
 
-export async function listarCheckins(oficinaId: string, empresaIds: string[]) {
+export async function listarCheckins(oficinaId: string) {
   const db = await getDb();
   const lista = await db
     .select({
@@ -58,15 +54,12 @@ export async function listarCheckins(oficinaId: string, empresaIds: string[]) {
   ]);
 
   return (
-    lista
-      .map((c) => ({
-        ...c,
-        assinado: Boolean(c.assinado),
-        ordens: ordens.filter((o) => o.checkinId === c.id),
-        fotos: fotos.filter((f) => f.checkinId === c.id).map((f) => f.key),
-      }))
-      // Mostra o check-in se alguma OS dele é de uma empresa visível (ou se ainda não tem OS)
-      .filter((c) => c.ordens.length === 0 || c.ordens.some((o) => empresaIds.includes(o.empresaId)))
+    lista.map((c) => ({
+      ...c,
+      assinado: Boolean(c.assinado),
+      ordens: ordens.filter((o) => o.checkinId === c.id),
+      fotos: fotos.filter((f) => f.checkinId === c.id).map((f) => f.key),
+    }))
   );
 }
 

@@ -18,7 +18,7 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
   const { token } = await params;
   const dados = await conviteDoToken(token);
   if (!dados) notFound();
-  const { convite, oficina, empresas } = dados;
+  const { convite, oficina } = dados;
   const situacao = situacaoConvite(convite);
   const { userId } = await auth();
   const voltar = encodeURIComponent(`/convite/${token}`);
@@ -35,10 +35,6 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
       outraOficina = o?.nome ?? null;
     }
   }
-
-  const empresasTexto = convite.todasEmpresas
-    ? empresas.map((e) => e.nome).join(" e ")
-    : empresas.filter((e) => convite.empresaIds.includes(e.id)).map((e) => e.nome).join(" e ");
 
   return (
     <div className="flex min-h-dvh flex-col px-6 py-8 sm:px-14 sm:py-10">
@@ -72,27 +68,21 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
                 <p className="text-[13px] font-medium uppercase tracking-wide text-muted">Convite</p>
                 <h1 className="text-xl font-semibold tracking-tight">Entrar na {oficina.nome}</h1>
                 <p className="text-muted">
-                  Você foi convidado como <strong className="font-semibold text-foreground">{PAPEIS[convite.papel].label}</strong>
-                  {empresasTexto && (
-                    <>
-                      {" "}
-                      com acesso a <strong className="font-semibold text-foreground">{empresasTexto}</strong>
-                    </>
-                  )}
-                  .
+                  Você foi convidado como <strong className="font-semibold text-foreground">{PAPEIS[convite.papel].label}</strong>.
                 </p>
                 <p className="text-[13px] text-muted">{PAPEIS[convite.papel].descricao}</p>
               </div>
 
               {userId ? (
                 <>
-                  {outraOficina && (
+                  {outraOficina ? (
                     <p className="rounded-md bg-warn-soft px-3 py-2 text-[13px]">
-                      Sua conta já está na oficina <strong>{outraOficina}</strong>. Ao aceitar, você passa a entrar na{" "}
-                      <strong>{oficina.nome}</strong>.
+                      Este login já faz parte da oficina <strong>{outraOficina}</strong>. Cada login entra em uma oficina só: para aceitar
+                      este convite, entre com outro e-mail.
                     </p>
+                  ) : (
+                    <Aceitar token={token} />
                   )}
-                  <Aceitar token={token} />
                 </>
               ) : (
                 <div className="flex flex-col gap-2.5">

@@ -13,7 +13,7 @@ const plex = IBM_Plex_Sans({
 
 export const metadata: Metadata = {
   title: { default: "Oficina Pro", template: "%s · Oficina Pro" },
-  description: "Gestão para oficinas mecânicas e autoelétricas",
+  description: "Gestão para oficinas",
 };
 
 export const viewport: Viewport = {

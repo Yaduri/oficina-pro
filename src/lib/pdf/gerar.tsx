@@ -17,7 +17,6 @@ import { OSPdf, OrcamentoPdf, TermoPdf } from "./documentos";
 import { imagemPdf } from "./imagens";
 
 type Oficina = typeof schema.oficinas.$inferSelect;
-type Empresa = typeof schema.empresas.$inferSelect;
 type OS = typeof schema.ordensServico.$inferSelect;
 type Veiculo = typeof schema.veiculos.$inferSelect;
 type Cliente = typeof schema.clientes.$inferSelect;
@@ -43,8 +42,8 @@ export async function respostaPdf(doc: ReactElement, nomeArquivo: string, baixar
   });
 }
 
-function ident(oficina: Oficina, empresa: Empresa): Identificacao {
-  const i = identificacao(oficina, empresa);
+function ident(oficina: Oficina): Identificacao {
+  const i = identificacao(oficina);
   return { titulo: i.titulo, razaoSocial: i.razaoSocial, cnpj: i.cnpj, endereco: i.endereco, telefone: i.telefone, email: i.email };
 }
 
@@ -76,7 +75,6 @@ function veiculoPdf(v: Veiculo, kmTexto?: string | null) {
 
 type DadosOrcamento = {
   oficina: Oficina;
-  empresa: Empresa;
   os: OS;
   veiculo: Veiculo;
   cliente: Cliente | null;
@@ -144,7 +142,7 @@ export async function documentoOrcamento(d: DadosOrcamento) {
 
   return (
     <OrcamentoPdf
-      id={ident(oficina, d.empresa)}
+      id={ident(oficina)}
       logo={await logoDa(oficina)}
       numeroOS={os.numero}
       emitidoEm={formatData(emitido)}
@@ -167,7 +165,6 @@ export async function documentoOrcamento(d: DadosOrcamento) {
 
 type DadosOS = {
   oficina: Oficina;
-  empresa: Empresa;
   os: OS;
   veiculo: Veiculo;
   cliente: Cliente | null;
@@ -192,7 +189,7 @@ export async function documentoOS(d: DadosOS) {
 
   return (
     <OSPdf
-      id={ident(oficina, d.empresa)}
+      id={ident(oficina)}
       logo={logo}
       via={d.via}
       numero={os.numero}
@@ -224,8 +221,6 @@ export async function documentoOS(d: DadosOS) {
 
 type DadosTermo = {
   oficina: Oficina;
-  /** Empresas das OS abertas pelo check-in (uma só: usa os dados dela no cabeçalho) */
-  empresas: Empresa[];
   checkin: typeof schema.checkins.$inferSelect;
   veiculo: Veiculo;
   cliente: Cliente | null;
@@ -235,17 +230,7 @@ type DadosTermo = {
 
 export async function documentoTermo(d: DadosTermo) {
   const { oficina, checkin } = d;
-  const id: Identificacao =
-    d.empresas.length === 1
-      ? ident(oficina, d.empresas[0])
-      : {
-          titulo: oficina.nome,
-          razaoSocial: d.empresas.map((e) => e.razaoSocial || e.nome).join(" / ") || oficina.nome,
-          cnpj: null,
-          endereco: formatEndereco(oficina),
-          telefone: oficina.telefone ? formatTelefone(oficina.telefone) : null,
-          email: oficina.email,
-        };
+  const id = ident(oficina);
   const [logo, assinatura, fotos] = await Promise.all([
     logoDa(oficina),
     imagemPdf(checkin.assinaturaKey, { largura: 600, png: true }),

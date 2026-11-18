@@ -10,10 +10,6 @@ export type TecnicoState = { erro?: string; ok?: boolean } | undefined;
 
 const dados = z.object({
   nome: z.string().trim().min(2, "Informe o nome do técnico").max(80, "Nome muito longo"),
-  empresaId: z
-    .string()
-    .trim()
-    .transform((v) => v || null),
 });
 
 async function admin() {
@@ -30,9 +26,8 @@ function revalidar() {
 export async function salvarTecnico(id: string | null, _prev: TecnicoState, form: FormData): Promise<TecnicoState> {
   const ctx = await admin();
   if (!ctx) return { erro: "Seu usuário não tem permissão para isso" };
-  const p = dados.safeParse({ nome: String(form.get("nome") ?? ""), empresaId: String(form.get("empresaId") ?? "") });
+  const p = dados.safeParse({ nome: String(form.get("nome") ?? "") });
   if (!p.success) return { erro: p.error.issues[0].message };
-  if (p.data.empresaId && !ctx.empresas.some((e) => e.id === p.data.empresaId)) return { erro: "Empresa inválida" };
 
   const db = await getDb();
   const t = schema.tecnicos;

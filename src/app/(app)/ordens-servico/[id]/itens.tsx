@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { Button, EmpresaTag, Erro, Input, inputClass, type TipoEmpresa } from "@/components/ui";
+import { Button, Erro, Input, inputClass } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { BuscaCatalogo, type OpcaoCatalogo } from "@/components/busca-catalogo";
 import { calcularTotais } from "@/lib/os-total";
@@ -18,9 +18,7 @@ type Item = {
   valorUnitario: number;
   concluido: boolean;
   recusado: boolean;
-  empresaId: string;
 };
-type EmpresaOpcao = { id: string; nome: string; tipo: TipoEmpresa };
 
 type Desconto = { percentual: number | null; valor: number };
 
@@ -33,8 +31,6 @@ export function ItensOS({
   editavel,
   valores = true,
   marcavel = editavel,
-  empresas = [],
-  empresaOS,
   desconto = { percentual: null, valor: 0 },
   catalogo = [],
 }: {
@@ -46,21 +42,11 @@ export function ItensOS({
   valores?: boolean;
   /** Pode marcar itens como feitos */
   marcavel?: boolean;
-  /** Empresas que o usuário vê (para OS mista) */
-  empresas?: EmpresaOpcao[];
-  /** Empresa dona da OS */
-  empresaOS?: string;
   desconto?: Desconto;
   /** Catálogo de serviços e peças (busca ao lançar item) */
   catalogo?: OpcaoCatalogo[];
 }) {
   const t = calcularTotais(itens, desconto);
-  const mista = itens.some((i) => i.empresaId !== empresaOS);
-  const porEmpresa = mista
-    ? empresas
-        .map((e) => ({ ...e, total: itens.filter((i) => !i.recusado && i.empresaId === e.id).reduce((s, i) => s + i.quantidade * i.valorUnitario, 0) }))
-        .filter((e) => e.total > 0)
-    : [];
 
   return (
     <div className="flex flex-col">
@@ -76,14 +62,12 @@ export function ItensOS({
               editavel={editavel}
               valores={valores}
               marcavel={marcavel}
-              empresas={empresas}
-              empresaOS={empresaOS}
             />
           ))}
         </ul>
       )}
 
-      {editavel && <NovoItem osId={osId} empresas={empresas} empresaOS={empresaOS} catalogo={catalogo} />}
+      {editavel && <NovoItem osId={osId} catalogo={catalogo} />}
 
       {valores && (
         <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 border-t border-border px-5 py-4 text-[13px]">
@@ -100,17 +84,6 @@ export function ItensOS({
           <LinhaDesconto osId={osId} desconto={desconto} valor={t.desconto} editavel={editavel && itens.length > 0} />
           <dt className="pt-1 text-[15px] font-semibold">Total</dt>
           <dd className="pt-1 text-right text-[15px] font-semibold tabular-nums">{formatBRL(t.total)}</dd>
-          {porEmpresa.length > 1 && (
-            <dd className="col-span-2 flex flex-wrap gap-x-3 gap-y-1 pt-1.5 text-muted">
-              OS mista:
-              {porEmpresa.map((e) => (
-                <span key={e.id}>
-                  {e.nome} {formatBRL(e.total)}
-                </span>
-              ))}
-              {t.desconto > 0 && <span>(antes do desconto)</span>}
-            </dd>
-          )}
         </dl>
       )}
     </div>
@@ -182,20 +155,15 @@ function LinhaItem({
   editavel,
   valores,
   marcavel,
-  empresas,
-  empresaOS,
 }: {
   osId: string;
   item: Item;
   editavel: boolean;
   valores: boolean;
   marcavel: boolean;
-  empresas: EmpresaOpcao[];
-  empresaOS?: string;
 }) {
   const [pending, start] = useTransition();
   const [editando, setEditando] = useState(false);
-  const empresaItem = item.empresaId !== empresaOS ? empresas.find((e) => e.id === item.empresaId) : undefined;
 
   if (editando) {
     return (
@@ -203,8 +171,6 @@ function LinhaItem({
         <FormItem
           acao={editarItem.bind(null, osId, item.id)}
           item={item}
-          empresas={empresas}
-          empresaOS={empresaOS}
           rotulo="Salvar"
           onDone={() => setEditando(false)}
           onCancel={() => setEditando(false)}
@@ -232,7 +198,6 @@ function LinhaItem({
           {item.tipo === "peca" ? "Peça" : "Serviço"} · {qtd(item.quantidade)}
           {valores && <> × {formatBRL(item.valorUnitario)}</>}
           {item.recusado && <span className="font-medium text-danger"> · Recusado pelo cliente</span>}
-          {empresaItem && <EmpresaTag tipo={empresaItem.tipo} nome={empresaItem.nome} className="ml-1" />}
         </p>
       </div>
       {valores && (
@@ -267,8 +232,6 @@ type AcaoItem = (prev: { erro?: string; ok?: boolean } | undefined, form: FormDa
 function FormItem({
   acao,
   item,
-  empresas,
-  empresaOS,
   rotulo,
   onDone,
   onCancel,
@@ -277,8 +240,6 @@ function FormItem({
 }: {
   acao: AcaoItem;
   item?: Item;
-  empresas: EmpresaOpcao[];
-  empresaOS?: string;
   rotulo: string;
   onDone?: () => void;
   onCancel?: () => void;
@@ -305,9 +266,8 @@ function FormItem({
       form.current?.querySelector<HTMLInputElement>("[name=descricao]")?.focus();
     }
   }, [state, limparAoSalvar]);
-  const mista = empresas.length > 1;
 
-  /** Preenche tipo, descrição, valor e empresa a partir do catálogo */
+  /** Preenche tipo, descrição e valor a partir do catálogo */
   function escolher(c: OpcaoCatalogo) {
     const el = form.current?.elements;
     if (!el) return;
@@ -315,8 +275,6 @@ function FormItem({
     campo("tipo")!.value = c.tipo;
     setTexto(c.descricao);
     campo("valor")!.value = valorTxt(c.valor);
-    const emp = campo("empresaId");
-    if (emp && c.empresaId && empresas.some((e) => e.id === c.empresaId)) emp.value = c.empresaId;
     setCatalogoId(c.id);
     (campo("quantidade") as HTMLInputElement | null)?.select();
   }
@@ -324,7 +282,7 @@ function FormItem({
   return (
     <form ref={form} onSubmit={onSubmit} className="flex flex-col gap-2">
       <input type="hidden" name="catalogoItemId" value={catalogoId} />
-      <div className={cn("grid grid-cols-[1fr_1fr] gap-2", mista ? "sm:grid-cols-[110px_1fr_72px_120px_130px_auto]" : "sm:grid-cols-[110px_1fr_72px_120px_auto]")}>
+      <div className="grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[110px_1fr_72px_120px_auto]">
         <select name="tipo" aria-label="Tipo" defaultValue={item?.tipo ?? "servico"} className={cn(inputClass, "h-10")}>
           <option value="servico">Serviço</option>
           <option value="peca">Peça</option>
@@ -361,16 +319,7 @@ function FormItem({
           required
           className="h-10 text-right"
         />
-        {mista && (
-          <select name="empresaId" aria-label="Empresa do item" defaultValue={item?.empresaId ?? empresaOS} className={cn(inputClass, "h-10")}>
-            {empresas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nome}
-              </option>
-            ))}
-          </select>
-        )}
-        <div className={cn("flex gap-2", mista && "col-span-2 sm:col-span-1")}>
+        <div className="col-span-2 flex gap-2 sm:col-span-1">
           <Button variant="primary" className="h-10 flex-1" disabled={pending}>
             {!item && <Plus />}
             {rotulo}
@@ -387,10 +336,10 @@ function FormItem({
   );
 }
 
-function NovoItem({ osId, empresas, empresaOS, catalogo }: { osId: string; empresas: EmpresaOpcao[]; empresaOS?: string; catalogo: OpcaoCatalogo[] }) {
+function NovoItem({ osId, catalogo }: { osId: string; catalogo: OpcaoCatalogo[] }) {
   return (
     <div className="border-t border-border bg-subtle/60 px-4 py-3 sm:px-5">
-      <FormItem acao={adicionarItem.bind(null, osId)} empresas={empresas} empresaOS={empresaOS} rotulo="Adicionar" limparAoSalvar catalogo={catalogo} />
+      <FormItem acao={adicionarItem.bind(null, osId)} rotulo="Adicionar" limparAoSalvar catalogo={catalogo} />
     </div>
   );
 }

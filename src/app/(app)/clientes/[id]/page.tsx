@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
+import { Badge, Card, CardHeader, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { historicoCliente, obterCliente, usoDoCliente } from "@/lib/cadastros";
 import { STATUS } from "@/lib/os";
@@ -20,12 +20,12 @@ export async function generateMetadata({ params }: PageProps<"/clientes/[id]">) 
 export default async function ClientePage({ params }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { oficina, empresas, pode } = await getContexto();
+  const { oficina, pode } = await getContexto();
   const editavel = pode("cadastros");
   const cliente = await obterCliente(oficina.id, id);
   if (!cliente) notFound();
   const [historico, uso] = await Promise.all([
-    historicoCliente(oficina.id, empresas.map((e) => e.id), id),
+    historicoCliente(oficina.id, id),
     editavel ? usoDoCliente(oficina.id, id) : 0,
   ]);
   const whats = linkWhatsApp(cliente.telefone);
@@ -120,7 +120,6 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
                     </div>
                     <p className="text-[13px] text-foreground-2">{o.descricao}</p>
                     <div className="flex flex-wrap items-center gap-2">
-                      <EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} />
                       <Badge tom={STATUS[o.status].tom}>{STATUS[o.status].label}</Badge>
                     </div>
                   </Link>

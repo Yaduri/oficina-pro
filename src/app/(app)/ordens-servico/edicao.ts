@@ -55,7 +55,7 @@ export async function editarDadosOS(osId: string, _prev: EdicaoState, form: Form
       .where(and(eq(schema.tecnicos.oficinaId, ctx.oficina.id), ilike(schema.tecnicos.nome, responsavel)));
     const tec =
       t ??
-      (await db.insert(schema.tecnicos).values({ oficinaId: ctx.oficina.id, empresaId: os.empresaId, nome: responsavel }).returning())[0];
+      (await db.insert(schema.tecnicos).values({ oficinaId: ctx.oficina.id, nome: responsavel }).returning())[0];
     responsavelId = tec.id;
     nomeResp = tec.nome;
   }
@@ -94,7 +94,6 @@ const itemSchema = z.object({
     .string()
     .transform(parseValor)
     .refine((n) => Number.isFinite(n) && n >= 0 && n < 10_000_000, "Valor inválido"),
-  empresaId: z.uuid("Empresa inválida"),
 });
 
 export async function editarItem(osId: string, itemId: string, _prev: EdicaoState, form: FormData): Promise<EdicaoState> {
@@ -109,10 +108,8 @@ export async function editarItem(osId: string, itemId: string, _prev: EdicaoStat
     descricao: f(form, "descricao"),
     quantidade: f(form, "quantidade") || "1",
     valor: f(form, "valor"),
-    empresaId: f(form, "empresaId") || os.empresaId,
   });
   if (!d.success) return { erro: d.error.issues[0].message };
-  if (!ctx.empresas.some((e) => e.id === d.data.empresaId)) return { erro: "Empresa não permitida" };
 
   const [antes] = await db
     .select()
@@ -127,16 +124,12 @@ export async function editarItem(osId: string, itemId: string, _prev: EdicaoStat
       descricao: d.data.descricao,
       quantidade: String(d.data.quantidade),
       valorUnitario: d.data.valor.toFixed(2),
-      empresaId: d.data.empresaId,
     })
     .where(eq(schema.osItens.id, itemId));
 
   const detalhes: string[] = [];
   if (Number(antes.valorUnitario) !== d.data.valor) detalhes.push(`valor ${formatBRL(antes.valorUnitario)} → ${formatBRL(d.data.valor)}`);
   if (Number(antes.quantidade) !== d.data.quantidade) detalhes.push(`quantidade ${Number(antes.quantidade)} → ${d.data.quantidade}`);
-  if (antes.empresaId !== d.data.empresaId) {
-    detalhes.push(`empresa → ${ctx.empresas.find((e) => e.id === d.data.empresaId)?.nome}`);
-  }
   await registrarEvento(
     db,
     ctx.oficina.id,
@@ -172,30 +165,6 @@ export async function definirDesconto(osId: string, _prev: EdicaoState, form: Fo
 
   await db.update(schema.ordensServico).set(set).where(eq(schema.ordensServico.id, os.id));
   await registrarEvento(db, ctx.oficina.id, os.id, texto, ctx);
-  revalidar(os.id);
-  return { ok: true };
-}
-
-/* ---------- Transferir para outra empresa ---------- */
-
-export async function transferirOS(osId: string, empresaId: string): Promise<EdicaoState> {
-  const r = await osDaOficina(osId, "abrirOS");
-  if (!r) return SEM_PERMISSAO;
-  const { db, ctx, os } = r;
-  if (fechada(os.status)) return FECHADA;
-  const destino = ctx.empresas.find((e) => e.id === empresaId);
-  if (!destino || destino.id === os.empresaId) return { erro: "Escolha outra empresa" };
-  const origem = ctx.oficina.empresas.find((e) => e.id === os.empresaId);
-
-  await db.transaction(async (tx) => {
-    await tx.update(schema.ordensServico).set({ empresaId: destino.id }).where(eq(schema.ordensServico.id, os.id));
-    // Itens que eram da empresa de origem acompanham a OS (itens de OS mista ficam como estão)
-    await tx
-      .update(schema.osItens)
-      .set({ empresaId: destino.id })
-      .where(and(eq(schema.osItens.osId, os.id), eq(schema.osItens.empresaId, os.empresaId)));
-  });
-  await registrarEvento(db, ctx.oficina.id, os.id, `Transferiu a OS de ${origem?.nome ?? "outra empresa"} para ${destino.nome}`, ctx);
   revalidar(os.id);
   return { ok: true };
 }

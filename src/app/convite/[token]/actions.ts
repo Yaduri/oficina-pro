@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, ne } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { TOKEN_CONVITE_RE } from "@/lib/usuarios";
 
@@ -15,6 +15,17 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
   if (!userId) redirect(`/sign-in?redirect_url=${encodeURIComponent(`/convite/${token}`)}`);
   const usuario = await currentUser();
   const db = await getDb();
+
+  // Cada login pertence a uma única oficina
+  const [outra] = await db
+    .select({ oficinaId: schema.membros.oficinaId })
+    .from(schema.membros)
+    .innerJoin(schema.convites, eq(schema.convites.token, token))
+    .where(and(eq(schema.membros.clerkUserId, userId), eq(schema.membros.ativo, true), ne(schema.membros.oficinaId, schema.convites.oficinaId)))
+    .limit(1);
+  if (outra) {
+    return { erro: "Este login já faz parte de outra oficina. Para entrar nesta, use outro e-mail ou peça para ser removido da outra." };
+  }
 
   const ok = await db.transaction(async (tx) => {
     // Marca o convite como usado só se ainda estiver válido (evita uso duplo)
@@ -32,32 +43,16 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
       .returning();
     if (!convite) return false;
 
-    // Só empresas que ainda existem na oficina
-    const daOficina = await tx
-      .select({ id: schema.empresas.id })
-      .from(schema.empresas)
-      .where(eq(schema.empresas.oficinaId, convite.oficinaId));
-    const validas = convite.empresaIds.filter((id) => daOficina.some((e) => e.id === id));
-
     const dados = {
       papel: convite.papel,
-      todasEmpresas: convite.todasEmpresas,
       ativo: true,
       nome: usuario?.fullName ?? null,
       email: usuario?.primaryEmailAddress?.emailAddress ?? null,
-      // Mais recente = oficina que o usuário passa a ver ao entrar
-      criadoEm: new Date(),
     };
-    const [membro] = await tx
+    await tx
       .insert(schema.membros)
       .values({ oficinaId: convite.oficinaId, clerkUserId: userId, ...dados })
-      .onConflictDoUpdate({ target: [schema.membros.oficinaId, schema.membros.clerkUserId], set: dados })
-      .returning({ id: schema.membros.id });
-
-    await tx.delete(schema.membroEmpresas).where(eq(schema.membroEmpresas.membroId, membro.id));
-    if (!convite.todasEmpresas && validas.length > 0) {
-      await tx.insert(schema.membroEmpresas).values(validas.map((empresaId) => ({ membroId: membro.id, empresaId })));
-    }
+      .onConflictDoUpdate({ target: [schema.membros.oficinaId, schema.membros.clerkUserId], set: dados });
     return true;
   });
 

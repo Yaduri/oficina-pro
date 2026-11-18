@@ -1,17 +1,16 @@
 import Link from "next/link";
 import { Camera, ChevronRight, PenLine } from "lucide-react";
-import { Card, EmpresaTag, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Card, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { listarCheckins } from "@/lib/checkin-dados";
 import { urlArquivo } from "@/lib/storage";
 import { formatEntrada } from "@/lib/utils";
 
 export const metadata = { title: "Check-in" };
 
-export default async function CheckinsPage({ searchParams }: PageProps<"/check-in">) {
-  const { empresa } = await searchParams;
-  const { oficina, empresaIds, selecionada } = await empresasFiltradas(empresa);
-  const lista = await listarCheckins(oficina.id, empresaIds);
+export default async function CheckinsPage() {
+  const { oficina } = await getContexto();
+  const lista = await listarCheckins(oficina.id);
 
   return (
     <>
@@ -19,7 +18,7 @@ export default async function CheckinsPage({ searchParams }: PageProps<"/check-i
         title="Check-in"
         description="Recepção do veículo com fotos, estado na chegada e assinatura do cliente"
         actions={
-          <Link href={`/check-in/novo${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("primary")}>
+          <Link href="/check-in/novo" className={buttonClass("primary")}>
             <Camera />Novo check-in
           </Link>
         }
@@ -60,7 +59,9 @@ export default async function CheckinsPage({ searchParams }: PageProps<"/check-i
                   </div>
                   <div className="hidden flex-col items-end gap-1 sm:flex">
                     {c.ordens.map((o) => (
-                      <EmpresaTag key={o.id} tipo={o.empresaTipo} nome={`OS #${o.numero} · ${o.empresaNome}`} />
+                      <span key={o.id} className="text-[12px] font-medium text-foreground-2">
+                        OS #{o.numero}
+                      </span>
                     ))}
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />

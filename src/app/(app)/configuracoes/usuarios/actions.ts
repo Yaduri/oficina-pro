@@ -13,7 +13,7 @@ export type UsuarioState = { erro?: string; ok?: boolean } | undefined;
 const papelEnum = z.enum(["dono", "gerente", "financeiro", "atendente", "tecnico"], { error: "Escolha o papel" });
 const DIAS_CONVITE = 7;
 
-/** Lê papel + empresas do formulário e confere se quem está alterando pode dar esse acesso */
+/** Lê o papel do formulário e confere se quem está alterando pode dar esse acesso */
 async function lerAcesso(form: FormData) {
   const ctx = await getContexto();
   if (!ctx.pode("usuarios")) return { erro: "Seu usuário não pode gerenciar usuários" } as const;
@@ -21,13 +21,7 @@ async function lerAcesso(form: FormData) {
   if (!papel.success) return { erro: papel.error.issues[0].message } as const;
   if (!podeGerenciarPapel(ctx.papel, papel.data)) return { erro: "Só um dono pode dar o papel de dono" } as const;
 
-  // Ninguém dá acesso a uma empresa que ele próprio não vê
-  const todasDaOficina = ctx.empresas.length === ctx.oficina.empresas.length;
-  const todas = form.get("todasEmpresas") === "on" && todasDaOficina;
-  const visiveis = new Set(ctx.empresas.map((e) => e.id));
-  const empresaIds = todas ? [] : form.getAll("empresas").map(String).filter((id) => visiveis.has(id));
-  if (!todas && empresaIds.length === 0) return { erro: "Escolha ao menos uma empresa" } as const;
-  return { ctx, papel: papel.data, todas, empresaIds } as const;
+  return { ctx, papel: papel.data } as const;
 }
 
 function revalidar() {
@@ -48,8 +42,6 @@ export async function criarConvite(_prev: UsuarioState, form: FormData): Promise
     token: randomBytes(24).toString("base64url"),
     nome: nome.data,
     papel: r.papel,
-    todasEmpresas: r.todas,
-    empresaIds: r.empresaIds,
     criadoPor: r.ctx.userId,
     expiraEm: new Date(Date.now() + DIAS_CONVITE * 86_400_000),
   });
@@ -122,13 +114,7 @@ export async function atualizarMembro(membroId: string, _prev: UsuarioState, for
     return { erro: "A oficina precisa ter ao menos um dono" };
   }
 
-  await db.transaction(async (tx) => {
-    await tx.update(schema.membros).set({ papel: r.papel as Papel, todasEmpresas: r.todas }).where(eq(schema.membros.id, m.id));
-    await tx.delete(schema.membroEmpresas).where(eq(schema.membroEmpresas.membroId, m.id));
-    if (r.empresaIds.length > 0) {
-      await tx.insert(schema.membroEmpresas).values(r.empresaIds.map((empresaId) => ({ membroId: m.id, empresaId })));
-    }
-  });
+  await db.update(schema.membros).set({ papel: r.papel as Papel }).where(eq(schema.membros.id, m.id));
   revalidar();
   return { ok: true };
 }

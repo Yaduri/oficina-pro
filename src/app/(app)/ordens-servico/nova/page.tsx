@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { getContexto } from "@/lib/oficina";
 import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
 import { listarTecnicos } from "@/lib/queries";
 import { listarCatalogo } from "@/lib/catalogo";
@@ -14,7 +14,7 @@ export const metadata = { title: "Nova OS" };
 export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-servico/nova">) {
   const sp = await searchParams;
   const param = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]);
-  const { oficina, empresas, selecionada, pode } = await empresasFiltradas(param("empresa"));
+  const { oficina, pode } = await getContexto();
   if (!pode("abrirOS")) redirect("/ordens-servico");
 
   const [clientes, tecnicos, catalogo] = await Promise.all([
@@ -46,12 +46,10 @@ export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-se
       <PageHeader title="Nova OS" />
       <Card className="p-5 sm:p-6">
         <NovaOSForm
-          empresas={empresas.map((e) => ({ id: e.id, nome: e.nome }))}
-          empresaPadrao={selecionada?.id ?? empresas[0]?.id ?? ""}
           clientes={clientes}
           tecnicos={tecnicos.map((t) => t.nome)}
           inicial={inicial}
-          catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor, empresaId: c.empresaId }))}
+          catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor }))}
         />
       </Card>
     </div>

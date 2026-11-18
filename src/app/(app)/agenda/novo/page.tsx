@@ -25,10 +25,9 @@ export default async function NovoAgendamentoPage({ searchParams }: PageProps<"/
       <Card className="p-5 sm:p-6">
         <FormAgendamento
           id={null}
-          valores={{ dia, hora: "08:00", duracao: 60, titulo: "", detalhe: "", empresaId: d.empresas.length === 1 ? d.empresas[0].id : "", tecnicoId: "" }}
+          valores={{ dia, hora: "08:00", duracao: 60, titulo: "", detalhe: "", tecnicoId: "" }}
           inicial={d.inicial}
           clientes={d.clientes}
-          empresas={d.empresas}
           tecnicos={d.tecnicos}
           catalogo={d.catalogo}
         />

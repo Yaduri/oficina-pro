@@ -10,7 +10,6 @@ export type ItemCatalogo = {
   codigo: string | null;
   descricao: string;
   valor: number;
-  empresaId: string | null;
   tempoMinutos: number | null;
   codigoServicoMunicipal: string | null;
   ativo: boolean;
@@ -30,7 +29,6 @@ export async function listarCatalogo(oficinaId: string, opcoes: { tipo?: TipoCat
       codigo: c.codigo,
       descricao: c.descricao,
       valor: c.valor,
-      empresaId: c.empresaId,
       tempoMinutos: c.tempoMinutos,
       codigoServicoMunicipal: c.codigoServicoMunicipal,
       ativo: c.ativo,

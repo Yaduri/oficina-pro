@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { Badge, Button, Card, EmpresaTag, Input, PageHeader, Placa, Vazio, buttonClass, inputClass } from "@/components/ui";
-import { empresasFiltradas } from "@/lib/oficina";
+import { Badge, Button, Card, Input, PageHeader, Placa, Vazio, buttonClass, inputClass } from "@/components/ui";
+import { getContexto } from "@/lib/oficina";
 import { listarOS, listarTecnicos } from "@/lib/queries";
 import { ABERTAS, STATUS, type StatusOS } from "@/lib/os";
 import { cn, formatBRL, formatData } from "@/lib/utils";
@@ -29,7 +29,7 @@ function inicioDoDia(v?: string) {
 export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-servico/lista">) {
   const sp = await searchParams;
   const p = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]) ?? "";
-  const { oficina, empresaIds, selecionada, pode } = await empresasFiltradas(p("empresa") || undefined);
+  const { oficina, pode } = await getContexto();
   const valores = pode("verValores");
 
   const status = FILTROS_STATUS.find((f) => f.valor === p("status")) ?? FILTROS_STATUS[0];
@@ -40,17 +40,16 @@ export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-s
   const responsavelId = tecnicos.some((t) => t.id === p("tecnico")) ? p("tecnico") : undefined;
   const busca = p("q").trim().slice(0, 60);
 
-  const lista = await listarOS(oficina.id, empresaIds, { status: status.status, de, ate, responsavelId, busca: busca || undefined });
+  const lista = await listarOS(oficina.id, { status: status.status, de, ate, responsavelId, busca: busca || undefined });
   const total = lista.filter((o) => o.status !== "cancelada").reduce((s, o) => s + o.total, 0);
   const filtrando = !!(status.valor || de || ate || responsavelId || busca);
 
   return (
     <>
       <PageHeader title="Ordens de serviço" description="Todas as OS, inclusive entregues e canceladas" />
-      <AbasOS atual="lista" empresaId={selecionada?.id} />
+      <AbasOS atual="lista" />
 
       <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end">
-        {selecionada && <input type="hidden" name="empresa" value={selecionada.id} />}
         <label className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
           <span className="text-[13px] font-medium text-foreground-2">Buscar</span>
           <span className="relative">
@@ -92,7 +91,7 @@ export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-s
             Filtrar
           </Button>
           {filtrando && (
-            <Link href={`/ordens-servico/lista${selecionada ? `?empresa=${selecionada.id}` : ""}`} className={buttonClass("ghost", "h-10")}>
+            <Link href="/ordens-servico/lista" className={buttonClass("ghost", "h-10")}>
               Limpar
             </Link>
           )}
@@ -111,7 +110,6 @@ export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-s
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">OS</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Veículo</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Cliente</th>
-                    <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Empresa</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Status</th>
                     <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 font-medium">Entrada</th>
                     {valores && <th className="border-b border-border bg-zinc-50/60 px-4 py-2.5 text-right font-medium">Valor</th>}
@@ -132,9 +130,6 @@ export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-s
                         </div>
                       </td>
                       <td className="px-4 py-3">{o.cliente ?? "—"}</td>
-                      <td className="px-4 py-3">
-                        <EmpresaTag tipo={o.empresaTipo} nome={o.empresaNome} />
-                      </td>
                       <td className="px-4 py-3">
                         <Badge tom={STATUS[o.status].tom}>{STATUS[o.status].label}</Badge>
                       </td>

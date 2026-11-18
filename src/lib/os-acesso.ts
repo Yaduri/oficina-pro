@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
@@ -9,7 +9,7 @@ type Contexto = Awaited<ReturnType<typeof getContexto>>;
 
 export const ehUuid = (v: string) => z.uuid().safeParse(v).success;
 
-/** OS da oficina e de uma empresa que o usuário vê, conferindo a permissão pedida */
+/** OS da oficina do usuário, conferindo a permissão pedida */
 export async function osDaOficina(osId: string, acao?: Acao) {
   if (!ehUuid(osId)) return null;
   const ctx = await getContexto();
@@ -18,13 +18,7 @@ export async function osDaOficina(osId: string, acao?: Acao) {
   const [os] = await db
     .select()
     .from(schema.ordensServico)
-    .where(
-      and(
-        eq(schema.ordensServico.id, osId),
-        eq(schema.ordensServico.oficinaId, ctx.oficina.id),
-        inArray(schema.ordensServico.empresaId, ctx.empresas.map((e) => e.id)),
-      ),
-    );
+    .where(and(eq(schema.ordensServico.id, osId), eq(schema.ordensServico.oficinaId, ctx.oficina.id)));
   return os ? { db, ctx, os } : null;
 }
 

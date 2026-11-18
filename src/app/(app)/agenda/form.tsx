@@ -18,7 +18,6 @@ export type ValoresAgendamento = {
   duracao: number;
   titulo: string;
   detalhe: string;
-  empresaId: string;
   tecnicoId: string;
 };
 
@@ -27,7 +26,6 @@ export function FormAgendamento({
   valores,
   inicial,
   clientes,
-  empresas,
   tecnicos,
   catalogo,
 }: {
@@ -36,14 +34,12 @@ export function FormAgendamento({
   valores: ValoresAgendamento;
   inicial: ResultadoPlaca | null;
   clientes: ClienteOpcao[];
-  empresas: { id: string; nome: string }[];
   tecnicos: { id: string; nome: string }[];
   catalogo: OpcaoCatalogo[];
 }) {
   const { state, pending, onSubmit } = useFormAction(salvarAgendamento.bind(null, id));
   const [titulo, setTitulo] = useState(valores.titulo);
   const [duracao, setDuracao] = useState(valores.duracao);
-  const [empresaId, setEmpresaId] = useState(valores.empresaId);
   const duracoes = DURACOES.includes(duracao) ? DURACOES : [...DURACOES, duracao].sort((a, b) => a - b);
 
   return (
@@ -65,7 +61,6 @@ export function FormAgendamento({
               onEscolher={(c) => {
                 setTitulo(c.descricao);
                 if (c.tempoMinutos) setDuracao(c.tempoMinutos);
-                if (c.empresaId && empresas.some((e) => e.id === c.empresaId)) setEmpresaId(c.empresaId);
               }}
               placeholder="Ex.: revisão 40 mil km, ou buscar no catálogo"
             />
@@ -91,19 +86,6 @@ export function FormAgendamento({
           </Campo>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {empresas.length > 1 && (
-            <Campo label="Empresa" htmlFor="ag-empresa">
-              <Select id="ag-empresa" name="empresaId" value={empresaId} onChange={(e) => setEmpresaId(e.target.value)}>
-                <option value="">Ainda não definida</option>
-                {empresas.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nome}
-                  </option>
-                ))}
-              </Select>
-            </Campo>
-          )}
-          {empresas.length === 1 && <input type="hidden" name="empresaId" value={empresas[0].id} />}
           <Campo label="Técnico" hint="(opcional)" htmlFor="ag-tecnico">
             <Select id="ag-tecnico" name="tecnicoId" defaultValue={valores.tecnicoId}>
               <option value="">Sem técnico definido</option>

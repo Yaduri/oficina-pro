@@ -23,7 +23,6 @@ const texto = z
   .transform((v) => v || null);
 
 const checkinSchema = z.object({
-  empresaIds: z.array(z.uuid()).min(1, "Escolha pelo menos uma empresa (gera uma OS para cada)"),
   km: z
     .string()
     .transform(soDigitos)
@@ -48,7 +47,7 @@ const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 export async function criarCheckin(_prev: CheckinState, form: FormData): Promise<CheckinState> {
   const ctx = await getContexto();
-  const { oficina, empresas, userId } = ctx;
+  const { oficina, userId } = ctx;
 
   let fotos: unknown = [];
   let checklist: unknown = [];
@@ -59,7 +58,6 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
     return { erro: "Dados do formulário inválidos" };
   }
   const parsed = checkinSchema.safeParse({
-    empresaIds: form.getAll("empresaIds").map(String),
     km: f(form, "km"),
     combustivel: f(form, "combustivel"),
     relato: f(form, "relato"),
@@ -72,7 +70,6 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
   if (!parsed.success) return { erro: parsed.error.issues[0].message };
   const d = parsed.data;
 
-  if (d.empresaIds.some((id) => !empresas.some((e) => e.id === id))) return { erro: "Empresa não permitida" };
   // Só aceita arquivos enviados para esta oficina
   const prefixo = `${oficina.id}/checkins/`;
   if (d.fotos.some((ft) => !ft.key.startsWith(prefixo)) || (d.assinaturaKey && !d.assinaturaKey.startsWith(prefixo))) {
@@ -124,24 +121,20 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
         .values(d.fotos.map((ft, i) => ({ checkinId: checkin.id, posicao: ft.posicao, key: ft.key, ordem: i })));
     }
 
-    // Uma OS por empresa escolhida, já ligada ao check-in
-    let numero = await proximoNumeroOS(tx, oficina.id);
-    for (const empresaId of d.empresaIds) {
-      const [nova] = await tx
-        .insert(schema.ordensServico)
-        .values({
-          oficinaId: oficina.id,
-          empresaId,
-          numero: numero++,
-          checkinId: checkin.id,
-          veiculoId,
-          clienteId,
-          descricao: d.relato,
-          kmEntrada: d.km,
-        })
-        .returning({ id: schema.ordensServico.id });
-      await registrarEvento(tx, oficina.id, nova.id, "Abriu a OS pelo check-in", ctx);
-    }
+    // A OS do check-in
+    const [nova] = await tx
+      .insert(schema.ordensServico)
+      .values({
+        oficinaId: oficina.id,
+        numero: await proximoNumeroOS(tx, oficina.id),
+        checkinId: checkin.id,
+        veiculoId,
+        clienteId,
+        descricao: d.relato,
+        kmEntrada: d.km,
+      })
+      .returning({ id: schema.ordensServico.id });
+    await registrarEvento(tx, oficina.id, nova.id, "Abriu a OS pelo check-in", ctx);
     // Agendamento que virou este check-in
     const agendamentoId = f(form, "agendamentoId");
     if (agendamentoId && /^[0-9a-f-]{36}$/i.test(agendamentoId)) {

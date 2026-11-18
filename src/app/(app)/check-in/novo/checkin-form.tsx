@@ -29,16 +29,12 @@ type Foto = {
 /* ---------- Formulário ---------- */
 
 export function CheckinForm({
-  empresas,
-  empresaPadrao,
   clientes,
   inicial,
   termo,
   checklist,
   agendamento = null,
 }: {
-  empresas: { id: string; nome: string }[];
-  empresaPadrao?: string;
   clientes: ClienteOpcao[];
   inicial: ResultadoPlaca | null;
   /** Texto que o cliente lê antes de assinar */
@@ -204,28 +200,6 @@ export function CheckinForm({
       )}
 
       <Secao n={checklist.length > 0 ? 5 : 4} titulo="Serviço">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">
-            Para qual empresa? <span className="font-normal text-muted">Uma OS é aberta para cada empresa marcada.</span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {empresas.map((e) => (
-              <label
-                key={e.id}
-                className="flex h-11 cursor-pointer items-center gap-2 rounded-md border border-border-strong bg-white px-3.5 has-checked:border-primary has-checked:ring-3 has-checked:ring-zinc-900/10"
-              >
-                <input
-                  type="checkbox"
-                  name="empresaIds"
-                  value={e.id}
-                  defaultChecked={empresas.length === 1 || e.id === empresaPadrao}
-                  className="size-4 accent-zinc-900"
-                />
-                {e.nome}
-              </label>
-            ))}
-          </div>
-        </fieldset>
         <Campo label="O que o cliente relatou" htmlFor="relato">
           <Textarea
             id="relato"

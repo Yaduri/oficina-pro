@@ -5,11 +5,11 @@ import { getDb, schema } from "@/db";
 import { formatPlaca, soDigitos } from "@/lib/utils";
 
 /*
- * Clientes e veículos são compartilhados pela oficina (as duas empresas atendem o mesmo cliente).
+ * Clientes e veículos são da oficina.
  * Toda consulta filtra por oficina_id.
  */
 
-const { clientes, veiculos, ordensServico: os, empresas, checkins, veiculoTransferencias } = schema;
+const { clientes, veiculos, ordensServico: os, checkins, veiculoTransferencias } = schema;
 
 export type Cliente = typeof clientes.$inferSelect;
 export type Veiculo = typeof veiculos.$inferSelect;
@@ -77,12 +77,10 @@ export async function usoDoVeiculo(oficinaId: string, veiculoId: string) {
 }
 
 /** Histórico do veículo: todas as OS (de qualquer dono) e as trocas de dono */
-export async function historicoVeiculo(oficinaId: string, empresaIds: string[], veiculoId: string) {
+export async function historicoVeiculo(oficinaId: string, veiculoId: string) {
   const db = await getDb();
   const [ordens, trocas] = await Promise.all([
-    empresaIds.length === 0
-      ? []
-      : db
+    db
           .select({
             id: os.id,
             numero: os.numero,
@@ -91,14 +89,11 @@ export async function historicoVeiculo(oficinaId: string, empresaIds: string[], 
             entradaEm: os.entradaEm,
             kmEntrada: os.kmEntrada,
             cliente: clientes.nome,
-            empresaNome: empresas.nome,
-            empresaTipo: empresas.tipo,
             total: totalOS,
           })
           .from(os)
-          .innerJoin(empresas, eq(empresas.id, os.empresaId))
           .leftJoin(clientes, eq(clientes.id, os.clienteId))
-          .where(and(eq(os.oficinaId, oficinaId), eq(os.veiculoId, veiculoId), inArray(os.empresaId, empresaIds)))
+          .where(and(eq(os.oficinaId, oficinaId), eq(os.veiculoId, veiculoId)))
           .orderBy(desc(os.entradaEm))
           .limit(100),
     db
@@ -125,9 +120,8 @@ export async function obterCliente(oficinaId: string, id: string) {
   return { ...cliente, veiculos: vs };
 }
 
-/** Histórico de OS de um cliente (todas as empresas que o usuário pode ver) */
-export async function historicoCliente(oficinaId: string, empresaIds: string[], clienteId: string) {
-  if (empresaIds.length === 0) return [];
+/** Histórico de OS de um cliente */
+export async function historicoCliente(oficinaId: string, clienteId: string) {
   const db = await getDb();
   const rows = await db
     .select({
@@ -138,14 +132,11 @@ export async function historicoCliente(oficinaId: string, empresaIds: string[], 
       entradaEm: os.entradaEm,
       placa: veiculos.placa,
       modelo: veiculos.modelo,
-      empresaNome: empresas.nome,
-      empresaTipo: empresas.tipo,
       total: totalOS,
     })
     .from(os)
     .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
-    .innerJoin(empresas, eq(empresas.id, os.empresaId))
-    .where(and(eq(os.oficinaId, oficinaId), eq(os.clienteId, clienteId), inArray(os.empresaId, empresaIds)))
+    .where(and(eq(os.oficinaId, oficinaId), eq(os.clienteId, clienteId)))
     .orderBy(desc(os.entradaEm))
     .limit(100);
   return rows.map((r) => ({ ...r, total: Number(r.total) }));

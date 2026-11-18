@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Camera, Check, MessageCircle, MoreHorizontal, Pencil, RotateCcw, UserX, X } from "lucide-react";
-import { Badge, EmpresaTag, Placa, buttonClass, type TipoEmpresa } from "@/components/ui";
+import { Badge, Placa, buttonClass } from "@/components/ui";
 import { STATUS_AGENDA, formatDuracao, horaSP, nomeDoDia, diaSP, type StatusAgenda } from "@/lib/agenda-datas";
 import { cn, linkWhatsApp } from "@/lib/utils";
 import { mudarStatusAgendamento } from "./actions";
@@ -16,8 +16,6 @@ export type AgendamentoTela = {
   duracaoMin: number;
   status: StatusAgenda;
   checkinId: string | null;
-  empresaNome: string | null;
-  empresaTipo: TipoEmpresa | null;
   tecnico: string | null;
   veiculoId: string | null;
   placa: string | null;
@@ -97,7 +95,6 @@ export function ItemAgenda({ a, podeEditar, compacto = false }: { a: Agendamento
           {a.cliente && <span>{a.cliente}</span>}
           {a.tecnico && <span>· {a.tecnico}</span>}
           <span>· {formatDuracao(a.duracaoMin)}</span>
-          {a.empresaTipo && a.empresaNome && <EmpresaTag tipo={a.empresaTipo} nome={a.empresaNome} />}
         </div>
         {a.detalhe && <p className="mt-1 whitespace-pre-line text-[13px] text-foreground-2">{a.detalhe}</p>}
         {erro && <p className="mt-1 text-[13px] text-danger">{erro}</p>}

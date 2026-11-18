@@ -2,12 +2,12 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
-import { Button, Campo, Card, Erro, Input, Select, Textarea, type TipoEmpresa } from "@/components/ui";
+import { Button, Campo, Card, Erro, Input, Select, Textarea } from "@/components/ui";
 import { CamposEndereco } from "@/components/campos-endereco";
 import { useFormAction } from "@/lib/use-form-action";
 import { formatDocumento, formatTelefone, type Endereco } from "@/lib/utils";
 import { TERMO_PADRAO } from "@/lib/textos";
-import { salvarEmpresa, salvarOficina, salvarTextos, type ConfigState } from "./actions";
+import { salvarFiscal, salvarOficina, salvarTextos, type ConfigState } from "./actions";
 
 /* ---------- Peças comuns ---------- */
 
@@ -167,27 +167,20 @@ function LogoUpload({ inicial }: { inicial: string | null }) {
   );
 }
 
-/* ---------- Empresa ---------- */
+/* ---------- Dados fiscais (CNPJ) ---------- */
 
-type EmpresaDados = Partial<Endereco> & {
-  id: string;
-  tipo: TipoEmpresa;
-  nome: string;
+type DadosFiscais = {
   razaoSocial: string | null;
   nomeFantasia: string | null;
   cnpj: string | null;
   inscricaoEstadual: string | null;
   inscricaoMunicipal: string | null;
   regime: "mei" | "simples" | "presumido" | "real" | null;
-  telefone: string | null;
-  email: string | null;
-  enderecoProprio: boolean;
 };
 
-export function EmpresaForm({ empresa }: { empresa: EmpresaDados }) {
-  const { state, pending, onSubmit } = useFormAction(salvarEmpresa.bind(null, empresa.id));
-  const [proprio, setProprio] = useState(empresa.enderecoProprio);
-  const p = `emp-${empresa.id.slice(0, 8)}`;
+export function FiscalForm({ fiscal }: { fiscal: DadosFiscais }) {
+  const { state, pending, onSubmit } = useFormAction(salvarFiscal);
+  const p = "fis";
 
   return (
     <Card>
@@ -195,32 +188,29 @@ export function EmpresaForm({ empresa }: { empresa: EmpresaDados }) {
         <div className="flex flex-col gap-6 px-5 py-5">
           <Grupo titulo="Identificação">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Campo label="Nome no sistema" hint="(curto, ex.: Mecânica)" htmlFor={`${p}-nome`}>
-                <Input id={`${p}-nome`} name="nome" defaultValue={empresa.nome} required minLength={2} maxLength={40} />
-              </Campo>
               <Campo label="CNPJ" htmlFor={`${p}-cnpj`}>
                 <Input
                   id={`${p}-cnpj`}
                   name="cnpj"
-                  defaultValue={formatDocumento(empresa.cnpj)}
+                  defaultValue={formatDocumento(fiscal.cnpj)}
                   placeholder="00.000.000/0000-00"
                   autoCapitalize="characters"
                   spellCheck={false}
                 />
               </Campo>
               <Campo label="Razão social" htmlFor={`${p}-razao`}>
-                <Input id={`${p}-razao`} name="razaoSocial" defaultValue={empresa.razaoSocial ?? ""} />
+                <Input id={`${p}-razao`} name="razaoSocial" defaultValue={fiscal.razaoSocial ?? ""} />
               </Campo>
-              <Campo label="Nome fantasia" htmlFor={`${p}-fantasia`}>
-                <Input id={`${p}-fantasia`} name="nomeFantasia" defaultValue={empresa.nomeFantasia ?? ""} />
+              <Campo label="Nome fantasia" hint="(aparece no topo dos documentos)" htmlFor={`${p}-fantasia`} className="sm:col-span-2">
+                <Input id={`${p}-fantasia`} name="nomeFantasia" defaultValue={fiscal.nomeFantasia ?? ""} />
               </Campo>
             </div>
           </Grupo>
 
-          <Grupo titulo="Dados fiscais">
+          <Grupo titulo="Tributação">
             <div className="grid gap-4 sm:grid-cols-3">
               <Campo label="Regime tributário" htmlFor={`${p}-regime`}>
-                <Select id={`${p}-regime`} name="regime" defaultValue={empresa.regime ?? ""}>
+                <Select id={`${p}-regime`} name="regime" defaultValue={fiscal.regime ?? ""}>
                   <option value="">Não informado</option>
                   <option value="mei">MEI</option>
                   <option value="simples">Simples Nacional</option>
@@ -229,41 +219,12 @@ export function EmpresaForm({ empresa }: { empresa: EmpresaDados }) {
                 </Select>
               </Campo>
               <Campo label="Inscrição municipal" htmlFor={`${p}-im`}>
-                <Input id={`${p}-im`} name="inscricaoMunicipal" defaultValue={empresa.inscricaoMunicipal ?? ""} />
+                <Input id={`${p}-im`} name="inscricaoMunicipal" defaultValue={fiscal.inscricaoMunicipal ?? ""} />
               </Campo>
               <Campo label="Inscrição estadual" htmlFor={`${p}-ie`}>
-                <Input id={`${p}-ie`} name="inscricaoEstadual" defaultValue={empresa.inscricaoEstadual ?? ""} placeholder="Isento, se não tiver" />
+                <Input id={`${p}-ie`} name="inscricaoEstadual" defaultValue={fiscal.inscricaoEstadual ?? ""} placeholder="Isento, se não tiver" />
               </Campo>
             </div>
-          </Grupo>
-
-          <Grupo titulo="Contato">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Campo label="Telefone" hint="(se diferente da oficina)" htmlFor={`${p}-tel`}>
-                <Input id={`${p}-tel`} name="telefone" type="tel" inputMode="tel" defaultValue={formatTelefone(empresa.telefone)} />
-              </Campo>
-              <Campo label="E-mail" hint="(para notas e cobranças)" htmlFor={`${p}-email`}>
-                <Input id={`${p}-email`} name="email" type="email" defaultValue={empresa.email ?? ""} />
-              </Campo>
-            </div>
-          </Grupo>
-
-          <Grupo titulo="Endereço">
-            <label className="flex cursor-pointer items-center gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                name="enderecoProprio"
-                checked={proprio}
-                onChange={(e) => setProprio(e.target.checked)}
-                className="size-[18px] cursor-pointer accent-zinc-900"
-              />
-              Endereço diferente do da oficina
-            </label>
-            {proprio ? (
-              <CamposEndereco idPrefixo={p} inicial={empresa} />
-            ) : (
-              <p className="text-[13px] text-muted">Usa o endereço da oficina.</p>
-            )}
           </Grupo>
         </div>
         <Rodape state={state} pending={pending} />
