@@ -5,7 +5,8 @@ import { getDb, schema } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { ABERTAS, STATUS } from "@/lib/os";
 import { diaSP, inicioDoDia } from "@/lib/agenda-datas";
-import { formatData } from "@/lib/utils";
+import { formatBRL, formatData } from "@/lib/utils";
+import { alertasVencimento } from "@/lib/financeiro-lancamentos";
 
 /** Dias sem nenhuma movimentação para uma OS aberta ser considerada parada */
 const DIAS_PARADA = 3;
@@ -15,7 +16,7 @@ const DIA = 86_400_000;
 
 export type Notificacao = {
   id: string;
-  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega";
+  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega" | "conta_vence" | "conta_vencida";
   titulo: string;
   detalhe: string;
   href: string;
@@ -143,6 +144,48 @@ export async function minhasNotificacoes(): Promise<{ itens: Notificacao[]; nova
       href: `/ordens-servico/${p.id}`,
       quando: new Date(desde.getTime() + DIAS_PARADA * DIA).toISOString(),
     });
+  }
+
+  // Financeiro: contas a pagar vencendo e contas vencidas (um aviso por dia, com quantidade e total)
+  if (ctx.pode("financeiro")) {
+    const a = await alertasVencimento(ctx.oficina.id);
+    const inicioHoje = inicioDoDia(a.hoje).toISOString();
+    const contas = (n: number) => (n === 1 ? "1 conta" : `${n} contas`);
+    const total = (c: number) => formatBRL(c / 100);
+    if (a.pagarHoje.qtd || a.pagarAmanha.qtd) {
+      const partes = [
+        a.pagarHoje.qtd && `hoje: ${contas(a.pagarHoje.qtd)} (${total(a.pagarHoje.total)})`,
+        a.pagarAmanha.qtd && `amanhã: ${contas(a.pagarAmanha.qtd)} (${total(a.pagarAmanha.total)})`,
+      ].filter(Boolean);
+      itens.push({
+        id: `fin-pagar-vence-${a.hoje}`,
+        tipo: "conta_vence",
+        titulo: a.pagarHoje.qtd ? "Contas a pagar vencendo hoje" : "Contas a pagar vencendo amanhã",
+        detalhe: `Vencem ${partes.join(" · ")}`,
+        href: `/financeiro/pagar?status=abertas&de=${a.hoje}&ate=${a.pagarAmanha.qtd ? a.amanha : a.hoje}`,
+        quando: inicioHoje,
+      });
+    }
+    if (a.pagarVencidas.qtd) {
+      itens.push({
+        id: `fin-pagar-vencidas-${a.hoje}`,
+        tipo: "conta_vencida",
+        titulo: `${contas(a.pagarVencidas.qtd)} a pagar ${a.pagarVencidas.qtd === 1 ? "vencida" : "vencidas"}`,
+        detalhe: `Total em atraso: ${total(a.pagarVencidas.total)}`,
+        href: "/financeiro/pagar?status=vencidas",
+        quando: inicioHoje,
+      });
+    }
+    if (a.receberVencidas.qtd) {
+      itens.push({
+        id: `fin-receber-vencidas-${a.hoje}`,
+        tipo: "conta_vencida",
+        titulo: `${contas(a.receberVencidas.qtd)} a receber ${a.receberVencidas.qtd === 1 ? "vencida" : "vencidas"}`,
+        detalhe: `Total a cobrar: ${total(a.receberVencidas.total)}`,
+        href: "/financeiro/receber?status=vencidas",
+        quando: inicioHoje,
+      });
+    }
   }
 
   const lidas = ctx.membro.notificacoesLidasEm?.getTime() ?? 0;

@@ -21,6 +21,10 @@ import { EntregarOS } from "./entrega";
 import { FotosServico } from "./fotos-servico";
 import { AvisarCliente } from "./avisar";
 import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
+import { FORMAS, STATUS_LANCAMENTO, centavos, contaSugerida, ehForma, hojeSP, listarContas, somarDiasData } from "@/lib/financeiro";
+import { situacaoRecebimento } from "@/lib/recebimento";
+import { FORMAS_PAGAMENTO } from "@/lib/recebimento-regras";
+import { RecebimentosOS } from "./recebimentos";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -35,6 +39,9 @@ export async function generateMetadata({ params }: PageProps<"/ordens-servico/[i
   const dados = await carregar((await params).id);
   return { title: dados ? `OS #${dados.os.numero}` : "OS" };
 }
+
+/** "AAAA-MM-DD" → "DD/MM/AAAA" */
+const dataBR = (d: string) => d.split("-").reverse().join("/");
 
 /** Data no formato do input type="date", no fuso de São Paulo */
 const dia = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
@@ -63,6 +70,22 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     podeItens ? listarCatalogo(oficina.id, { soAtivos: true }) : Promise.resolve([]),
   ]);
   const desconto = { percentual: os.descontoPercentual != null ? Number(os.descontoPercentual) : null, valor: Number(os.descontoValor) };
+
+  // Recebimentos (financeiro): só para quem vê valores
+  const [recebimento, contas] = valores ? await Promise.all([situacaoRecebimento(oficina.id, os), listarContas(oficina.id)]) : [null, []];
+  const hoje = hojeSP();
+  const formasPagamento = {
+    contas: contas.map((c) => ({ id: c.id, nome: c.nome })),
+    sugestoes: Object.fromEntries(FORMAS_PAGAMENTO.map((f) => [f, contaSugerida(contas, f)?.id ?? ""])),
+    taxas: oficina.taxasCartao ?? null,
+    formas: { ...FORMAS } as Record<string, string>,
+    hoje,
+  };
+  const pagamentoEntrega =
+    recebimento && !fechada && contas.length > 0 && recebimento.semLancamento > 0
+      ? { ...formasPagamento, aReceber: recebimento.semLancamento, vencimentoPadrao: somarDiasData(hoje, 30) }
+      : null;
+  const pagamentosAtivos = recebimento?.pagamentos.filter((p) => !p.estornadaEm) ?? [];
   const garantiaPadrao = garantiaSugerida(oficina.garantiaDias);
 
   let resumo: ResumoOrcamento | null = null;
@@ -111,6 +134,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     { href: `/pdf/os/${os.id}?via=oficina`, label: "Ordem de serviço", detalhe: "Via da oficina, com responsável e checklist" },
     ...(valores && itens.length > 0 ? [{ href: `/pdf/orcamento/${os.id}`, label: "Orçamento", detalhe: orc ? "Como foi enviado ao cliente" : "Ainda não enviado" }] : []),
     ...(os.checkinId ? [{ href: `/pdf/termo/${os.checkinId}`, label: "Termo de entrada", detalhe: "Fotos, checklist e assinatura" }] : []),
+    ...(pagamentosAtivos.length > 0 ? [{ href: `/pdf/recibo/${os.id}`, label: "Recibo", detalhe: "Pagamentos recebidos" }] : []),
   ];
 
   return (
@@ -142,7 +166,13 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             <AvisarCliente osId={os.id} whatsapp={msgPronto} avisadoEm={os.clienteAvisadoEm ? formatEntrada(os.clienteAvisadoEm).toLowerCase() : null} />
           )}
           {!fechada && pode("fecharOS") && (
-            <EntregarOS osId={os.id} kmEntrada={os.kmEntrada} garantiaPadrao={garantiaPadrao} textoGarantia={oficina.textoGarantia} />
+            <EntregarOS
+              osId={os.id}
+              kmEntrada={os.kmEntrada}
+              garantiaPadrao={garantiaPadrao}
+              textoGarantia={oficina.textoGarantia}
+              pagamento={pagamentoEntrega}
+            />
           )}
         </div>
       </div>
@@ -230,6 +260,39 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               podeEnviar={!fechada && pode("orcamento")}
               semItens={itens.length === 0}
               padrao={{ observacao: oficina.obsOrcamento ?? "", dias: oficina.validadeOrcamentoDias }}
+            />
+          )}
+
+          {recebimento && (os.status === "entregue" || recebimento.lancamentos.length > 0) && (
+            <RecebimentosOS
+              osId={os.id}
+              total={recebimento.totais.total}
+              recebido={recebimento.recebido}
+              aReceber={recebimento.aReceber}
+              semLancamento={os.status === "entregue" ? recebimento.semLancamento : 0}
+              parcelas={recebimento.lancamentos.map((l) => ({
+                id: l.id,
+                forma: l.forma,
+                formaLabel: l.forma && ehForma(l.forma) ? FORMAS[l.forma] : "Recebimento",
+                parcela: l.parcela,
+                parcelas: l.parcelas,
+                vencimento: dataBR(l.vencimento),
+                valor: centavos(l.valor),
+                pago: centavos(l.valorPago),
+                status: STATUS_LANCAMENTO[l.status],
+                aberta: l.status === "aberto" || l.status === "parcial",
+              }))}
+              pagamentos={recebimento.pagamentos.map((p) => ({
+                id: p.id,
+                data: dataBR(p.data),
+                formaLabel: p.forma && ehForma(p.forma) ? FORMAS[p.forma] : "Pagamento",
+                conta: p.conta,
+                valor: p.pagoCliente,
+                taxa: centavos(p.taxa),
+                estornado: !!p.estornadaEm,
+              }))}
+              registro={os.status === "entregue" && pode("fecharOS") && contas.length > 0 ? formasPagamento : null}
+              podeEstornar={pode("financeiro")}
             />
           )}
 

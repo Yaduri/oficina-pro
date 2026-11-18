@@ -42,14 +42,14 @@ export async function respostaPdf(doc: ReactElement, nomeArquivo: string, baixar
   });
 }
 
-function ident(oficina: Oficina): Identificacao {
+export function ident(oficina: Oficina): Identificacao {
   const i = identificacao(oficina);
   return { titulo: i.titulo, razaoSocial: i.razaoSocial, cnpj: i.cnpj, endereco: i.endereco, telefone: i.telefone, email: i.email };
 }
 
-const logoDa = (oficina: Oficina) => imagemPdf(oficina.logoKey, { largura: 240, png: true });
+export const logoDa = (oficina: Oficina) => imagemPdf(oficina.logoKey, { largura: 240, png: true });
 
-function pessoa(c: Cliente | null) {
+export function pessoa(c: Cliente | null) {
   if (!c) return null;
   return {
     nome: c.nome,
@@ -59,7 +59,7 @@ function pessoa(c: Cliente | null) {
   };
 }
 
-function veiculoPdf(v: Veiculo, kmTexto?: string | null) {
+export function veiculoPdf(v: Veiculo, kmTexto?: string | null) {
   return {
     placa: v.placa,
     descricao: [v.marca, v.modelo].filter(Boolean).join(" "),

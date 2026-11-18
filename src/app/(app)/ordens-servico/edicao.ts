@@ -3,7 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, ilike } from "drizzle-orm";
 import { z } from "zod";
-import { schema } from "@/db";
+import { schema, type DB } from "@/db";
+import { hojeSP, listarContas } from "@/lib/financeiro";
+import {
+  categoriaDaOS,
+  lancadoNaOS,
+  lancarPagamentos,
+  planejarPagamentos,
+  planoReceberDepois,
+  resumoPagamentos,
+  totaisDaOS,
+  type PlanoPagamento,
+} from "@/lib/recebimento";
 import { ehUuid, osDaOficina, registrarEvento } from "@/lib/os-acesso";
 import { formatBRL, formatData, parseValor, soDigitos } from "@/lib/utils";
 
@@ -188,27 +199,70 @@ export async function entregarOS(osId: string, _prev: EdicaoState, form: FormDat
   const assinaturaKey = f(form, "assinaturaKey");
   if (assinaturaKey && !assinaturaKey.startsWith(`${ctx.oficina.id}/os/`)) return { erro: "Assinatura inválida" };
 
-  const agora = new Date();
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.ordensServico)
-      .set({
-        status: "entregue",
-        entregueEm: agora,
-        kmSaida,
-        garantiaAte,
-        entregaObs: obs,
-        entregaAssinaturaKey: assinaturaKey || null,
-        entreguePor: ctx.userId,
-      })
-      .where(eq(schema.ordensServico.id, os.id));
-    if (kmSaida !== null) {
-      const [v] = await tx.select({ km: schema.veiculos.km }).from(schema.veiculos).where(eq(schema.veiculos.id, os.veiculoId));
-      if (v && (v.km === null || kmSaida > v.km)) {
-        await tx.update(schema.veiculos).set({ km: kmSaida }).where(eq(schema.veiculos.id, os.veiculoId));
+  // Pagamento (só quem vê valores): o que falta lançar da OS vira conta a receber
+  const hoje = hojeSP();
+  let planos: PlanoPagamento[] = [];
+  let categoriaId: string | null = null;
+  if (ctx.pode("verValores")) {
+    const totais = await totaisDaOS(db, os);
+    const aReceber = totais.total - (await lancadoNaOS(db, ctx.oficina.id, os.id));
+    if (aReceber > 0) {
+      const contas = await listarContas(ctx.oficina.id);
+      if (contas.length === 0) return { erro: "Cadastre uma conta (caixa ou banco) no financeiro antes de receber" };
+      if (f(form, "pagamentoModo") === "depois") {
+        planos = [planoReceberDepois(aReceber, contas, hoje)];
+      } else {
+        let linhas: unknown;
+        try {
+          linhas = JSON.parse(f(form, "pagamentos") || "[]");
+        } catch {
+          return { erro: "Pagamento inválido" };
+        }
+        const plano = planejarPagamentos(linhas as Parameters<typeof planejarPagamentos>[0], aReceber, contas, hoje);
+        if ("erro" in plano) return plano;
+        planos = plano.planos;
       }
+      categoriaId = await categoriaDaOS(ctx.oficina.id, totais);
     }
-  });
+  }
+  const [veic] = await db.select({ placa: schema.veiculos.placa }).from(schema.veiculos).where(eq(schema.veiculos.id, os.veiculoId));
+
+  const agora = new Date();
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.ordensServico)
+        .set({
+          status: "entregue",
+          entregueEm: agora,
+          kmSaida,
+          garantiaAte,
+          entregaObs: obs,
+          entregaAssinaturaKey: assinaturaKey || null,
+          entreguePor: ctx.userId,
+        })
+        .where(eq(schema.ordensServico.id, os.id));
+      if (kmSaida !== null) {
+        const [v] = await tx.select({ km: schema.veiculos.km }).from(schema.veiculos).where(eq(schema.veiculos.id, os.veiculoId));
+        if (v && (v.km === null || kmSaida > v.km)) {
+          await tx.update(schema.veiculos).set({ km: kmSaida }).where(eq(schema.veiculos.id, os.veiculoId));
+        }
+      }
+      if (planos.length > 0) {
+        await lancarPagamentos(tx as unknown as DB, {
+          oficinaId: ctx.oficina.id,
+          os,
+          placa: veic?.placa ?? "",
+          categoriaId,
+          planos,
+          hoje,
+          userId: ctx.userId,
+        });
+      }
+    });
+  } catch (e) {
+    return { erro: e instanceof Error && e.message ? `Não foi possível registrar o pagamento: ${e.message}` : "Não foi possível registrar a entrega" };
+  }
   await registrarEvento(
     db,
     ctx.oficina.id,
@@ -216,8 +270,10 @@ export async function entregarOS(osId: string, _prev: EdicaoState, form: FormDat
     `Entregou o veículo${assinaturaKey ? " (com assinatura do cliente)" : ""}${garantiaAte ? `, garantia até ${formatData(garantiaAte)}` : ""}`,
     ctx,
   );
+  if (planos.length > 0) await registrarEvento(db, ctx.oficina.id, os.id, resumoPagamentos(planos), ctx);
   revalidar(os.id);
   revalidatePath("/clientes");
+  if (planos.length > 0) revalidatePath("/financeiro", "layout");
   return { ok: true };
 }
 

@@ -11,13 +11,13 @@ import { documentoOS, documentoOrcamento, documentoTermo } from "./gerar";
  * usuário logado da oficina ou token de link público.
  */
 
-async function oficinaCompleta(oficinaId: string) {
+export async function oficinaCompleta(oficinaId: string) {
   const db = await getDb();
   const [o] = await db.select().from(schema.oficinas).where(eq(schema.oficinas.id, oficinaId));
   return o ?? null;
 }
 
-const placaArquivo = (placa: string) => placa.replace(/[^A-Z0-9]/gi, "");
+export const placaArquivo = (placa: string) => placa.replace(/[^A-Z0-9]/gi, "");
 
 /** PDF da OS da oficina */
 export async function pdfOS(oficinaId: string, osId: string, opcoes: { via: "cliente" | "oficina"; valores: boolean }) {

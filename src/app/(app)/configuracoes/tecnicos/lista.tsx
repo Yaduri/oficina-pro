@@ -7,7 +7,22 @@ import { useFormAction } from "@/lib/use-form-action";
 import { cn } from "@/lib/utils";
 import { alternarTecnico, excluirTecnico, salvarTecnico } from "./actions";
 
-type Tecnico = { id: string; nome: string; ativo: boolean; abertas: number; total: number };
+type Tecnico = {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  abertas: number;
+  total: number;
+  comissaoServicoPct: string | null;
+  comissaoPecaPct: string | null;
+  comissaoFixaOs: string | null;
+  /** Resumo da regra de comissão ("10% dos serviços · R$ 20,00 por OS") */
+  regra: string;
+};
+
+/** "10.50" → "10,5" para o campo */
+const numero = (v: string | null | undefined, casas = 0) =>
+  v == null ? "" : Number(v).toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: 2, useGrouping: false });
 
 export function FormTecnico({ tecnico, onDone }: { tecnico?: Tecnico; onDone?: () => void }) {
   const form = useRef<HTMLFormElement>(null);
@@ -27,6 +42,43 @@ export function FormTecnico({ tecnico, onDone }: { tecnico?: Tecnico; onDone?: (
       <Campo label="Nome" htmlFor={`tec-${pid}-nome`}>
         <Input id={`tec-${pid}-nome`} name="nome" defaultValue={tecnico?.nome} required autoComplete="off" />
       </Campo>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">
+          Comissão <span className="font-normal text-muted">(opcional, sobre as OS entregues em que é o responsável)</span>
+        </legend>
+        <div className="grid grid-cols-3 gap-2">
+          <Campo label="% serviços" htmlFor={`tec-${pid}-cs`}>
+            <Input
+              id={`tec-${pid}-cs`}
+              name="comissaoServicoPct"
+              inputMode="decimal"
+              placeholder="0"
+              defaultValue={numero(tecnico?.comissaoServicoPct)}
+              autoComplete="off"
+            />
+          </Campo>
+          <Campo label="% peças" htmlFor={`tec-${pid}-cp`}>
+            <Input
+              id={`tec-${pid}-cp`}
+              name="comissaoPecaPct"
+              inputMode="decimal"
+              placeholder="0"
+              defaultValue={numero(tecnico?.comissaoPecaPct)}
+              autoComplete="off"
+            />
+          </Campo>
+          <Campo label="R$ por OS" htmlFor={`tec-${pid}-cf`}>
+            <Input
+              id={`tec-${pid}-cf`}
+              name="comissaoFixaOs"
+              inputMode="decimal"
+              placeholder="0,00"
+              defaultValue={numero(tecnico?.comissaoFixaOs, 2)}
+              autoComplete="off"
+            />
+          </Campo>
+        </div>
+      </fieldset>
       <Erro>{state?.erro}</Erro>
       <div className="flex justify-end gap-2">
         {onDone && (
@@ -77,6 +129,7 @@ export function ListaTecnicos({ tecnicos }: { tecnicos: Tecnico[] }) {
                     </span>
                     {!t.ativo && <span>Desativado</span>}
                   </p>
+                  <p className="text-[12px] text-muted">{t.regra ? `Comissão: ${t.regra}` : "Sem comissão"}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <label className="flex cursor-pointer items-center gap-1.5 px-1.5 text-[12px] text-muted" title={t.ativo ? "Aparece para escolher na OS" : "Não aparece na OS"}>

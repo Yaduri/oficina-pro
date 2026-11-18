@@ -113,27 +113,27 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 Objetivo: caixa, contas e relatórios da oficina.
 
 ### 2.1 Recebimento na entrega — **G**
-- [ ] Ao entregar a OS: registrar pagamento (dinheiro, PIX, débito, crédito, boleto, a prazo), parcelas e taxa da maquininha
-- [ ] Gera **contas a receber** automaticamente; baixa automática quando à vista
-- [ ] Recibo (PDF)
+- [x] Ao entregar a OS: registrar pagamento (dinheiro, PIX, débito, crédito, boleto, a prazo), parcelas e taxa da maquininha
+- [x] Gera **contas a receber** automaticamente; baixa automática quando à vista
+- [x] Recibo (PDF)
 
 ### 2.2 Contas a receber e a pagar — **G**
-- [ ] Lançamentos com vencimento, categoria, centro de custo, anexo (boleto/nota no R2)
-- [ ] Contas recorrentes (aluguel, energia, internet)
-- [ ] Baixa parcial, juros/multa, estorno
-- [ ] Alertas de vencimento
+- [x] Lançamentos com vencimento, categoria, centro de custo, anexo (boleto/nota no R2)
+- [x] Contas recorrentes (aluguel, energia, internet)
+- [x] Baixa parcial, juros/multa, estorno
+- [x] Alertas de vencimento
 
 ### 2.3 Caixa e bancos — **M**
-- [ ] Contas bancárias e caixa físico
-- [ ] Abertura/fechamento de caixa diário com conferência
-- [ ] Transferência entre contas
-- [ ] Conciliação por arquivo OFX do banco
+- [x] Contas bancárias e caixa físico
+- [x] Abertura/fechamento de caixa diário com conferência
+- [x] Transferência entre contas
+- [x] Conciliação por arquivo OFX do banco
 
 ### 2.4 Relatórios financeiros — **M**
-- [ ] Fluxo de caixa (realizado e previsto)
-- [ ] DRE simplificada
-- [ ] Faturamento por período, por serviço, por técnico, ticket médio
-- [ ] Exportar para Excel/CSV
+- [x] Fluxo de caixa (realizado e previsto)
+- [x] DRE simplificada
+- [x] Faturamento por período, por serviço, por técnico, ticket médio
+- [x] Exportar para Excel/CSV
 
 ### 2.5 Cobrança online — **M** (depende do gateway)
 - [ ] Escolher gateway (Asaas, Mercado Pago, Efí…) — um cadastro por oficina
@@ -141,8 +141,8 @@ Objetivo: caixa, contas e relatórios da oficina.
 - [ ] Baixa automática por webhook
 
 ### 2.6 Comissões — **M**
-- [ ] Regra por técnico (% sobre serviço, sobre peça, ou valor fixo)
-- [ ] Apuração por período e fechamento; gera conta a pagar
+- [x] Regra por técnico (% sobre serviço, sobre peça, ou valor fixo)
+- [x] Apuração por período e fechamento; gera conta a pagar
 
 ---
 

@@ -6,22 +6,27 @@ import { Button, Campo, Erro, Input, Textarea } from "@/components/ui";
 import { Assinatura, type AssinaturaHandle } from "@/components/assinatura";
 import { enviarArquivo } from "@/lib/upload-cliente";
 import { entregarOS } from "../edicao";
+import { PagamentoEntrega, type DadosPagamento, type PagamentoHandle } from "./pagamento-entrega";
 
-/** Botão "Entregar veículo" + janela com km de saída, garantia, observação e assinatura de retirada */
+/** Botão "Entregar veículo" + janela com km de saída, garantia, pagamento, observação e assinatura de retirada */
 export function EntregarOS({
   osId,
   kmEntrada,
   garantiaPadrao,
   textoGarantia,
+  pagamento,
 }: {
   osId: string;
   kmEntrada: number | null;
   /** AAAA-MM-DD sugerido */
   garantiaPadrao: string;
   textoGarantia: string | null;
+  /** Nulo = não mostra a seção (sem permissão de ver valores ou nada a receber) */
+  pagamento: DadosPagamento | null;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const assinatura = useRef<AssinaturaHandle>(null);
+  const pagto = useRef<PagamentoHandle>(null);
   const [state, dispatch, pending] = useActionState(entregarOS.bind(null, osId), undefined);
   const [enviando, setEnviando] = useState(false);
   const [erroLocal, setErroLocal] = useState<string>();
@@ -38,6 +43,8 @@ export function EntregarOS({
     e.preventDefault();
     setErroLocal(undefined);
     const dados = new FormData(e.currentTarget);
+    const erroPagto = pagto.current?.erro();
+    if (erroPagto) return setErroLocal(erroPagto);
     if (assinatura.current?.vazia() && !confirm("O cliente não assinou a retirada. Entregar mesmo assim?")) return;
     setEnviando(true);
     try {
@@ -87,6 +94,7 @@ export function EntregarOS({
                 <Input id="ent-garantia" name="garantiaAte" type="date" defaultValue={garantiaPadrao} />
               </Campo>
             </div>
+            {pagamento && <PagamentoEntrega ref={pagto} dados={pagamento} />}
             <Campo label="Observações da entrega" hint="(opcional)" htmlFor="ent-obs">
               <Textarea id="ent-obs" name="entregaObs" rows={2} className="min-h-16" placeholder="Ex.: peças antigas entregues ao cliente" />
             </Campo>

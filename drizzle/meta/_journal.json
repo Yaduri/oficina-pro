@@ -15,6 +15,20 @@
       "when": 1795008938072,
       "tag": "0001_calm_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795018577655,
+      "tag": "0002_peaceful_alex_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795019523674,
+      "tag": "0003_gray_captain_flint",
+      "breakpoints": true
     }
   ]
 }

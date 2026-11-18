@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { Card, CardHeader, PageHeader } from "@/components/ui";
 import { getDb, schema } from "@/db";
+import { descreverRegra, regraDo } from "@/lib/comissoes";
 import { exigirAdmin } from "@/lib/oficina";
 import { ABERTAS } from "@/lib/os";
 import { AbasConfig } from "../abas";
@@ -16,11 +17,14 @@ export default async function TecnicosPage() {
     ABERTAS.map((s) => sql`${s}`),
     sql`, `,
   );
-  const tecnicos = await db
+  const rows = await db
     .select({
       id: t.id,
       nome: t.nome,
       ativo: t.ativo,
+      comissaoServicoPct: t.comissaoServicoPct,
+      comissaoPecaPct: t.comissaoPecaPct,
+      comissaoFixaOs: t.comissaoFixaOs,
       total: sql<number>`count(${os.id})::int`,
       abertas: sql<number>`count(${os.id}) filter (where ${os.status} in (${abertas}))::int`,
     })
@@ -29,6 +33,7 @@ export default async function TecnicosPage() {
     .where(and(eq(t.oficinaId, oficina.id)))
     .groupBy(t.id)
     .orderBy(sql`${t.ativo} desc`, asc(t.nome));
+  const tecnicos = rows.map((r) => ({ ...r, regra: descreverRegra(regraDo(r)) }));
 
   return (
     <>

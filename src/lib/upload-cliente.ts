@@ -1,4 +1,4 @@
-/** Envio de imagens pelo navegador para /api/upload */
+/** Envio de imagens (e PDFs do financeiro) pelo navegador para /api/upload */
 
 /** Reduz a foto no próprio celular (máx. 1600 px, JPEG 80%) antes de enviar */
 export async function comprimir(file: File): Promise<Blob> {
@@ -98,7 +98,7 @@ const TEMPO_LIMITE = 60_000;
  */
 export async function enviarArquivo(
   blob: Blob,
-  pasta: "checkins" | "logos" | "os",
+  pasta: "checkins" | "logos" | "os" | "financeiro",
   opcoes: { signal?: AbortSignal; tentativas?: number } = {},
 ): Promise<string> {
   const { signal } = opcoes;

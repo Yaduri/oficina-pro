@@ -76,6 +76,8 @@ export const oficinas = pgTable("oficinas", {
   validadeOrcamentoDias: integer("validade_orcamento_dias").notNull().default(15),
   /** Garantia padrão sugerida na entrega do veículo */
   garantiaDias: integer("garantia_dias").notNull().default(90),
+  /** Taxas da maquininha (%), sugeridas ao receber por cartão */
+  taxasCartao: jsonb("taxas_cartao").$type<{ debito: number; credito: number; creditoParcelado: number }>(),
   criadoEm: criadoEm(),
 });
 
@@ -126,6 +128,10 @@ export const tecnicos = pgTable("tecnicos", {
   oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
   nome: text("nome").notNull(),
   ativo: boolean("ativo").notNull().default(true),
+  /** Comissão: % sobre serviços, % sobre peças e/ou valor fixo por OS entregue (nulos = sem comissão) */
+  comissaoServicoPct: numeric("comissao_servico_pct", { precision: 5, scale: 2 }),
+  comissaoPecaPct: numeric("comissao_peca_pct", { precision: 5, scale: 2 }),
+  comissaoFixaOs: numeric("comissao_fixa_os", { precision: 12, scale: 2 }),
   criadoEm: criadoEm(),
 });
 
@@ -454,6 +460,186 @@ export const agendamentos = pgTable(
   },
   (t) => [index("agenda_inicio_idx").on(t.oficinaId, t.inicio)],
 );
+
+/* ---------- Financeiro ---------- */
+
+/** Onde o dinheiro fica: caixa físico, conta no banco ou recebíveis da maquininha */
+export const contasFinanceiras = pgTable("contas_financeiras", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  nome: text("nome").notNull(),
+  tipo: text("tipo").$type<"caixa" | "banco" | "maquininha">().notNull(),
+  saldoInicial: numeric("saldo_inicial", { precision: 12, scale: 2 }).notNull().default("0"),
+  /** Data a partir da qual o saldo é calculado (AAAA-MM-DD) */
+  saldoInicialEm: date("saldo_inicial_em").notNull().defaultNow(),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+});
+
+/** Categorias de receita e despesa; grupoDre agrupa as linhas da DRE */
+export const categoriasFinanceiras = pgTable("categorias_financeiras", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  tipo: text("tipo").$type<"receita" | "despesa">().notNull(),
+  nome: text("nome").notNull(),
+  grupoDre: text("grupo_dre").notNull(),
+  /** Usada automaticamente (servicos, pecas, taxas_cartao, comissoes): não pode ser removida */
+  sistema: text("sistema"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+});
+
+/** Conta a receber ou a pagar (um registro por parcela) */
+export const lancamentos = pgTable(
+  "lancamentos",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    tipo: text("tipo").$type<"receber" | "pagar">().notNull(),
+    descricao: text("descricao").notNull(),
+    categoriaId: uuid("categoria_id").references(() => categoriasFinanceiras.id, { onDelete: "set null" }),
+    /** Conta prevista para receber/pagar */
+    contaId: uuid("conta_id").references(() => contasFinanceiras.id, { onDelete: "set null" }),
+    clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    /** Fornecedor (texto livre até existir o cadastro de fornecedores, Fase 4) */
+    fornecedor: text("fornecedor"),
+    tecnicoId: uuid("tecnico_id").references(() => tecnicos.id, { onDelete: "set null" }),
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    centroCusto: text("centro_custo"),
+    valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+    /** Soma do principal já baixado (sem juros, multa ou desconto) */
+    valorPago: numeric("valor_pago", { precision: 12, scale: 2 }).notNull().default("0"),
+    vencimento: date("vencimento").notNull(),
+    /** Data de referência para a DRE (padrão = vencimento; na OS = data da entrega) */
+    competencia: date("competencia").notNull(),
+    parcela: integer("parcela").notNull().default(1),
+    parcelas: integer("parcelas").notNull().default(1),
+    /** Liga as parcelas de um mesmo lançamento */
+    grupo: uuid("grupo"),
+    forma: text("forma"),
+    status: text("status").$type<"aberto" | "parcial" | "pago" | "cancelado">().notNull().default("aberto"),
+    anexoKey: text("anexo_key"),
+    recorrenciaId: uuid("recorrencia_id"),
+    observacao: text("observacao"),
+    criadoPor: text("criado_por"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("lancamentos_venc_idx").on(t.oficinaId, t.tipo, t.status, t.vencimento), index("lancamentos_os_idx").on(t.osId)],
+);
+
+/** Pagamento (total ou parcial) de um lançamento; o estorno preenche estornadaEm */
+export const baixas = pgTable(
+  "baixas",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    lancamentoId: uuid("lancamento_id").notNull().references(() => lancamentos.id, { onDelete: "cascade" }),
+    contaId: uuid("conta_id").notNull().references(() => contasFinanceiras.id),
+    data: date("data").notNull(),
+    /** Principal abatido do lançamento */
+    valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+    juros: numeric("juros", { precision: 12, scale: 2 }).notNull().default("0"),
+    multa: numeric("multa", { precision: 12, scale: 2 }).notNull().default("0"),
+    desconto: numeric("desconto", { precision: 12, scale: 2 }).notNull().default("0"),
+    /** Taxa da maquininha descontada no recebimento */
+    taxa: numeric("taxa", { precision: 12, scale: 2 }).notNull().default("0"),
+    forma: text("forma"),
+    observacao: text("observacao"),
+    estornadaEm: timestamp("estornada_em", { withTimezone: true }),
+    estornadaPor: text("estornada_por"),
+    criadoPor: text("criado_por"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("baixas_conta_idx").on(t.contaId, t.data), index("baixas_lanc_idx").on(t.lancamentoId)],
+);
+
+export const transferencias = pgTable("transferencias", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  deContaId: uuid("de_conta_id").notNull().references(() => contasFinanceiras.id),
+  paraContaId: uuid("para_conta_id").notNull().references(() => contasFinanceiras.id),
+  valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+  data: date("data").notNull(),
+  descricao: text("descricao"),
+  criadoPor: text("criado_por"),
+  criadoEm: criadoEm(),
+});
+
+/** Abertura e fechamento do caixa físico (conferência do dia) */
+export const caixaSessoes = pgTable("caixa_sessoes", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  contaId: uuid("conta_id").notNull().references(() => contasFinanceiras.id),
+  abertoEm: timestamp("aberto_em", { withTimezone: true }).notNull().defaultNow(),
+  abertoPor: text("aberto_por"),
+  valorAbertura: numeric("valor_abertura", { precision: 12, scale: 2 }).notNull(),
+  fechadoEm: timestamp("fechado_em", { withTimezone: true }),
+  fechadoPor: text("fechado_por"),
+  valorEsperado: numeric("valor_esperado", { precision: 12, scale: 2 }),
+  valorContado: numeric("valor_contado", { precision: 12, scale: 2 }),
+  observacao: text("observacao"),
+});
+
+/** Conta recorrente (aluguel, energia…): gera um lançamento por mês */
+export const recorrencias = pgTable("recorrencias", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  tipo: text("tipo").$type<"receber" | "pagar">().notNull(),
+  descricao: text("descricao").notNull(),
+  categoriaId: uuid("categoria_id").references(() => categoriasFinanceiras.id, { onDelete: "set null" }),
+  contaId: uuid("conta_id").references(() => contasFinanceiras.id, { onDelete: "set null" }),
+  fornecedor: text("fornecedor"),
+  clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+  forma: text("forma"),
+  centroCusto: text("centro_custo"),
+  observacao: text("observacao"),
+  valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+  /** Dia do vencimento (1–31; meses mais curtos usam o último dia) */
+  dia: integer("dia").notNull(),
+  inicio: date("inicio").notNull(),
+  fim: date("fim"),
+  /** Último mês já gerado (AAAA-MM-01) */
+  geradoAte: date("gerado_ate"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+});
+
+/** Linhas do extrato do banco (OFX) para conciliação */
+export const extratoItens = pgTable(
+  "extrato_itens",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    contaId: uuid("conta_id").notNull().references(() => contasFinanceiras.id, { onDelete: "cascade" }),
+    fitid: text("fitid").notNull(),
+    data: date("data").notNull(),
+    /** Positivo = entrada, negativo = saída */
+    valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+    descricao: text("descricao"),
+    baixaId: uuid("baixa_id").references(() => baixas.id, { onDelete: "set null" }),
+    transferenciaId: uuid("transferencia_id").references(() => transferencias.id, { onDelete: "set null" }),
+    ignorado: boolean("ignorado").notNull().default(false),
+    importadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex("extrato_fitid_uq").on(t.contaId, t.fitid)],
+);
+
+/** Fechamento de comissão de um técnico num período (gera conta a pagar) */
+export const comissoesFechamentos = pgTable("comissoes_fechamentos", {
+  id: id(),
+  oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+  tecnicoId: uuid("tecnico_id").notNull().references(() => tecnicos.id),
+  de: date("de").notNull(),
+  ate: date("ate").notNull(),
+  valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+  /** Cópia das OS consideradas */
+  detalhes: jsonb("detalhes")
+    .$type<{ osId: string; numero: number; entregueEm: string; servicos: number; pecas: number; comissao: number }[]>()
+    .notNull(),
+  lancamentoId: uuid("lancamento_id").references(() => lancamentos.id, { onDelete: "set null" }),
+  criadoPor: text("criado_por"),
+  criadoEm: criadoEm(),
+});
 
 /* ---------- Relações ---------- */
 
