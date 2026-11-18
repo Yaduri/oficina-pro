@@ -49,6 +49,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
       <PageHeader title="Novo check-in" description="Registre a chegada do veículo. Ao final, a OS é aberta automaticamente." />
       <Card className="p-5 sm:p-6">
         <CheckinForm
+          oficinaId={oficina.id}
           agendamento={agendamento}
           clientes={clientes}
           inicial={inicial}

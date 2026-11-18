@@ -7,7 +7,7 @@ import { agrupar, ESTADOS, type EstadoChecklist } from "@/lib/checklist";
 import { cn } from "@/lib/utils";
 
 type ItemConfig = { id: string; grupo: string; descricao: string };
-type Resposta = { estado: EstadoChecklist | null; obs: string };
+export type Resposta = { estado: EstadoChecklist | null; obs: string };
 
 const OPCOES: { v: EstadoChecklist; cor: string }[] = [
   { v: "ok", cor: "bg-ok text-white" },
@@ -16,8 +16,8 @@ const OPCOES: { v: EstadoChecklist; cor: string }[] = [
 ];
 
 /** Checklist de entrada: cada item OK / com problema / não tem. Vai no formulário como JSON. */
-export function ChecklistCampo({ itens }: { itens: ItemConfig[] }) {
-  const [resp, setResp] = useState<Record<string, Resposta>>({});
+export function ChecklistCampo({ itens, inicial }: { itens: ItemConfig[]; inicial?: Record<string, Resposta> }) {
+  const [resp, setResp] = useState<Record<string, Resposta>>(inicial ?? {});
   const grupos = agrupar(itens);
   const pendentes = itens.filter((i) => !resp[i.id]?.estado).length;
 

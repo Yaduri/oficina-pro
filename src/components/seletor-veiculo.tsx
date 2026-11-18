@@ -17,15 +17,18 @@ export function SeletorVeiculo({
   clientes,
   inicial,
   onChange,
+  inicialClienteId = "",
 }: {
   clientes: ClienteOpcao[];
   inicial: ResultadoPlaca | null;
   onChange?: (r: ResultadoPlaca | null) => void;
+  /** Cliente já escolhido para a placa nova (ao recuperar um rascunho) */
+  inicialClienteId?: string;
 }) {
   const [placa, setPlaca] = useState(inicial && inicial.status !== "invalida" ? inicial.placa : "");
   const [resultado, setResultadoState] = useState<ResultadoPlaca | null>(inicial);
   const [buscando, startBusca] = useTransition();
-  const [clienteId, setClienteId] = useState("");
+  const [clienteId, setClienteId] = useState(inicialClienteId);
 
   const setResultado = (r: ResultadoPlaca | null) => {
     setResultadoState(r);

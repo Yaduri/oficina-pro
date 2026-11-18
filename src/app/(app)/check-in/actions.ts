@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
@@ -14,7 +13,8 @@ import { gravarVeiculo, prepararVeiculo, proximoNumeroOS } from "@/lib/veiculo-f
 import { soDigitos } from "@/lib/utils";
 import { POSICOES } from "@/lib/checkin";
 
-export type CheckinState = { erro?: string } | undefined;
+/** O formulário navega para /check-in/{id} ao receber o id */
+export type CheckinResultado = { erro: string } | { id: string };
 
 const texto = z
   .string()
@@ -45,9 +45,36 @@ const checkinSchema = z.object({
 
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
-export async function criarCheckin(_prev: CheckinState, form: FormData): Promise<CheckinState> {
+/** Código de erro do Postgres (o drizzle embrulha o erro original em `cause`) */
+function codigoPg(e: unknown): string | undefined {
+  const err = e as { code?: string; cause?: { code?: string } } | null;
+  return err?.code ?? err?.cause?.code;
+}
+
+async function checkinPorChave(oficinaId: string, chave: string) {
+  const db = await getDb();
+  const [r] = await db
+    .select({ id: schema.checkins.id })
+    .from(schema.checkins)
+    .where(and(eq(schema.checkins.oficinaId, oficinaId), eq(schema.checkins.chaveEnvio, chave)))
+    .limit(1);
+  return r?.id;
+}
+
+/**
+ * Registra o check-in e abre a OS. Idempotente pela `chaveEnvio` gerada no celular:
+ * se a resposta se perder (internet ruim) e o envio for repetido, devolve o check-in já criado.
+ */
+export async function criarCheckin(form: FormData): Promise<CheckinResultado> {
   const ctx = await getContexto();
   const { oficina, userId } = ctx;
+
+  const chaveRaw = f(form, "chaveEnvio");
+  const chaveEnvio = /^[\w-]{8,64}$/.test(chaveRaw) ? chaveRaw : null;
+  if (chaveEnvio) {
+    const existente = await checkinPorChave(oficina.id, chaveEnvio);
+    if (existente) return { id: existente };
+  }
 
   let fotos: unknown = [];
   let checklist: unknown = [];
@@ -93,7 +120,7 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
   if ("erro" in prep) return prep;
 
   const db = await getDb();
-  const checkinId = await db.transaction(async (txRaw) => {
+  const gravar = () => db.transaction(async (txRaw) => {
     const tx = txRaw as unknown as DB;
     const { veiculoId, clienteId } = await gravarVeiculo(tx, oficina.id, prep.ok, d.km);
 
@@ -112,6 +139,7 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
         termo: d.assinaturaKey ? (oficina.textoTermoCheckin ?? TERMO_PADRAO) : null,
         checklist: checklistRegistrado,
         criadoPor: userId,
+        chaveEnvio,
       })
       .returning({ id: schema.checkins.id });
 
@@ -146,10 +174,20 @@ export async function criarCheckin(_prev: CheckinState, form: FormData): Promise
     return checkin.id;
   });
 
+  let checkinId: string;
+  try {
+    checkinId = await gravar();
+  } catch (e) {
+    // Dois envios iguais ao mesmo tempo: o segundo esbarra no índice único
+    const existente = chaveEnvio && codigoPg(e) === "23505" ? await checkinPorChave(oficina.id, chaveEnvio) : undefined;
+    if (!existente) throw e;
+    return { id: existente };
+  }
+
   revalidatePath("/check-in");
   revalidatePath("/ordens-servico");
   revalidatePath("/inicio");
   revalidatePath("/agenda");
   revalidatePath("/clientes");
-  redirect(`/check-in/${checkinId}`);
+  return { id: checkinId };
 }

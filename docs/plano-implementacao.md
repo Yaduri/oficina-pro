@@ -100,8 +100,11 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Migrações reunidas numa só (nada publicado ainda) e banco de desenvolvimento zerado
 
 ### 1.9 Celular como app (PWA) — **P**
-- [ ] Ícone na tela inicial, abre em tela cheia
-- [ ] Check-in tolera internet ruim (reenvio automático das fotos)
+- [x] Ícone na tela inicial, abre em tela cheia (manifesto com atalhos, iPhone e Android, margens do notch, cartão "Instalar app" no Início)
+- [x] Página "Sem internet" pelo service worker (não guarda páginas logadas, ações nem arquivos)
+- [x] Check-in tolera internet ruim: reenvio automático das fotos, "Registrar entrada" espera as fotos e envia sozinho quando a conexão volta, sem duplicar (chave de envio)
+- [x] Rascunho do check-in salvo no celular (recupera depois de recarregar a página ou voltar da câmera)
+- [ ] Limpar do R2 as fotos de rascunhos descartados (arquivos sem uso) — tarefa periódica na Fase 6
 
 ---
 

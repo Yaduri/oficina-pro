@@ -262,9 +262,14 @@ export const checkins = pgTable(
     /** Checklist preenchido (cópia dos itens no momento do check-in) */
     checklist: jsonb("checklist").$type<ItemChecklistRegistrado[]>(),
     criadoPor: text("criado_por").notNull(),
+    /** Chave gerada no celular: o mesmo envio repetido (internet ruim) não cria outro check-in */
+    chaveEnvio: text("chave_envio"),
     criadoEm: criadoEm(),
   },
-  (t) => [index("checkins_oficina_idx").on(t.oficinaId, t.criadoEm)],
+  (t) => [
+    index("checkins_oficina_idx").on(t.oficinaId, t.criadoEm),
+    uniqueIndex("checkins_chave_envio_uq").on(t.oficinaId, t.chaveEnvio),
+  ],
 );
 
 export const checkinFotos = pgTable(

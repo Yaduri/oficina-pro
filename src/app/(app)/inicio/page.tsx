@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarDays, Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, PageHeader, Placa } from "@/components/ui";
+import { InstalarApp } from "@/components/pwa";
 import { getContexto } from "@/lib/oficina";
 import { faturamentoDoMes, listarOSAbertas } from "@/lib/queries";
 import { entregasPrevistas, listarAgendamentos } from "@/lib/agenda";
@@ -45,6 +46,8 @@ export default async function InicioPage() {
           </>
         }
       />
+
+      <InstalarApp />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Car} label="Veículos no pátio" value={String(abertas.length)}>

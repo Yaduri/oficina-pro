@@ -41,8 +41,9 @@ export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
     );
   });
 
+  // pt/px com env(): app instalado em tela cheia não fica sob o entalhe (no navegador é 0)
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card print:hidden">
+    <header className="sticky top-0 z-30 border-b border-border bg-card pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] print:hidden">
       <div className="flex h-16 items-center gap-2.5 px-4 sm:px-8">
         <Link href="/inicio" className="mr-3 shrink-0" aria-label={`Início — ${oficina}`}>
           <Brand />
