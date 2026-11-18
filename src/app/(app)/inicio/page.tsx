@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
+import { CalendarDays, Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, EmpresaTag, PageHeader, Placa, type TipoEmpresa } from "@/components/ui";
 import { empresasFiltradas } from "@/lib/oficina";
@@ -37,7 +37,10 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
     ...e,
     patio: abertas.filter((o) => o.empresaId === e.id).length,
     faturado: faturamento.find((f) => f.empresaId === e.id)?.total ?? 0,
+    hoje: faturamento.find((f) => f.empresaId === e.id)?.hoje ?? 0,
   }));
+  const faturadoHoje = porEmpresa.reduce((s, e) => s + e.hoje, 0);
+  const agendadosHoje = agenda.filter((a) => a.status !== "cancelado");
   const totalFaturado = porEmpresa.reduce((s, e) => s + e.faturado, 0);
   const aguardando = abertas.filter((o) => o.status === "aguardando_aprovacao");
   const prontos = abertas.filter((o) => o.status === "pronto");
@@ -67,11 +70,24 @@ export default async function InicioPage({ searchParams }: PageProps<"/inicio">)
         </Kpi>
         <Kpi icon={CircleCheck} label="Prontos para entrega" value={String(prontos.length)}>
           <span className="text-[13px] text-muted">
-            {prontos.length === 0 ? "Nenhum no momento" : prontos.every((o) => o.clienteAvisadoEm) ? "Clientes já avisados" : "Avisar clientes"}
+            {(() => {
+              const semAviso = prontos.filter((o) => !o.clienteAvisadoEm).length;
+              if (prontos.length === 0) return "Nenhum no momento";
+              if (semAviso === 0) return "Clientes já avisados";
+              return semAviso === 1 ? "1 cliente ainda não avisado" : `${semAviso} clientes ainda não avisados`;
+            })()}
           </span>
         </Kpi>
+        {!valores && (
+          <Kpi icon={CalendarDays} label="Agendados hoje" value={String(agendadosHoje.length)}>
+            <span className="text-[13px] text-muted">
+              {agendadosHoje.filter((a) => a.status === "atendido").length} já chegaram · {entregas.length} entregas previstas
+            </span>
+          </Kpi>
+        )}
         {valores && (
         <Kpi icon={TrendingUp} label="Faturamento do mês" value={formatBRLInteiro(totalFaturado)}>
+          <span className="text-[13px] text-muted">{formatBRL(faturadoHoje)} hoje (OS entregues)</span>
           {porEmpresa.length > 1 && (
             <>
               <div className="flex h-1.5 overflow-hidden rounded-full bg-subtle">

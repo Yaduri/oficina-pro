@@ -89,9 +89,10 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] Início mostra os agendamentos do dia e as entregas previstas
 
 ### 1.8 Busca, notificações e início — **M**
-- [ ] Busca global (placa, cliente, telefone, nº da OS) no topo, funcionando
-- [ ] Notificações no sino: orçamento aprovado/recusado, orçamento visto, OS parada há X dias, peça atrasada
-- [ ] Início com indicadores reais (pátio, aguardando aprovação, prontos para entrega, faturamento do dia quando houver financeiro)
+- [x] Busca global (placa, cliente, telefone, nº da OS, modelo) no topo, com Ctrl+K ou "/"
+- [x] Notificações no sino: orçamento aprovado/recusado, orçamento visto, OS parada há 3 dias, peça atrasada, entrega atrasada
+- [x] Previsão da peça (editar OS) e "Avisar cliente" quando a OS fica pronta (registra o aviso)
+- [x] Início com indicadores reais (pátio, aguardando aprovação, prontos e clientes não avisados, faturamento do mês e do dia pelas OS entregues; agendados hoje para quem não vê valores) — trocar para o financeiro na Fase 2
 
 ### 1.9 Celular como app (PWA) — **P**
 - [ ] Ícone na tela inicial, abre em tela cheia

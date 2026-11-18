@@ -1,0 +1,1 @@
+ALTER TABLE "membros" ADD COLUMN "notificacoes_lidas_em" timestamp with time zone;

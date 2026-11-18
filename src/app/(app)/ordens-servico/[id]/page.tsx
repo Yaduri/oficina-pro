@@ -20,6 +20,7 @@ import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
 import { TransferirOS } from "./transferir";
 import { FotosServico } from "./fotos-servico";
+import { AvisarCliente } from "./avisar";
 import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -98,6 +99,15 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     };
   }
 
+  const veiculoTxt = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
+  const msgPronto =
+    whats &&
+    `${whats}?text=${encodeURIComponent(
+      `Olá${cliente ? `, ${cliente.nome.split(" ")[0]}` : ""}! Seu ${veiculoTxt} (${veiculo.placa}) está pronto para retirada na ${empresa.nomeFantasia || oficina.nome}.${
+        valores && calcularTotais(itens, desconto).total > 0 ? ` Total: ${formatBRL(calcularTotais(itens, desconto).total)}.` : ""
+      }`,
+    )}`;
+
   const documentos: DocumentoOpcao[] = [
     { href: `/pdf/os/${os.id}`, label: "Ordem de serviço", detalhe: "Via do cliente" },
     { href: `/pdf/os/${os.id}?via=oficina`, label: "Ordem de serviço", detalhe: "Via da oficina, com responsável e checklist" },
@@ -131,6 +141,9 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
           )}
           <DocumentosPdf documentos={documentos} enviar={valores ? { tipo: "os", id: os.id, label: "Enviar OS pelo WhatsApp" } : null} />
           <MoverOS osId={os.id} status={os.status} grande podeFechar={pode("fecharOS")} />
+          {os.status === "pronto" && msgPronto && pode("fecharOS") && (
+            <AvisarCliente osId={os.id} whatsapp={msgPronto} avisadoEm={os.clienteAvisadoEm ? formatEntrada(os.clienteAvisadoEm).toLowerCase() : null} />
+          )}
           {!fechada && pode("fecharOS") && (
             <EntregarOS osId={os.id} kmEntrada={os.kmEntrada} garantiaPadrao={garantiaPadrao} textoGarantia={oficina.textoGarantia} />
           )}
@@ -145,6 +158,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
             responsavel={responsavel?.nome ?? null}
             kmEntrada={os.kmEntrada}
             previsao={os.previsaoEntregaEm ? dia(os.previsaoEntregaEm) : null}
+            previsaoPeca={os.previsaoPecaEm ? dia(os.previsaoPecaEm) : null}
             tecnicos={tecnicos.map((t) => t.nome)}
             editavel={!fechada && pode("abrirOS")}
           />

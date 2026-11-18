@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Bell, Search, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Brand } from "@/components/brand";
+import { BuscaGlobal } from "@/components/busca-global";
+import { Sino } from "@/components/sino";
 import { cn } from "@/lib/utils";
 import type { TipoEmpresa } from "@/components/ui";
 import { pode, type Acao, type Papel } from "@/lib/permissoes";
@@ -94,12 +96,8 @@ export function Topbar({ empresas, oficina, papel }: { empresas: EmpresaResumo[]
           </div>
         )}
 
-        <button className="grid size-9 place-items-center rounded-md border border-border text-foreground-2 hover:bg-subtle" aria-label="Buscar">
-          <Search className="size-[18px]" strokeWidth={1.75} />
-        </button>
-        <button className="relative grid size-9 place-items-center rounded-md border border-border text-foreground-2 hover:bg-subtle" aria-label="Notificações">
-          <Bell className="size-[18px]" strokeWidth={1.75} />
-        </button>
+        <BuscaGlobal />
+        <Sino />
         {admin && (
           <Link
             href="/configuracoes"

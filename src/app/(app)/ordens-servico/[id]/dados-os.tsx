@@ -13,6 +13,7 @@ export function DadosOS({
   responsavel,
   kmEntrada,
   previsao,
+  previsaoPeca,
   tecnicos,
   editavel,
 }: {
@@ -22,6 +23,8 @@ export function DadosOS({
   kmEntrada: number | null;
   /** AAAA-MM-DD */
   previsao: string | null;
+  /** AAAA-MM-DD */
+  previsaoPeca: string | null;
   tecnicos: string[];
   editavel: boolean;
 }) {
@@ -51,7 +54,7 @@ export function DadosOS({
           <Campo label="Problema relatado pelo cliente" htmlFor="os-descricao">
             <Textarea id="os-descricao" name="descricao" defaultValue={descricao} required minLength={3} rows={3} />
           </Campo>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Campo label="Responsável" htmlFor="os-responsavel">
               <Input id="os-responsavel" name="responsavel" list="os-tecnicos" defaultValue={responsavel ?? ""} placeholder="Nome do técnico" />
               <datalist id="os-tecnicos">
@@ -65,6 +68,9 @@ export function DadosOS({
             </Campo>
             <Campo label="Previsão de entrega" htmlFor="os-previsao">
               <Input id="os-previsao" name="previsaoEntrega" type="date" defaultValue={previsao ?? ""} />
+            </Campo>
+            <Campo label="Previsão da peça" hint="(se aguarda peça)" htmlFor="os-previsao-peca">
+              <Input id="os-previsao-peca" name="previsaoPeca" type="date" defaultValue={previsaoPeca ?? ""} />
             </Campo>
           </div>
           <Erro>{state?.erro}</Erro>

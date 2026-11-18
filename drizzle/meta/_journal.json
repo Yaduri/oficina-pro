@@ -85,6 +85,13 @@
       "when": 1795000667166,
       "tag": "0011_fantastic_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795004671248,
+      "tag": "0012_aromatic_the_watchers",
+      "breakpoints": true
     }
   ]
 }

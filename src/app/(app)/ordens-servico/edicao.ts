@@ -42,6 +42,8 @@ export async function editarDadosOS(osId: string, _prev: EdicaoState, form: Form
   const kmEntrada = kmTxt ? Number(kmTxt) : null;
   const previsao = dataDoInput(f(form, "previsaoEntrega"));
   if (previsao === undefined) return { erro: "Data de previsão inválida" };
+  const previsaoPeca = dataDoInput(f(form, "previsaoPeca"));
+  if (previsaoPeca === undefined) return { erro: "Data de previsão da peça inválida" };
   const responsavel = f(form, "responsavel");
 
   let responsavelId: string | null = null;
@@ -65,11 +67,14 @@ export async function editarDadosOS(osId: string, _prev: EdicaoState, form: Form
   if ((previsao?.getTime() ?? null) !== (os.previsaoEntregaEm?.getTime() ?? null)) {
     mudancas.push(`previsão de entrega (${previsao ? formatData(previsao) : "sem data"})`);
   }
+  if ((previsaoPeca?.getTime() ?? null) !== (os.previsaoPecaEm?.getTime() ?? null)) {
+    mudancas.push(`previsão da peça (${previsaoPeca ? formatData(previsaoPeca) : "sem data"})`);
+  }
   if (mudancas.length === 0) return { ok: true };
 
   await db
     .update(schema.ordensServico)
-    .set({ descricao, kmEntrada, responsavelId, previsaoEntregaEm: previsao })
+    .set({ descricao, kmEntrada, responsavelId, previsaoEntregaEm: previsao, previsaoPecaEm: previsaoPeca })
     .where(eq(schema.ordensServico.id, os.id));
   await registrarEvento(db, ctx.oficina.id, os.id, `Alterou ${mudancas.join(", ")}`, ctx);
   revalidar(os.id);
@@ -278,3 +283,16 @@ export async function removerFotoOS(osId: string, fotoId: string): Promise<Edica
   return { ok: true };
 }
 
+
+/* ---------- Cliente avisado ---------- */
+
+/** Registra que o cliente foi avisado (pelo WhatsApp) de que o veículo está pronto */
+export async function marcarClienteAvisado(osId: string) {
+  const r = await osDaOficina(osId, "fecharOS");
+  if (!r) return SEM_PERMISSAO;
+  const { db, ctx, os } = r;
+  await db.update(schema.ordensServico).set({ clienteAvisadoEm: new Date() }).where(eq(schema.ordensServico.id, os.id));
+  await registrarEvento(db, ctx.oficina.id, os.id, "Avisou o cliente pelo WhatsApp que o veículo está pronto", ctx);
+  revalidar(os.id);
+  return { ok: true };
+}

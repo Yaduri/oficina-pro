@@ -61,6 +61,7 @@ export async function faturamentoDoMes(oficinaId: string, empresaIds: string[]) 
     .select({
       empresaId: os.empresaId,
       total: sql<string>`coalesce(sum(${totalOS}), 0)`,
+      hoje: sql<string>`coalesce(sum(${totalOS}) filter (where ${os.entregueEm} >= ${inicioDeHoje().toISOString()}::timestamptz), 0)`,
     })
     .from(os)
     .where(
@@ -72,7 +73,7 @@ export async function faturamentoDoMes(oficinaId: string, empresaIds: string[]) 
       ),
     )
     .groupBy(os.empresaId);
-  return rows.map((r) => ({ empresaId: r.empresaId, total: Number(r.total) }));
+  return rows.map((r) => ({ empresaId: r.empresaId, total: Number(r.total), hoje: Number(r.hoje) }));
 }
 
 export type FiltroOS = {
@@ -191,4 +192,10 @@ export async function eventosDaOS(osId: string) {
     .where(eq(schema.osEventos.osId, osId))
     .orderBy(desc(schema.osEventos.criadoEm))
     .limit(100);
+}
+
+/** Início do dia de hoje em São Paulo */
+function inicioDeHoje() {
+  const dia = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  return new Date(`${dia}T00:00:00-03:00`);
 }

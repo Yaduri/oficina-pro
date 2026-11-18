@@ -114,6 +114,8 @@ export const membros = pgTable(
     papel: papel("papel").notNull(),
     todasEmpresas: boolean("todas_empresas").notNull().default(true),
     ativo: boolean("ativo").notNull().default(true),
+    /** Última vez que abriu o sino: o que é mais novo conta como não lido */
+    notificacoesLidasEm: timestamp("notificacoes_lidas_em", { withTimezone: true }),
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex("membros_oficina_usuario_uq").on(t.oficinaId, t.clerkUserId), index("membros_usuario_idx").on(t.clerkUserId)],
