@@ -5,8 +5,8 @@ Banco: Supabase (São Paulo) atrás do Hyperdrive. Arquivos: R2. Login: Clerk.
 
 | Ambiente | Worker | Endereço | Supabase |
 | --- | --- | --- | --- |
-| homolog | `oficina-pro-homolog` | https://homolog.yagoduarte.com.br | `oficina-pro-homolog` |
-| production | `oficina-pro` | https://app.yagoduarte.com.br | `oficina-pro` |
+| homolog | `oficina-pro-homolog` | https://hoficina.yagoduarte.com.br | `oficina-pro-homolog` |
+| production | `oficina-pro` | https://oficina.yagoduarte.com.br | `oficina-pro` |
 
 Tudo fica em `wrangler.jsonc` (bindings, domínios, variáveis públicas). Segredos só via `wrangler secret`.
 
@@ -43,7 +43,7 @@ Repita para produção (`oficina-pro`, `COLE_AQUI_O_ID_DO_HYPERDRIVE_PROD`, `.en
 ## 3. Clerk
 
 - **Homologação:** pode usar a instância de desenvolvimento do Clerk (chaves `pk_test_`/`sk_test_`); ela funciona em qualquer domínio.
-- **Produção:** no painel do Clerk, crie a instância de **Production** com o domínio `yagoduarte.com.br` (app em `app.yagoduarte.com.br`). O Clerk mostra registros DNS (CNAME de `clerk.`, `accounts.`, `clkmail.` e os de DKIM). Crie-os no DNS do Cloudflare com o **proxy desligado (nuvem cinza)** e espere o Clerk validar. Configure de novo os provedores de login (Google etc.) na instância de produção.
+- **Produção:** no painel do Clerk, crie a instância de **Production** com o domínio `yagoduarte.com.br` (app em `oficina.yagoduarte.com.br`). O Clerk mostra registros DNS (CNAME de `clerk.`, `accounts.`, `clkmail.` e os de DKIM). Crie-os no DNS do Cloudflare com o **proxy desligado (nuvem cinza)** e espere o Clerk validar. Configure de novo os provedores de login (Google etc.) na instância de produção.
 - Copie a **publishable key** (`pk_...`) para `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` em `env.<ambiente>.vars` no `wrangler.jsonc`. Ela é pública e entra no build.
 
 Preencha também, em `vars`, `NEXT_PUBLIC_LEGAL_RESPONSAVEL`, `NEXT_PUBLIC_LEGAL_EMAIL` e `NEXT_PUBLIC_LEGAL_FORO` (Termos e Privacidade).
@@ -73,7 +73,7 @@ pnpm wrangler secret put R2_BUCKET --env homolog
 pnpm cf:deploy:homolog   # migra o banco de homolog, faz o build e publica
 ```
 
-Teste em https://homolog.yagoduarte.com.br: login, abrir uma OS, check-in com foto e **gerar um PDF** (com fotos e logo).
+Teste em https://hoficina.yagoduarte.com.br: login, abrir uma OS, check-in com foto e **gerar um PDF** (com fotos e logo).
 Logs ao vivo: `pnpm wrangler tail oficina-pro-homolog`.
 
 Depois, produção:
@@ -83,7 +83,7 @@ pnpm cf:deploy:prod
 ```
 
 Na primeira vez o wrangler cria o domínio personalizado (`custom_domain`) e o certificado; pode levar alguns minutos.
-Não pode existir outro registro DNS com o mesmo nome (`app` / `homolog`) na zona.
+Não pode existir outro registro DNS com o mesmo nome (`oficina` / `hoficina`) na zona.
 
 Passos soltos, se precisar: `pnpm db:migrate:homolog`, `pnpm cf:build:homolog`, `pnpm cf:preview` (roda o worker local, sem banco), `pnpm exec opennextjs-cloudflare deploy --env homolog`.
 

@@ -226,8 +226,9 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 - [x] Supabase: projetos `oficina-pro` (produção) e `oficina-pro-homolog` em São Paulo (plano grátis)
 - [x] **Row Level Security** (migração 0008): cada consulta do usuário logado roda com o papel `app_usuario` e só vê a oficina dele; páginas públicas por token, webhook, cadastro inicial e convite usam `getDbSistema()` com filtro explícito. O dev avisa se uma tabela nova ficar sem policy
 - [x] Deploy preparado para Cloudflare Workers (OpenNext, Hyperdrive sem cache, Images no lugar do sharp nos PDFs), com homologação e produção em `wrangler.jsonc`; passo a passo em `docs/deploy.md`
-- [ ] Contas e chaves (dono): `wrangler login` e plano Workers Paid (o worker tem ~3,6 MiB, o grátis aceita 3 MiB), senhas do Supabase, Hyperdrive, Clerk produção com DNS (a secret atual foi exposta no chat e deve ser trocada), secrets e bucket R2 de produção
-- [ ] Publicar homologação (homolog.yagoduarte.com.br), testar login, OS, check-in com foto e PDFs; depois produção (app.yagoduarte.com.br)
+- [x] Plano Workers Paid assinado (o worker tem ~3,6 MiB; o grátis aceita 3 MiB)
+- [ ] Contas e chaves (dono): `wrangler login`, senhas do Supabase, Hyperdrive, Clerk produção com DNS (a secret atual foi exposta no chat e deve ser trocada), secrets e bucket R2 de produção
+- [ ] Publicar homologação (hoficina.yagoduarte.com.br), testar login, OS, check-in com foto e PDFs; depois produção (oficina.yagoduarte.com.br)
 
 ### 6.2 Segurança e LGPD — **M**
 - [ ] Log de auditoria (alteração de valores, cancelamentos, exclusões, notas)

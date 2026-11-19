@@ -17,7 +17,7 @@
   "env": {
     "homolog": {
       "name": "oficina-pro-homolog",
-      "routes": [{ "pattern": "homolog.yagoduarte.com.br", "custom_domain": true }],
+      "routes": [{ "pattern": "hoficina.yagoduarte.com.br", "custom_domain": true }],
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "oficina-pro-homolog" }],
       "images": { "binding": "IMAGES" },
       "hyperdrive": [
@@ -40,12 +40,12 @@
         "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
         "NEXT_PUBLIC_LEGAL_EMAIL": "",
         "NEXT_PUBLIC_LEGAL_FORO": "",
-        "APP_URL": "https://homolog.yagoduarte.com.br"
+        "APP_URL": "https://hoficina.yagoduarte.com.br"
       }
     },
     "production": {
       "name": "oficina-pro",
-      "routes": [{ "pattern": "app.yagoduarte.com.br", "custom_domain": true }],
+      "routes": [{ "pattern": "oficina.yagoduarte.com.br", "custom_domain": true }],
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "oficina-pro" }],
       "images": { "binding": "IMAGES" },
       "hyperdrive": [
@@ -67,7 +67,7 @@
         "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
         "NEXT_PUBLIC_LEGAL_EMAIL": "",
         "NEXT_PUBLIC_LEGAL_FORO": "",
-        "APP_URL": "https://app.yagoduarte.com.br"
+        "APP_URL": "https://oficina.yagoduarte.com.br"
       }
     }
   }
