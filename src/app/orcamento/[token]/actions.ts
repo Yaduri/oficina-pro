@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { z } from "zod";
-import { getDb, schema } from "@/db";
-import { TOKEN_RE } from "@/lib/orcamento";
+import { getDbSistema, schema } from "@/db";
+import { TOKEN_RE, orcamentoPorToken } from "@/lib/orcamento";
+import { textoAvisoOficina } from "@/lib/fila-mensagens";
 import { registrarEvento } from "@/lib/os-acesso";
 import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 
@@ -28,7 +29,7 @@ export async function responderOrcamento(token: string, _prev: RespostaState, fo
     });
   if (!dados.success) return { erro: dados.error.issues[0].message };
 
-  const db = await getDb();
+  const db = await getDbSistema();
   const [orc] = await db.select().from(schema.orcamentos).where(eq(schema.orcamentos.token, token));
   if (!orc) return { erro: "Orçamento não encontrado" };
   if (orc.status !== "pendente") return { erro: "Este orçamento já foi respondido ou foi substituído por um novo" };
@@ -81,7 +82,7 @@ export async function responderOrcamento(token: string, _prev: RespostaState, fo
   });
   if (!ok) return { erro: "Este orçamento já foi respondido" };
   // Aprovado: as peças saem do estoque; recusadas não consomem
-  await sincronizarEstoqueDaOS(orc.oficinaId, orc.osId, `Cliente (${dados.data.nome})`);
+  await sincronizarEstoqueDaOS(orc.oficinaId, orc.osId, `Cliente (${dados.data.nome})`, db);
 
   const frase = status === "aprovado" ? "aprovou o orçamento" : status === "parcial" ? "aprovou parte do orçamento" : "recusou o orçamento";
   await registrarEvento(db, orc.oficinaId, orc.osId, `${dados.data.nome} ${frase} pelo link`, null);
@@ -91,4 +92,36 @@ export async function responderOrcamento(token: string, _prev: RespostaState, fo
   revalidatePath("/orcamentos");
   revalidatePath("/inicio");
   return undefined;
+}
+
+/**
+ * O cliente abriu o WhatsApp para avisar a oficina que respondeu. Página pública: só aceita o
+ * token, o texto é montado aqui e cada orçamento gera no máximo um registro.
+ */
+export async function registrarAvisoOficina(token: string): Promise<void> {
+  const dados = await orcamentoPorToken(token);
+  if (!dados) return;
+  const { orcamento: orc, os, veiculo, cliente, oficina } = dados;
+  if (!orc.respondidoEm) return;
+  const db = await getDbSistema();
+  const m = schema.mensagens;
+  const [ja] = await db
+    .select({ id: m.id })
+    .from(m)
+    .where(and(eq(m.oficinaId, oficina.id), eq(m.tipo, "orcamento_respondido"), eq(m.refId, orc.id)))
+    .limit(1);
+  if (ja) return;
+  await db.insert(m).values({
+    oficinaId: oficina.id,
+    tipo: "orcamento_respondido",
+    clienteId: cliente?.id ?? null,
+    veiculoId: veiculo.id,
+    osId: os.id,
+    refId: orc.id,
+    telefone: (oficina.whatsapp || oficina.telefone || "").replace(/\D/g, "") || null,
+    texto: textoAvisoOficina(dados),
+    enviadoPor: null,
+    enviadoPorNome: `Cliente (${orc.respostaNome ?? cliente?.nome ?? "sem nome"})`,
+  });
+  revalidatePath("/mensagens");
 }

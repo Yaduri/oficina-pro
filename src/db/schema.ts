@@ -78,6 +78,10 @@ export const oficinas = pgTable("oficinas", {
   garantiaDias: integer("garantia_dias").notNull().default(90),
   /** Taxas da maquininha (%), sugeridas ao receber por cartão */
   taxasCartao: jsonb("taxas_cartao").$type<{ debito: number; credito: number; creditoParcelado: number }>(),
+  /** Modelos de mensagem do WhatsApp editados pela oficina (o que faltar usa o padrão de lib/mensagens.ts) */
+  modelosMensagem: jsonb("modelos_mensagem").$type<Partial<Record<string, string>>>(),
+  /** Pós-venda: quantos dias depois da entrega o contato aparece na fila de mensagens */
+  posVendaDias: integer("pos_venda_dias").notNull().default(3),
   criadoEm: criadoEm(),
 });
 
@@ -226,6 +230,9 @@ export const catalogoItens = pgTable(
     gtin: text("gtin"),
     /** NCM (8 dígitos), usado na NF-e de peças (Fase 3) */
     ncm: text("ncm"),
+    /** Serviço que se repete (ex.: troca de óleo): gera lembrete de revisão na entrega da OS */
+    revisaoMeses: integer("revisao_meses"),
+    revisaoKm: integer("revisao_km"),
     ativo: boolean("ativo").notNull().default(true),
     criadoEm: criadoEm(),
   },
@@ -411,8 +418,8 @@ export const linksDocumento = pgTable(
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
-    tipo: text("tipo").$type<"os" | "termo">().notNull(),
-    /** id da OS ou do check-in */
+    tipo: text("tipo").$type<"os" | "termo" | "portal">().notNull(),
+    /** id da OS, do check-in ou do cliente (portal do cliente) */
     refId: uuid("ref_id").notNull(),
     criadoEm: criadoEm(),
   },
@@ -868,6 +875,85 @@ export const estoqueMovimentos = pgTable(
 );
 
 export type TipoMovimentoEstoque = "entrada" | "saida_os" | "devolucao_os" | "ajuste" | "estorno_compra";
+
+/* ---------- Comunicação e relacionamento (Fase 5) ---------- */
+
+/**
+ * Mensagem de WhatsApp aberta pelo sistema (wa.me). O envio em si acontece no WhatsApp de
+ * quem clicou; aqui fica o registro de quem abriu, para quem e com que texto.
+ */
+export const mensagens = pgTable(
+  "mensagens",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    /** TipoMensagem de lib/mensagens.ts */
+    tipo: text("tipo").notNull(),
+    clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    veiculoId: uuid("veiculo_id").references(() => veiculos.id, { onDelete: "set null" }),
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    agendamentoId: uuid("agendamento_id").references(() => agendamentos.id, { onDelete: "set null" }),
+    /** Outra referência (lembrete de revisão, conta a receber...) */
+    refId: uuid("ref_id"),
+    /** Só dígitos; nulo quando foi aberto sem número (o usuário escolhe o contato) */
+    telefone: text("telefone"),
+    texto: text("texto").notNull(),
+    enviadoPor: text("enviado_por"),
+    enviadoPorNome: text("enviado_por_nome"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("mensagens_oficina_idx").on(t.oficinaId, t.criadoEm),
+    index("mensagens_cliente_idx").on(t.clienteId),
+    index("mensagens_os_idx").on(t.osId),
+    index("mensagens_ref_idx").on(t.tipo, t.refId),
+  ],
+);
+
+/**
+ * Lembrete de revisão do veículo por tempo e/ou km (ex.: troca de óleo a cada 6 meses ou 10.000 km).
+ * Criado na entrega da OS a partir do serviço do catálogo, ou à mão na página do veículo.
+ */
+export const lembretesRevisao = pgTable(
+  "lembretes_revisao",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    veiculoId: uuid("veiculo_id").notNull().references(() => veiculos.id, { onDelete: "cascade" }),
+    catalogoItemId: uuid("catalogo_item_id").references(() => catalogoItens.id, { onDelete: "set null" }),
+    /** OS em que o serviço foi feito pela última vez */
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    descricao: text("descricao").notNull(),
+    intervaloMeses: integer("intervalo_meses"),
+    intervaloKm: integer("intervalo_km"),
+    ultimaData: date("ultima_data"),
+    ultimoKm: integer("ultimo_km"),
+    proximaData: date("proxima_data"),
+    proximoKm: integer("proximo_km"),
+    /** Cliente avisado desta revisão (zera quando o serviço é feito de novo) */
+    avisadoEm: timestamp("avisado_em", { withTimezone: true }),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("revisoes_oficina_idx").on(t.oficinaId, t.proximaData), index("revisoes_veiculo_idx").on(t.veiculoId)],
+);
+
+/** Pesquisa de satisfação de uma OS entregue, respondida pelo cliente por link (sem login) */
+export const pesquisasSatisfacao = pgTable(
+  "pesquisas_satisfacao",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    /** 0 a 10 (NPS) */
+    nota: integer("nota"),
+    comentario: text("comentario"),
+    respondidoEm: timestamp("respondido_em", { withTimezone: true }),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex("pesquisas_os_uq").on(t.osId), index("pesquisas_oficina_idx").on(t.oficinaId, t.respondidoEm)],
+);
 
 /* ---------- Relações ---------- */
 

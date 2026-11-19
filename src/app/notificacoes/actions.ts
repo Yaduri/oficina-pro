@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, inArray, isNotNull, lt, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lt, notInArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { ABERTAS, STATUS } from "@/lib/os";
@@ -16,7 +16,7 @@ const DIA = 86_400_000;
 
 export type Notificacao = {
   id: string;
-  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega" | "conta_vence" | "conta_vencida";
+  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega" | "conta_vence" | "conta_vencida" | "pesquisa";
   titulo: string;
   detalhe: string;
   href: string;
@@ -25,7 +25,7 @@ export type Notificacao = {
   nova: boolean;
 };
 
-const { ordensServico: os, orcamentos, veiculos, clientes, osEventos, membros } = schema;
+const { ordensServico: os, orcamentos, veiculos, clientes, osEventos, membros, pesquisasSatisfacao } = schema;
 
 /**
  * Notificações calculadas a partir dos dados (nada é gravado além de "lido até").
@@ -85,6 +85,43 @@ export async function minhasNotificacoes(): Promise<{ itens: Notificacao[]; nova
         });
       }
     }
+  }
+
+  // Pesquisa de satisfação respondida pelo cliente
+  const respostas = await db
+    .select({
+      id: pesquisasSatisfacao.id,
+      nota: pesquisasSatisfacao.nota,
+      respondidoEm: pesquisasSatisfacao.respondidoEm,
+      osId: os.id,
+      numero: os.numero,
+      placa: veiculos.placa,
+      modelo: veiculos.modelo,
+      cliente: clientes.nome,
+    })
+    .from(pesquisasSatisfacao)
+    .innerJoin(os, eq(os.id, pesquisasSatisfacao.osId))
+    .innerJoin(veiculos, eq(veiculos.id, os.veiculoId))
+    .leftJoin(clientes, eq(clientes.id, os.clienteId))
+    .where(
+      and(
+        base,
+        eq(pesquisasSatisfacao.oficinaId, ctx.oficina.id),
+        isNotNull(pesquisasSatisfacao.nota),
+        gte(pesquisasSatisfacao.respondidoEm, new Date(agora - DIAS_RECENTES * DIA)),
+      ),
+    )
+    .orderBy(desc(pesquisasSatisfacao.respondidoEm))
+    .limit(20);
+  for (const r of respostas) {
+    itens.push({
+      id: `pesquisa-${r.id}`,
+      tipo: "pesquisa",
+      titulo: `Pesquisa respondida: nota ${r.nota}`,
+      detalhe: `${r.cliente ?? "Cliente"} · ${veiculo(r.placa, r.modelo, r.numero)}`,
+      href: `/ordens-servico/${r.osId}`,
+      quando: r.respondidoEm!.toISOString(),
+    });
   }
 
   // Peça com previsão vencida

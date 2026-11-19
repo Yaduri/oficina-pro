@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, gte, ilike, inArray, lt, or, sql } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDb, schema, type DB } from "@/db";
 import { ABERTAS, type StatusOS } from "@/lib/os";
 
 const { ordensServico: os, osItens, veiculos, clientes, tecnicos } = schema;
@@ -145,8 +145,9 @@ export async function atualizarStatusOS(oficinaId: string, osId: string, status:
 }
 
 /** OS completa (com veículo, cliente, responsável e itens) */
-export async function obterOS(oficinaId: string, id: string) {
-  const db = await getDb();
+/** `conexao`: a do sistema para o link público (sem login); sem ela, a do usuário logado */
+export async function obterOS(oficinaId: string, id: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   const [row] = await db
     .select({ os, veiculo: veiculos, cliente: clientes, responsavel: tecnicos })
     .from(os)

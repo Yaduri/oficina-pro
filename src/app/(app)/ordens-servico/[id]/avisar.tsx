@@ -1,27 +1,33 @@
 "use client";
 
-import { useTransition } from "react";
 import { BellRing, Check } from "lucide-react";
-import { buttonClass } from "@/components/ui";
-import { marcarClienteAvisado } from "../edicao";
+import { BotaoWhatsApp } from "@/components/botao-whatsapp";
 
 /**
- * "Avisar cliente": abre o WhatsApp com a mensagem de veículo pronto e registra o aviso
- * (o quadro e o Início passam a mostrar "cliente avisado").
+ * "Avisar cliente": abre o WhatsApp com o modelo "Veículo pronto" e registra a mensagem
+ * (a OS fica como "cliente avisado" no quadro e no Início).
  */
-export function AvisarCliente({ osId, whatsapp, avisadoEm }: { osId: string; whatsapp: string; avisadoEm: string | null }) {
-  const [pending, start] = useTransition();
+export function AvisarCliente({
+  osId,
+  telefone,
+  texto,
+  avisadoEm,
+}: {
+  osId: string;
+  telefone: string | null;
+  texto: string;
+  avisadoEm: string | null;
+}) {
   return (
-    <a
-      href={whatsapp}
-      target="_blank"
-      rel="noreferrer"
-      onClick={() => start(() => marcarClienteAvisado(osId).then(() => undefined))}
-      className={buttonClass(avisadoEm ? "secondary" : "primary", pending ? "opacity-70" : undefined)}
+    <BotaoWhatsApp
+      telefone={telefone}
+      texto={texto}
+      registro={{ tipo: "pronto", osId }}
+      variant={avisadoEm ? "secondary" : "primary"}
       title={avisadoEm ? `Cliente avisado em ${avisadoEm}` : undefined}
     >
       {avisadoEm ? <Check /> : <BellRing />}
       {avisadoEm ? "Avisar de novo" : "Avisar cliente"}
-    </a>
+    </BotaoWhatsApp>
   );
 }

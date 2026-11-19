@@ -7,6 +7,7 @@ import { entregasPrevistas, listarAgendamentos, type EntregaPrevista } from "@/l
 import { DIA_RE, diaSP, inicioDaSemana, inicioDoDia, nomeDoDia, somarDias } from "@/lib/agenda-datas";
 import { STATUS } from "@/lib/os";
 import { cn } from "@/lib/utils";
+import { textoAgendamento } from "@/lib/fila-mensagens";
 import { ItemAgenda, type AgendamentoTela } from "./item";
 import { FiltroTecnico } from "./filtros";
 
@@ -32,7 +33,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
     listarAgendamentos(oficina.id, de, ate, { tecnicoId, incluirCancelados: !semana }),
     entregasPrevistas(oficina.id, de, ate, tecnicoId),
   ]);
-  const itens: AgendamentoTela[] = agenda.map((a) => ({ ...a, inicio: a.inicio.toISOString() }));
+  const itens: AgendamentoTela[] = agenda.map((a) => ({ ...a, inicio: a.inicio.toISOString(), lembrete: textoAgendamento(oficina, a) }));
 
   // Mantém filtros ao navegar
   const link = (mudar: Record<string, string | undefined>) => {

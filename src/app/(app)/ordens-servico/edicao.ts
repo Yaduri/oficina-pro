@@ -17,6 +17,7 @@ import {
 } from "@/lib/recebimento";
 import { ehUuid, nomeDoUsuario, osDaOficina, registrarEvento } from "@/lib/os-acesso";
 import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
+import { atualizarLembretesDaEntrega } from "@/lib/relacionamento";
 import { formatBRL, formatData, parseValor, soDigitos } from "@/lib/utils";
 
 export type EdicaoState = { erro?: string; ok?: boolean } | undefined;
@@ -250,6 +251,14 @@ export async function entregarOS(osId: string, _prev: EdicaoState, form: FormDat
           await tx.update(schema.veiculos).set({ km: kmSaida }).where(eq(schema.veiculos.id, os.veiculoId));
         }
       }
+      // Serviços que se repetem (troca de óleo etc.) viram lembrete de revisão
+      await atualizarLembretesDaEntrega(tx as unknown as DB, {
+        oficinaId: ctx.oficina.id,
+        osId: os.id,
+        veiculoId: os.veiculoId,
+        data: hoje,
+        km: kmSaida ?? os.kmEntrada,
+      });
       if (planos.length > 0) {
         await lancarPagamentos(tx as unknown as DB, {
           oficinaId: ctx.oficina.id,
@@ -307,20 +316,6 @@ export async function removerFotoOS(osId: string, fotoId: string): Promise<Edica
   if (foto.criadoPor !== ctx.userId && !ctx.pode("editarItens")) return SEM_PERMISSAO;
   await db.delete(schema.osFotos).where(eq(schema.osFotos.id, foto.id));
   await registrarEvento(db, ctx.oficina.id, os.id, "Removeu uma foto", ctx);
-  revalidar(os.id);
-  return { ok: true };
-}
-
-
-/* ---------- Cliente avisado ---------- */
-
-/** Registra que o cliente foi avisado (pelo WhatsApp) de que o veículo está pronto */
-export async function marcarClienteAvisado(osId: string) {
-  const r = await osDaOficina(osId, "fecharOS");
-  if (!r) return SEM_PERMISSAO;
-  const { db, ctx, os } = r;
-  await db.update(schema.ordensServico).set({ clienteAvisadoEm: new Date() }).where(eq(schema.ordensServico.id, os.id));
-  await registrarEvento(db, ctx.oficina.id, os.id, "Avisou o cliente pelo WhatsApp que o veículo está pronto", ctx);
   revalidar(os.id);
   return { ok: true };
 }

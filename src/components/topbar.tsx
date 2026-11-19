@@ -17,8 +17,10 @@ const NAV: { href: string; label: string; acao?: Acao }[] = [
   { href: "/orcamentos", label: "Orçamentos", acao: "verValores" },
   { href: "/ordens-servico", label: "Ordens de serviço" },
   { href: "/clientes", label: "Clientes" },
+  { href: "/mensagens", label: "Mensagens", acao: "mensagens" },
   { href: "/estoque", label: "Estoque", acao: "estoque" },
   { href: "/financeiro", label: "Financeiro", acao: "financeiro" },
+  { href: "/relatorios", label: "Relatórios", acao: "relatorios" },
 ];
 
 export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {

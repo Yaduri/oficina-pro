@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { and, eq, gt, isNull, ne } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDbSistema, schema } from "@/db";
 import { TOKEN_CONVITE_RE } from "@/lib/usuarios";
 
 export type AceiteState = { erro?: string } | undefined;
@@ -14,7 +14,8 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
   const { userId } = await auth();
   if (!userId) redirect(`/sign-in?redirect_url=${encodeURIComponent(`/convite/${token}`)}`);
   const usuario = await currentUser();
-  const db = await getDb();
+  // Ainda não é membro da oficina do convite: conexão do sistema, filtrada pelo token e pelo login
+  const db = await getDbSistema();
 
   // Cada login pertence a uma única oficina
   const [outra] = await db

@@ -1,8 +1,14 @@
 import type { NextConfig } from "next";
 
+// Build para o Cloudflare Workers (scripts/cf-build.mjs): PGlite (só desenvolvimento) e sharp (binário nativo)
+// saem do worker. Lá o banco vem do Hyperdrive e as imagens do PDF usam o Cloudflare Images (src/lib/pdf/imagens.ts).
+const paraCloudflare = process.env.CF_BUILD === "1";
+
 const nextConfig: NextConfig = {
   // PGlite (Postgres embutido usado em desenvolvimento) não deve ser empacotado.
-  serverExternalPackages: ["@electric-sql/pglite", "@react-pdf/renderer"],
+  serverExternalPackages: paraCloudflare ? ["@react-pdf/renderer"] : ["@electric-sql/pglite", "@react-pdf/renderer"],
+  // O banco e os arquivos locais de desenvolvimento (.data) nunca entram no build
+  outputFileTracingExcludes: { "*": [".data/**"] },
   // Domínio de teste servido pelo Cloudflare Tunnel apontando para o `next dev`.
   allowedDevOrigins: ["oficinapro.yagoduarte.com.br"],
   // Service worker: sempre a versão mais nova e só scripts do próprio site
@@ -20,6 +26,7 @@ const nextConfig: NextConfig = {
     ];
   },
   turbopack: {
+    resolveAlias: paraCloudflare ? { "@electric-sql/pglite": "./scripts/cf-sem-pglite.mjs", sharp: "./scripts/cf-sem-sharp.mjs" } : {},
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

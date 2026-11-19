@@ -28,6 +28,8 @@ type Item = {
   marca: string | null;
   gtin: string | null;
   ncm: string | null;
+  revisaoMeses: number | null;
+  revisaoKm: number | null;
 };
 
 const valorTxt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -83,6 +85,23 @@ export function FormItemCatalogo({ tipo, item, onDone }: { tipo: Tipo; item?: It
             <Input id={`${pid}-mun`} name="codigoServicoMunicipal" defaultValue={item?.codigoServicoMunicipal ?? ""} placeholder="14.01" />
           </Campo>
         </div>
+      )}
+      {servico && (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-[13px] font-medium text-foreground-2">
+            Repetir a cada <span className="font-normal text-muted">(opcional)</span>
+          </legend>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="relative">
+              <Input id={`${pid}-rmeses`} name="revisaoMeses" inputMode="numeric" defaultValue={item?.revisaoMeses ?? ""} placeholder="6" aria-label="Repetir a cada quantos meses" className="pr-16" />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-muted">meses</span>
+            </div>
+            <div className="relative">
+              <Input id={`${pid}-rkm`} name="revisaoKm" inputMode="numeric" defaultValue={item?.revisaoKm ?? ""} placeholder="10000" aria-label="Repetir a cada quantos km" className="pr-10" />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-muted">km</span>
+            </div>
+          </div>
+        </fieldset>
       )}
       {!servico && (
         <>
@@ -225,6 +244,11 @@ export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
                     )}
                     {i.tempo && <span>{i.tempo}</span>}
                     {i.codigoServicoMunicipal && <span>NFS-e {i.codigoServicoMunicipal}</span>}
+                    {(i.revisaoMeses || i.revisaoKm) && (
+                      <span>
+                        Revisão a cada {[i.revisaoMeses && `${i.revisaoMeses} ${i.revisaoMeses === 1 ? "mês" : "meses"}`, i.revisaoKm && `${i.revisaoKm.toLocaleString("pt-BR")} km`].filter(Boolean).join(" ou ")}
+                      </span>
+                    )}
                     {!i.ativo && <span>Desativado</span>}
                   </p>
                 </div>

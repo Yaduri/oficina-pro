@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Protótipos estáticos de design
     "design/**",
+    // Saída do build do Cloudflare (OpenNext/wrangler)
+    ".open-next/**",
+    ".wrangler/**",
   ]),
 ]);
 

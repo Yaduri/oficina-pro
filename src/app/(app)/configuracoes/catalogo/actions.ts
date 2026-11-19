@@ -44,6 +44,15 @@ const itemSchema = z.object({
     .trim()
     .max(20, "Código municipal muito longo")
     .transform((v) => v || null),
+  /** Serviço que se repete (lembrete de revisão) */
+  revisaoMeses: z
+    .string()
+    .transform((v) => (soDigitos(v) ? Number(soDigitos(v)) : null))
+    .refine((n) => n === null || (n >= 1 && n <= 120), "Repetir a cada: de 1 a 120 meses"),
+  revisaoKm: z
+    .string()
+    .transform((v) => (soDigitos(v) ? Number(soDigitos(v)) : null))
+    .refine((n) => n === null || (n >= 100 && n <= 500_000), "Repetir a cada: de 100 a 500.000 km"),
 });
 
 const textoOpcional = (max: number, msg: string) =>
@@ -107,6 +116,8 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
     valor: f(form, "valor"),
     tempo: f(form, "tempo"),
     codigoServicoMunicipal: f(form, "codigoServicoMunicipal"),
+    revisaoMeses: f(form, "revisaoMeses"),
+    revisaoKm: f(form, "revisaoKm"),
   });
   if (!p.success) return { erro: p.error.issues[0].message };
   const d = p.data;
@@ -141,6 +152,8 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
     valor: d.valor.toFixed(2),
     tempoMinutos: d.tipo === "servico" ? d.tempo : null,
     codigoServicoMunicipal: d.tipo === "servico" ? d.codigoServicoMunicipal : null,
+    revisaoMeses: d.tipo === "servico" ? d.revisaoMeses : null,
+    revisaoKm: d.tipo === "servico" ? d.revisaoKm : null,
     // Saldo e custo médio não se editam aqui: só pelos movimentos de estoque
     ...(peca
       ? {

@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
-import { Check, Copy, ExternalLink, MessageCircle, RefreshCw } from "lucide-react";
+import { Check, Copy, ExternalLink, RefreshCw } from "lucide-react";
 import { Badge, Button, Campo, Erro, Input, Select, buttonClass } from "@/components/ui";
-import { formatBRL, linkWhatsApp } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { BotaoWhatsApp } from "@/components/botao-whatsapp";
 import { carregarCobranca, gerarCobrancaAcao, operarCobranca, qrCodeCobranca, type CobrancaState } from "./cobranca-actions";
 import type { CobrancaVisivel, DadosCobranca } from "./cobranca-dados";
 
@@ -177,11 +178,7 @@ function Pendente({
   const copiaECola = qrAtual?.copiaECola ?? c.pixCopiaECola;
 
   const nome = dados.cliente?.nome.split(" ")[0];
-  const whats =
-    c.linkPagamento &&
-    `${linkWhatsApp(dados.cliente?.telefone) ?? "https://wa.me/"}?text=${encodeURIComponent(
-      `Olá${nome ? `, ${nome}` : ""}. Segue o link para pagamento de ${brl(c.valor)}: ${c.linkPagamento}`,
-    )}`;
+  const textoWhats = c.linkPagamento && `Olá${nome ? `, ${nome}` : ""}. Segue o link para pagamento de ${brl(c.valor)}: ${c.linkPagamento}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -225,11 +222,14 @@ function Pendente({
           <span className="font-medium text-foreground-2">Link de pagamento</span>
           <p className="truncate rounded-md bg-subtle px-2.5 py-2 text-xs">{c.linkPagamento}</p>
           <div className="flex flex-wrap gap-2">
-            {whats && (
-              <a href={whats} target="_blank" rel="noreferrer" className={buttonClass("primary")}>
-                <MessageCircle />
-                Enviar pelo WhatsApp
-              </a>
+            {textoWhats && (
+              <BotaoWhatsApp
+                telefone={dados.cliente?.telefone ?? null}
+                texto={textoWhats}
+                registro={{ tipo: "cobranca", refId: dados.lancamentoId, osId: dados.osId }}
+                variant="primary"
+                label="Enviar pelo WhatsApp"
+              />
             )}
             <BotaoCopiar texto={c.linkPagamento} rotulo="Copiar link" />
             <a href={c.linkPagamento} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>

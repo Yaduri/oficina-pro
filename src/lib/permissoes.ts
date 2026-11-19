@@ -28,7 +28,11 @@ export type Acao =
   | "fecharOS"
   | "financeiro"
   /** Estoque, compras e fornecedores */
-  | "estoque";
+  | "estoque"
+  /** Mensagens de WhatsApp aos clientes (fila, histórico) */
+  | "mensagens"
+  /** Relatórios gerenciais */
+  | "relatorios";
 
 const TODOS: Papel[] = ORDEM_PAPEIS;
 
@@ -45,6 +49,8 @@ const REGRAS: Record<Acao, Papel[]> = {
   fecharOS: ["dono", "gerente", "atendente", "financeiro"],
   financeiro: ["dono", "gerente", "financeiro"],
   estoque: ["dono", "gerente", "financeiro", "atendente"],
+  mensagens: ["dono", "gerente", "financeiro", "atendente"],
+  relatorios: ["dono", "gerente", "financeiro"],
 };
 
 export function pode(papel: Papel, acao: Acao) {

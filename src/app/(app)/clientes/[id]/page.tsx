@@ -9,6 +9,7 @@ import { formatBRL, formatData, formatDocumento, formatEndereco, formatTelefone,
 import { AcoesArquivo } from "../arquivar";
 import { EditarClienteForm } from "../forms";
 import { ListaVeiculos } from "../veiculos";
+import { PortalCliente } from "./portal";
 
 export async function generateMetadata({ params }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
@@ -73,6 +74,15 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
             <CardHeader title="Veículos" />
             <ListaVeiculos clienteId={cliente.id} veiculos={ativos} arquivados={arquivados} editavel={editavel} abrirOS={pode("abrirOS")} />
           </Card>
+
+          {editavel && !cliente.arquivadoEm && (
+            <Card>
+              <CardHeader title="Portal do cliente" />
+              <div className="p-5">
+                <PortalCliente clienteId={cliente.id} telefone={cliente.telefone} />
+              </div>
+            </Card>
+          )}
 
           {(endereco || cliente.observacoes) && !editavel && (
             <Card>

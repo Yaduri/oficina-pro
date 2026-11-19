@@ -1,7 +1,7 @@
 import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
 import { and, asc, desc, eq, gt, isNull } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDb, getDbSistema, schema } from "@/db";
 
 const { membros, convites, oficinas } = schema;
 
@@ -51,7 +51,8 @@ export const TOKEN_CONVITE_RE = /^[A-Za-z0-9_-]{32}$/;
 /** Convite pelo token, com a oficina */
 export async function conviteDoToken(token: string) {
   if (!TOKEN_CONVITE_RE.test(token)) return null;
-  const db = await getDb();
+  // Quem abre o convite ainda não é da oficina: conexão do sistema, filtrada pelo token
+  const db = await getDbSistema();
   const [row] = await db
     .select({ convite: convites, oficina: oficinas })
     .from(convites)

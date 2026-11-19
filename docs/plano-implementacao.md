@@ -201,18 +201,20 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 
 ## Fase 5 — Comunicação e crescimento
 
-### 5.1 WhatsApp automático — **G**
-- [ ] Escolher provedor (API oficial do WhatsApp/Meta ou intermediário) — custo por mensagem
-- [ ] Mensagens: orçamento pronto, orçamento aprovado (para a oficina), carro pronto, lembrete de agendamento, pós-venda
-- [ ] Modelos de mensagem editáveis; registro do que foi enviado
+### 5.1 WhatsApp — **G**
+- [x] Provedor: por enquanto **sem integração direta**, só wa.me (o texto abre no WhatsApp de quem clicou, sem custo por mensagem). A API oficial fica para depois
+- [x] Mensagens: orçamento pronto, orçamento respondido (o cliente avisa a oficina pela página do orçamento), carro pronto, lembrete de agendamento, pós-venda com a pesquisa, revisão, portal e cliente inativo
+- [x] Modelos editáveis (Configurações → Mensagens, com variáveis e prévia); registro de cada envio (quem, para quem, texto)
+- [x] Fila "Mensagens": o que falta enviar (prontos não avisados, agendamentos de hoje e amanhã, orçamentos sem resposta, pós-venda, revisões), com dispensar e histórico de enviadas; consentimento LGPD conferido nas mensagens de relacionamento
+- [ ] Integração com a API oficial do WhatsApp (envio automático), quando os sócios decidirem
 
 ### 5.2 Relacionamento — **M**
-- [ ] Lembrete de revisão por km/tempo (ex.: troca de óleo a cada 6 meses ou 10.000 km)
-- [ ] Pesquisa de satisfação após a entrega
-- [ ] Portal do cliente (link): histórico do veículo, orçamentos, OS e notas
+- [x] Lembrete de revisão por km/tempo: serviço do catálogo com "repetir a cada", criado na entrega da OS, km estimado pela média de uso; revisões na página do veículo
+- [x] Pesquisa de satisfação após a entrega (link público, nota de 0 a 10 e comentário; aparece na OS e no sino)
+- [x] Portal do cliente (link): veículos, histórico de OS com PDF, orçamento pendente e próximas revisões; notas fiscais entram com a Fase 3
 
 ### 5.3 Relatórios gerenciais — **M**
-- [ ] Serviços mais vendidos, tempo médio no pátio, produtividade por técnico, taxa de aprovação de orçamentos, clientes inativos
+- [x] Serviços e peças mais vendidos, tempo médio no pátio, produtividade por técnico, taxa de aprovação de orçamentos, clientes inativos (com mensagem de reativação) e satisfação (NPS), com exportação CSV
 
 ---
 
@@ -221,12 +223,11 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 Pode ser feita a qualquer momento para um ambiente de testes; a abertura para uso real segue a decisão de vocês.
 
 ### 6.1 Infraestrutura — **M**
-- [ ] Banco de produção (Supabase) com migrações automáticas
-- [ ] **Row Level Security** no banco (isolamento por oficina, conforme arquitetura §4.2)
-- [ ] Clerk em modo produção com domínio próprio (gerar novas chaves; a secret atual foi exposta no chat e deve ser trocada)
-- [ ] Deploy (Cloudflare ou Vercel), domínio e HTTPS; `APP_URL` configurado
-- [ ] Bucket R2 de produção separado do de testes
-- [ ] Ambiente de **homologação** (cópia do sistema para testar antes de liberar mudanças)
+- [x] Supabase: projetos `oficina-pro` (produção) e `oficina-pro-homolog` em São Paulo (plano grátis)
+- [x] **Row Level Security** (migração 0008): cada consulta do usuário logado roda com o papel `app_usuario` e só vê a oficina dele; páginas públicas por token, webhook, cadastro inicial e convite usam `getDbSistema()` com filtro explícito. O dev avisa se uma tabela nova ficar sem policy
+- [x] Deploy preparado para Cloudflare Workers (OpenNext, Hyperdrive sem cache, Images no lugar do sharp nos PDFs), com homologação e produção em `wrangler.jsonc`; passo a passo em `docs/deploy.md`
+- [ ] Contas e chaves (dono): `wrangler login` e plano Workers Paid (o worker tem ~3,6 MiB, o grátis aceita 3 MiB), senhas do Supabase, Hyperdrive, Clerk produção com DNS (a secret atual foi exposta no chat e deve ser trocada), secrets e bucket R2 de produção
+- [ ] Publicar homologação (homolog.yagoduarte.com.br), testar login, OS, check-in com foto e PDFs; depois produção (app.yagoduarte.com.br)
 
 ### 6.2 Segurança e LGPD — **M**
 - [ ] Log de auditoria (alteração de valores, cancelamentos, exclusões, notas)
@@ -255,7 +256,7 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 | Município usa NFS-e nacional? | Contador / prefeitura | 3.2 |
 | Certificado A1 do CNPJ | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
 | ~~Provedor fiscal~~ | **Decidido:** desenvolver no sandbox do PlugNotas; produção na Focus NFe quando houver os certificados | — |
-| Provedor de WhatsApp | Sócios | 5.1 |
+| Provedor de WhatsApp (API oficial) | Sócios | Envio automático (5.1 já funciona por wa.me) |
 | Uso próprio ou vender para outras oficinas? | Sócios | Planos/assinatura (fora deste plano) |
 
 ### Provedor fiscal — situação pesquisada em 16/11/2026

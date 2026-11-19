@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, PageHeader, Placa } from "@/components/ui";
+import { MessageCircle } from "lucide-react";
 import { InstalarApp } from "@/components/pwa";
+import { contarFila } from "@/lib/fila-mensagens";
 import { getContexto } from "@/lib/oficina";
 import { faturamentoDoMes, listarOSAbertas } from "@/lib/queries";
 import { entregasPrevistas, listarAgendamentos } from "@/lib/agenda";
@@ -21,12 +23,13 @@ export default async function InicioPage() {
   const valores = pode("verValores");
   const inicioHoje = inicioDoDia(diaSP(new Date()));
   const fimHoje = new Date(inicioHoje.getTime() + 86_400_000);
-  const [abertas, faturamento, agenda, entregas, user] = await Promise.all([
+  const [abertas, faturamento, agenda, entregas, user, aEnviar] = await Promise.all([
     listarOSAbertas(oficina.id),
     faturamentoDoMes(oficina.id),
     listarAgendamentos(oficina.id, inicioHoje, fimHoje),
     entregasPrevistas(oficina.id, inicioHoje, fimHoje),
     currentUser(),
+    pode("mensagens") ? contarFila(oficina) : Promise.resolve(0),
   ]);
 
   const agendadosHoje = agenda.filter((a) => a.status !== "cancelado");
@@ -47,6 +50,16 @@ export default async function InicioPage() {
       />
 
       <InstalarApp />
+
+      {aEnviar > 0 && (
+        <Link
+          href="/mensagens"
+          className="inline-flex w-fit items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-[13px] font-medium shadow-card hover:bg-subtle"
+        >
+          <MessageCircle className="size-4 text-[#25D366]" aria-hidden />
+          {aEnviar === 1 ? "1 mensagem a enviar" : `${aEnviar} mensagens a enviar`}
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Veículos no pátio" value={String(abertas.length)}>

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { getDb, schema, type DB } from "@/db";
+import { getDb, getDbSistema, schema, type DB } from "@/db";
 import { asaas, ambienteDaChave, ErroAsaas, formaDoTipo, STATUS_DESFEITO, STATUS_PAGO, type EventoAsaas, type PagamentoAsaas, type TipoCobranca } from "@/lib/asaas";
 import { cifrar, decifrar, iguais, tokenAleatorio } from "@/lib/cripto";
 import { centavos, estornarBaixa, garantirPadroes, hojeSP, reais, registrarBaixa } from "@/lib/financeiro";
@@ -36,8 +36,9 @@ export const SITUACAO_COBRANCA = {
 
 /* ---------- Configuração ---------- */
 
-export async function gatewayDaOficina(oficinaId: string) {
-  const db = await getDb();
+/** `conexao`: o webhook (sem login) passa a do sistema; sem ela, a do usuário logado */
+export async function gatewayDaOficina(oficinaId: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   const [g] = await db.select().from(gateways).where(eq(gateways.oficinaId, oficinaId));
   return g ?? null;
 }
@@ -328,24 +329,29 @@ export async function simularPagamento(oficinaId: string, id: string) {
 
 /* ---------- Webhook ---------- */
 
+/*
+ * O webhook não tem usuário logado: usa a conexão do sistema (sem RLS). A oficina vem do
+ * endereço e só é aceita com o token do cabeçalho; as consultas filtram por ela.
+ */
+
 /** Confere o token do cabeçalho asaas-access-token */
 export async function webhookAutorizado(oficinaId: string, token: string | null) {
-  const g = await gatewayDaOficina(oficinaId);
+  const g = await gatewayDaOficina(oficinaId, await getDbSistema());
   return !!(g && token && iguais(token, g.webhookToken));
 }
 
 export async function processarEvento(oficinaId: string, ev: EventoAsaas) {
   if (!ev.payment?.id || !ev.event.startsWith("PAYMENT_")) return;
   const status = ev.event === "PAYMENT_DELETED" ? "DELETED" : ev.payment.status;
-  await aplicarPagamento(oficinaId, { ...ev.payment, status }, ev.event);
+  await aplicarPagamento(oficinaId, { ...ev.payment, status }, ev.event, await getDbSistema());
 }
 
 /**
  * Aplica o estado do pagamento do Asaas na cobrança e no financeiro.
  * Idempotente: eventos repetidos ou fora de ordem não duplicam baixa.
  */
-async function aplicarPagamento(oficinaId: string, pg: PagamentoAsaas, evento: string) {
-  const db = await getDb();
+async function aplicarPagamento(oficinaId: string, pg: PagamentoAsaas, evento: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   await db.transaction(async (tx) => {
     const [c] = await tx
       .select()
@@ -405,7 +411,10 @@ async function aplicarPagamento(oficinaId: string, pg: PagamentoAsaas, evento: s
 async function baixaDoPagamento(tx: DB, oficinaId: string, c: Cobranca, pg: PagamentoAsaas) {
   const [g] = await tx.select().from(gateways).where(eq(gateways.oficinaId, oficinaId));
   if (!g?.contaId) return null;
-  const [l] = await tx.select().from(lancamentos).where(eq(lancamentos.id, c.lancamentoId));
+  const [l] = await tx
+    .select()
+    .from(lancamentos)
+    .where(and(eq(lancamentos.id, c.lancamentoId), eq(lancamentos.oficinaId, oficinaId)));
   if (!l || l.status === "cancelado") return null;
   const aberto = centavos(l.valor) - centavos(l.valorPago);
   if (aberto <= 0) return null;

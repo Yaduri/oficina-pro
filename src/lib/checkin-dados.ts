@@ -1,13 +1,13 @@
 import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDb, schema, type DB } from "@/db";
 
 const { checkins, checkinFotos, veiculos, clientes, ordensServico: os } = schema;
 
 /** OS geradas por cada check-in, para exibir junto */
-async function osDosCheckins(ids: string[]) {
+async function osDosCheckins(ids: string[], conexao?: DB) {
   if (ids.length === 0) return [];
-  const db = await getDb();
+  const db = conexao ?? (await getDb());
   return db
     .select({
       checkinId: os.checkinId,
@@ -63,8 +63,9 @@ export async function listarCheckins(oficinaId: string) {
   );
 }
 
-export async function obterCheckin(oficinaId: string, id: string) {
-  const db = await getDb();
+/** `conexao`: a do sistema para o link público (sem login); sem ela, a do usuário logado */
+export async function obterCheckin(oficinaId: string, id: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   const [row] = await db
     .select({ checkin: checkins, veiculo: veiculos, cliente: clientes })
     .from(checkins)
@@ -74,7 +75,7 @@ export async function obterCheckin(oficinaId: string, id: string) {
   if (!row) return null;
   const [fotos, ordens] = await Promise.all([
     db.select().from(checkinFotos).where(eq(checkinFotos.checkinId, id)).orderBy(asc(checkinFotos.ordem)),
-    osDosCheckins([id]),
+    osDosCheckins([id], db),
   ]);
   return { ...row, fotos, ordens };
 }

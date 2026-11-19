@@ -1,0 +1,74 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker gerado pelo OpenNext (pnpm cf:build). Não mude main nem assets.
+  "name": "oficina-pro",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Roda perto do banco (Supabase em São Paulo): o app faz várias consultas por requisição.
+  "placement": { "region": "aws:sa-east-1" },
+
+  // Sem --env não há deploy: use `pnpm cf:deploy:homolog` ou `pnpm cf:deploy:prod`.
+  // Bindings não são herdados entre ambientes; por isso cada um repete services, images e hyperdrive.
+  "workers_dev": false,
+
+  "env": {
+    "homolog": {
+      "name": "oficina-pro-homolog",
+      "routes": [{ "pattern": "homolog.yagoduarte.com.br", "custom_domain": true }],
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "oficina-pro-homolog" }],
+      "images": { "binding": "IMAGES" },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          // id impresso por `wrangler hyperdrive create oficina-pro-homolog ...` (docs/deploy.md)
+          "id": "COLE_AQUI_O_ID_DO_HYPERDRIVE_HOMOLOG",
+          // Só para `wrangler dev`/preview local; sem banco local fica um endereço que não responde.
+          "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+        }
+      ],
+      "vars": {
+        // Públicas (vão para o navegador): o build lê daqui (scripts/cf-build.mjs).
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "COLE_AQUI_pk_test_OU_pk_live_DO_CLERK_HOMOLOG",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/onboarding",
+        // Termos de uso e Política de privacidade (src/lib/legal.ts)
+        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
+        "NEXT_PUBLIC_LEGAL_EMAIL": "",
+        "NEXT_PUBLIC_LEGAL_FORO": "",
+        "APP_URL": "https://homolog.yagoduarte.com.br"
+      }
+    },
+    "production": {
+      "name": "oficina-pro",
+      "routes": [{ "pattern": "app.yagoduarte.com.br", "custom_domain": true }],
+      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "oficina-pro" }],
+      "images": { "binding": "IMAGES" },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          // id impresso por `wrangler hyperdrive create oficina-pro ...` (docs/deploy.md)
+          "id": "COLE_AQUI_O_ID_DO_HYPERDRIVE_PROD",
+          "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
+        }
+      ],
+      "vars": {
+        // Públicas (vão para o navegador): o build lê daqui (scripts/cf-build.mjs).
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "COLE_AQUI_pk_live_DO_CLERK_PRODUCAO",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
+        "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
+        "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/onboarding",
+        // Termos de uso e Política de privacidade (src/lib/legal.ts)
+        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
+        "NEXT_PUBLIC_LEGAL_EMAIL": "",
+        "NEXT_PUBLIC_LEGAL_FORO": "",
+        "APP_URL": "https://app.yagoduarte.com.br"
+      }
+    }
+  }
+}

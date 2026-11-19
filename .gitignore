@@ -48,3 +48,8 @@ next-env.d.ts
 
 # cache local do Impeccable
 .impeccable/hook.cache.json
+
+# Cloudflare (OpenNext / wrangler)
+/.open-next
+/.wrangler
+.dev.vars*

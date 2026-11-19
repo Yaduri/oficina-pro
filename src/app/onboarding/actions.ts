@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { getDb, schema } from "@/db";
+import { getDbSistema, schema } from "@/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { exigirLogin, membroAtivo } from "@/lib/oficina";
 import { cnpjValido, normalizarCnpj } from "@/lib/utils";
@@ -25,7 +25,8 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
   const parsed = formSchema.safeParse({ nome: String(form.get("nome") ?? ""), cnpj: String(form.get("cnpj") ?? "") });
   if (!parsed.success) return { erro: parsed.error.issues[0]?.message ?? "Dados inválidos" };
 
-  const db = await getDb();
+  // Ainda sem oficina: o RLS não deixaria criar nem conferir o CNPJ em outras contas
+  const db = await getDbSistema();
   if (await membroAtivo(userId)) redirect("/inicio");
   if (parsed.data.cnpj) {
     const [existe] = await db.select({ id: schema.oficinas.id }).from(schema.oficinas).where(eq(schema.oficinas.cnpj, parsed.data.cnpj));

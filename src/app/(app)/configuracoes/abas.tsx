@@ -9,6 +9,7 @@ const ABAS = [
   { href: "/configuracoes/catalogo", label: "Serviços e peças" },
   { href: "/configuracoes/tecnicos", label: "Técnicos" },
   { href: "/configuracoes/checklist", label: "Checklist" },
+  { href: "/configuracoes/mensagens", label: "Mensagens" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
 ];
 

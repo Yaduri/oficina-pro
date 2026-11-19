@@ -22,6 +22,9 @@ export type ItemCatalogo = {
   marca: string | null;
   gtin: string | null;
   ncm: string | null;
+  /** Serviço que se repete: lembrete de revisão a cada X meses / Y km */
+  revisaoMeses: number | null;
+  revisaoKm: number | null;
 };
 
 /** Catálogo da oficina (só ativos para lançar na OS; todos na tela de configuração) */
@@ -49,6 +52,8 @@ export async function listarCatalogo(oficinaId: string, opcoes: { tipo?: TipoCat
       marca: c.marca,
       gtin: c.gtin,
       ncm: c.ncm,
+      revisaoMeses: c.revisaoMeses,
+      revisaoKm: c.revisaoKm,
     })
     .from(c)
     .where(and(...filtros))

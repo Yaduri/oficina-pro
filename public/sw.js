@@ -7,7 +7,7 @@ const CACHE = `oficina-offline-${VERSAO}`;
 const OFFLINE = "/offline";
 
 // Rotas que o SW nem toca (vão direto para a rede, como sem SW)
-const IGNORAR = ["/api/", "/arquivos/", "/pdf/", "/documento/", "/orcamento/", "/convite/", "/sign-in", "/sign-up", "/_next/data/", "/__clerk", "/sw.js"];
+const IGNORAR = ["/api/", "/arquivos/", "/pdf/", "/documento/", "/orcamento/", "/pesquisa/", "/portal/", "/convite/", "/sign-in", "/sign-up", "/_next/data/", "/__clerk", "/sw.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

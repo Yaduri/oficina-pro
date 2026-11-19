@@ -20,12 +20,15 @@ import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
 import { FotosServico } from "./fotos-servico";
 import { AvisarCliente } from "./avisar";
+import { nomeVeiculo, primeiroNome } from "@/lib/mensagens";
+import { textoDaOficina } from "@/lib/fila-mensagens";
 import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
 import { FORMAS, STATUS_LANCAMENTO, centavos, contaSugerida, ehForma, hojeSP, listarContas, somarDiasData } from "@/lib/financeiro";
 import { situacaoRecebimento } from "@/lib/recebimento";
 import { FORMAS_PAGAMENTO } from "@/lib/recebimento-regras";
 import { RecebimentosOS } from "./recebimentos";
 import { ComprasOS } from "./compras";
+import { PesquisaOS } from "./pesquisa";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -89,12 +92,17 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const pagamentosAtivos = recebimento?.pagamentos.filter((p) => !p.estornadaEm) ?? [];
   const garantiaPadrao = garantiaSugerida(oficina.garantiaDias);
 
+  // Variáveis dos modelos de mensagem (Configurações → Mensagens)
+  const varsMensagem = { cliente: primeiroNome(cliente?.nome), veiculo: nomeVeiculo(veiculo), placa: veiculo.placa, os: String(os.numero) };
+
   let resumo: ResumoOrcamento | null = null;
   if (orc) {
     const url = `${await urlBase()}/orcamento/${orc.token}`;
-    const veiculoTxt = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
-    const saudacao = cliente ? `Olá, ${cliente.nome.split(" ")[0]}!` : "Olá!";
-    const texto = `${saudacao} Segue o orçamento do seu ${veiculoTxt} (${veiculo.placa}), OS #${os.numero}, no valor de ${formatBRL(Number(orc.total))}. Você pode aprovar pelo link: ${url}`;
+    const texto = textoDaOficina(oficina, "orcamento", {
+      ...varsMensagem,
+      total: formatBRL(Number(orc.total)),
+      link: url,
+    });
     const aprovados = new Set(orc.itensAprovados ?? []);
     const respondido = ["aprovado", "parcial", "recusado"].includes(orc.status);
     const vencido = orc.status === "pendente" && orc.validoAte < new Date();
@@ -103,7 +111,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
       pendente: orc.status === "pendente",
       respondido,
       url,
-      whatsapp: `${whats ?? "https://wa.me/"}?text=${encodeURIComponent(texto)}`,
+      mensagem: { telefone: cliente?.telefone ?? null, texto, orcamentoId: orc.id },
       enviadoEm: formatEntrada(orc.criadoEm),
       validoAte: formatData(orc.validoAte),
       vencido,
@@ -121,14 +129,11 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     };
   }
 
-  const veiculoTxt = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
-  const msgPronto =
-    whats &&
-    `${whats}?text=${encodeURIComponent(
-      `Olá${cliente ? `, ${cliente.nome.split(" ")[0]}` : ""}! Seu ${veiculoTxt} (${veiculo.placa}) está pronto para retirada na ${oficina.nomeFantasia || oficina.nome}.${
-        valores && calcularTotais(itens, desconto).total > 0 ? ` Total: ${formatBRL(calcularTotais(itens, desconto).total)}.` : ""
-      }`,
-    )}`;
+  const totalOS = calcularTotais(itens, desconto).total;
+  const msgPronto = textoDaOficina(oficina, "pronto", {
+    ...varsMensagem,
+    total: valores && totalOS > 0 ? formatBRL(totalOS) : undefined,
+  });
 
   const documentos: DocumentoOpcao[] = [
     { href: `/pdf/os/${os.id}`, label: "Ordem de serviço", detalhe: "Via do cliente" },
@@ -163,8 +168,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
           )}
           <DocumentosPdf documentos={documentos} enviar={valores ? { tipo: "os", id: os.id, label: "Enviar OS pelo WhatsApp" } : null} />
           <MoverOS osId={os.id} status={os.status} grande podeFechar={pode("fecharOS")} />
-          {os.status === "pronto" && msgPronto && pode("fecharOS") && (
-            <AvisarCliente osId={os.id} whatsapp={msgPronto} avisadoEm={os.clienteAvisadoEm ? formatEntrada(os.clienteAvisadoEm).toLowerCase() : null} />
+          {os.status === "pronto" && whats && pode("fecharOS") && pode("mensagens") && (
+            <AvisarCliente osId={os.id} telefone={cliente?.telefone ?? null} texto={msgPronto} avisadoEm={os.clienteAvisadoEm ? formatEntrada(os.clienteAvisadoEm).toLowerCase() : null} />
           )}
           {!fechada && pode("fecharOS") && (
             <EntregarOS
@@ -421,6 +426,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               </div>
             )}
           </Card>
+
+          {os.status === "entregue" && <PesquisaOS oficinaId={oficina.id} osId={os.id} />}
 
           <Card>
             <CardHeader title="Histórico" />

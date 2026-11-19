@@ -7,6 +7,8 @@ import { obterCheckin } from "@/lib/checkin-dados";
 import { urlBase } from "@/lib/orcamento";
 import { linkPublico } from "@/lib/pdf/carregar";
 import { linkWhatsApp } from "@/lib/utils";
+import { linkMensagem } from "@/lib/mensagens";
+import { gravarMensagem } from "@/lib/registro-mensagens";
 
 /**
  * Link do WhatsApp com a mensagem e o endereço público do PDF (OS na via do cliente ou
@@ -38,5 +40,11 @@ export async function enviarDocumento(tipo: "os" | "termo", id: string): Promise
   if (!token) return { erro: "Não foi possível gerar o link" };
   const url = `${await urlBase()}/documento/${token}`;
   const wa = linkWhatsApp(telefone);
-  return { url, whatsapp: wa ? `${wa}?text=${encodeURIComponent(`${mensagem} ${url}`)}` : null };
+  if (!wa) return { url, whatsapp: null };
+  const texto = `${mensagem} ${url}`;
+  // Fica no histórico de mensagens (quem não tem a permissão "mensagens" envia sem registro)
+  if (ctx.pode("mensagens")) {
+    await gravarMensagem(ctx, { tipo: "documento", telefone, texto, ...(tipo === "os" ? { osId: id } : { refId: id }) });
+  }
+  return { url, whatsapp: linkMensagem(telefone, texto) };
 }

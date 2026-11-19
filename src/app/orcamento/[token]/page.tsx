@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { CheckCircle2, Clock, Download, MessageCircle, Phone, XCircle } from "lucide-react";
-import { getDb, schema } from "@/db";
+import { getDbSistema, schema } from "@/db";
 import { Badge, Placa, buttonClass } from "@/components/ui";
 import { STATUS_ORCAMENTO, orcamentoPorToken } from "@/lib/orcamento";
 import { totalSelecionado } from "@/lib/os-total";
 import { formatBRL, formatData, formatEntrada, linkWhatsApp } from "@/lib/utils";
 import { identificacao } from "@/lib/identificacao";
 import { RespostaOrcamento } from "./resposta";
+import { AvisarOficina } from "./avisar-oficina";
+import { linkMensagem } from "@/lib/mensagens";
+import { textoAvisoOficina } from "@/lib/fila-mensagens";
 
 export const metadata: Metadata = { title: "Orçamento", robots: { index: false, follow: false } };
 
@@ -22,7 +25,7 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
 
   // Primeira visualização pelo cliente
   if (!orc.vistoEm && orc.status === "pendente") {
-    const db = await getDb();
+    const db = await getDbSistema();
     await db
       .update(schema.orcamentos)
       .set({ vistoEm: new Date() })
@@ -38,6 +41,8 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
   const totalAprovado = totalSelecionado(orc.itens, aprovados, desconto).total;
   const id = identificacao(oficina);
   const whatsOficina = linkWhatsApp(oficina.whatsapp);
+  // Para o cliente avisar a oficina depois de responder (WhatsApp ou, sem ele, o telefone)
+  const telefoneOficina = linkWhatsApp(oficina.whatsapp) ? oficina.whatsapp : linkWhatsApp(oficina.telefone) ? oficina.telefone : null;
   const statusExibido = vencido
     ? { label: "Vencido", tom: "neutro" as const }
     : STATUS_ORCAMENTO[orc.status];
@@ -105,8 +110,13 @@ export default async function OrcamentoPublico({ params }: PageProps<"/orcamento
                 Resposta de {orc.respostaNome} {orc.respondidoEm && formatEntrada(orc.respondidoEm).toLowerCase()}.{" "}
                 {orc.status === "recusado"
                   ? "A oficina vai entrar em contato."
-                  : "A oficina já foi avisada e vai seguir com o serviço."}
+                  : "A oficina vai seguir com o serviço."}
               </p>
+              {telefoneOficina && (
+                <div className="mt-3">
+                  <AvisarOficina token={token} href={linkMensagem(telefoneOficina, textoAvisoOficina(dados))} />
+                </div>
+              )}
             </div>
           </div>
         )}

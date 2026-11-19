@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { and, desc, eq } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDb, getDbSistema, schema } from "@/db";
 import type { ItemOrcamento } from "@/db/schema";
 import type { Tom } from "@/components/ui";
 
@@ -58,7 +58,8 @@ export async function ultimoOrcamento(osId: string) {
 /** Página pública: orçamento pelo token, com dados para exibir ao cliente */
 export async function orcamentoPorToken(token: string) {
   if (!TOKEN_RE.test(token)) return null;
-  const db = await getDb();
+  // Sem login: o token é a autorização (conexão do sistema, filtrada pelo token)
+  const db = await getDbSistema();
   const [row] = await db
     .select({ orcamento: orcamentos, os, veiculo: veiculos, cliente: clientes, oficina: oficinas })
     .from(orcamentos)

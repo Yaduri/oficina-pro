@@ -9,6 +9,11 @@ import { nomeCombustivel } from "@/lib/veiculo";
 import { formatBRL, formatData, formatTelefone } from "@/lib/utils";
 import { AcoesArquivo } from "../../clientes/arquivar";
 import { TransferirVeiculo } from "./transferir";
+import { RevisoesVeiculo } from "./revisoes";
+import { formatDia, revisoesDoVeiculo } from "@/lib/relacionamento";
+import { montarMensagem, nomeVeiculo, primeiroNome, textoModelo } from "@/lib/mensagens";
+import { identificacao } from "@/lib/identificacao";
+import { diaSP } from "@/lib/agenda-datas";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -27,11 +32,39 @@ export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]"
   if (!r) notFound();
   const { veiculo: v, cliente } = r;
   const editavel = pode("cadastros");
-  const [hist, uso, clientes] = await Promise.all([
+  const [hist, uso, clientes, revisoes] = await Promise.all([
     historicoVeiculo(oficina.id, v.id),
     usoDoVeiculo(oficina.id, v.id),
     editavel ? opcoesClientes(oficina.id) : [],
+    revisoesDoVeiculo(oficina.id, v.id),
   ]);
+  const modeloRevisao = textoModelo(oficina.modelosMensagem, "revisao");
+  const nomeOficina = identificacao(oficina).titulo;
+  const itensRevisao = revisoes.map((r) => ({
+    id: r.id,
+    descricao: r.descricao,
+    intervaloMeses: r.intervaloMeses,
+    intervaloKm: r.intervaloKm,
+    ultimaData: r.ultimaData,
+    ultimoKm: r.ultimoKm,
+    proximaData: r.proximaData,
+    proximoKm: r.proximoKm,
+    ativo: r.ativo,
+    avisadoEm: r.avisadoEm?.toISOString() ?? null,
+    osId: r.osId,
+    osNumero: r.osNumero,
+    situacao: r.situacao,
+    previstaPara: r.previstaPara,
+    kmEstimado: r.kmEstimado,
+    texto: montarMensagem(modeloRevisao, {
+      cliente: primeiroNome(cliente?.nome),
+      veiculo: nomeVeiculo(v),
+      placa: v.placa,
+      servico: r.descricao.toLowerCase(),
+      data: r.previstaPara ? formatDia(r.previstaPara) : undefined,
+      oficina: nomeOficina,
+    }),
+  }));
 
   const dados = [
     ["Marca", v.marca],
@@ -141,6 +174,17 @@ export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]"
         </div>
 
         <div className="flex flex-col gap-6">
+          {(revisoes.length > 0 || editavel) && !v.arquivadoEm && (
+            <RevisoesVeiculo
+              veiculoId={v.id}
+              itens={itensRevisao}
+              editavel={editavel}
+              kmAtual={v.km}
+              hoje={diaSP(new Date())}
+              contato={cliente ? { clienteId: cliente.id, telefone: cliente.telefone, aceitaWhatsapp: cliente.aceitaWhatsapp } : null}
+            />
+          )}
+
           <Card>
             <CardHeader title="Histórico de serviços" action={<span className="text-[13px] text-muted">{hist.ordens.length} OS</span>} />
             {hist.ordens.length === 0 ? (

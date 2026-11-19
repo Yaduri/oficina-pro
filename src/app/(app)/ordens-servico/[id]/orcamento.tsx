@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Copy, ExternalLink, MessageCircle, Send } from "lucide-react";
+import { Check, Copy, ExternalLink, Send } from "lucide-react";
 import { Badge, Button, Campo, Card, CardHeader, Erro, Input, Textarea, buttonClass, type Tom } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
+import { BotaoWhatsApp } from "@/components/botao-whatsapp";
 import { cancelarOrcamento, enviarOrcamento } from "../actions";
 
 export type ResumoOrcamento = {
@@ -11,7 +12,8 @@ export type ResumoOrcamento = {
   pendente: boolean;
   respondido: boolean;
   url: string;
-  whatsapp: string;
+  /** Mensagem do modelo "Orçamento pronto" para o WhatsApp do cliente */
+  mensagem: { telefone: string | null; texto: string; orcamentoId: string };
   enviadoEm: string;
   validoAte: string;
   vencido: boolean;
@@ -128,10 +130,13 @@ function Detalhes({ osId, o }: { osId: string; o: ResumoOrcamento }) {
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <a href={o.whatsapp} target="_blank" rel="noreferrer" className={buttonClass("primary")}>
-              <MessageCircle />
-              Enviar no WhatsApp
-            </a>
+            <BotaoWhatsApp
+              telefone={o.mensagem.telefone}
+              texto={o.mensagem.texto}
+              registro={{ tipo: "orcamento", osId, refId: o.mensagem.orcamentoId }}
+              variant="primary"
+              label="Enviar no WhatsApp"
+            />
             <Button
               onClick={async () => {
                 await navigator.clipboard.writeText(o.url);

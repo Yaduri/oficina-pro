@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Camera, Check, MessageCircle, MoreHorizontal, Pencil, RotateCcw, UserX, X } from "lucide-react";
 import { Badge, Placa, buttonClass } from "@/components/ui";
-import { STATUS_AGENDA, formatDuracao, horaSP, nomeDoDia, diaSP, type StatusAgenda } from "@/lib/agenda-datas";
+import { STATUS_AGENDA, formatDuracao, horaSP, diaSP, type StatusAgenda } from "@/lib/agenda-datas";
+import { BotaoWhatsApp } from "@/components/botao-whatsapp";
 import { cn, linkWhatsApp } from "@/lib/utils";
 import { mudarStatusAgendamento } from "./actions";
 
@@ -24,6 +25,8 @@ export type AgendamentoTela = {
   cliente: string | null;
   telefone: string | null;
   aceitaWhatsapp: boolean | null;
+  /** Texto do lembrete pelo modelo da oficina (montado no servidor) */
+  lembrete: string;
 };
 
 /** Um horário da agenda com as ações (confirmar, check-in, lembrete, falta, cancelar) */
@@ -54,13 +57,6 @@ export function ItemAgenda({ a, podeEditar, compacto = false }: { a: Agendamento
   }
 
   const whats = linkWhatsApp(a.telefone);
-  const lembrete = whats
-    ? `${whats}?text=${encodeURIComponent(
-        `Olá${a.cliente ? `, ${a.cliente.split(" ")[0]}` : ""}! Lembrete do seu agendamento ${
-          diaSP(inicio) === diaSP(new Date()) ? "hoje" : nomeDoDia(diaSP(inicio), { weekday: "long", day: "numeric", month: "numeric" })
-        } às ${horaSP(inicio)}${veiculo ? ` para o ${veiculo}` : ""}${a.placa ? ` (${a.placa})` : ""}: ${a.titulo}. Podemos confirmar?`,
-      )}`
-    : null;
 
   if (compacto) {
     return (
@@ -141,14 +137,22 @@ export function ItemAgenda({ a, podeEditar, compacto = false }: { a: Agendamento
               Cliente confirmou
             </button>
           )}
-          {lembrete && !encerrado && (
-            <a role="menuitem" href={lembrete} target="_blank" rel="noreferrer" onClick={() => setMenu(false)} className="flex items-center gap-2.5 px-3 py-2 hover:bg-subtle">
+          {whats && !encerrado && (
+            <BotaoWhatsApp
+              role="menuitem"
+              telefone={a.telefone}
+              texto={a.lembrete}
+              registro={{ tipo: "agendamento", agendamentoId: a.id }}
+              onRegistrado={() => setMenu(false)}
+              variant="none"
+              className="flex items-center gap-2.5 px-3 py-2 hover:bg-subtle"
+            >
               <MessageCircle className="size-4 text-[#25D366]" />
               <span>
                 Lembrete pelo WhatsApp
                 {!a.aceitaWhatsapp && <span className="block text-[12px] text-muted">Cliente sem consentimento registrado</span>}
               </span>
-            </a>
+            </BotaoWhatsApp>
           )}
           {!encerrado && (
             <Link role="menuitem" href={`/agenda/${a.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-subtle">

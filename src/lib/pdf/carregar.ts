@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { getDb, getDbSistema, schema, type DB } from "@/db";
 import { obterOS } from "@/lib/queries";
 import { obterCheckin } from "@/lib/checkin-dados";
 import { novoToken, orcamentoPorToken, ultimoOrcamento, urlBase } from "@/lib/orcamento";
@@ -8,11 +8,12 @@ import { documentoOS, documentoOrcamento, documentoTermo } from "./gerar";
 
 /*
  * Busca no banco e monta cada PDF. Quem chama já conferiu o acesso:
- * usuário logado da oficina ou token de link público.
+ * usuário logado da oficina ou token de link público. O link público passa `db` com a conexão
+ * do sistema (sem login não há RLS que deixe ver a oficina); as consultas filtram a oficina.
  */
 
-export async function oficinaCompleta(oficinaId: string) {
-  const db = await getDb();
+export async function oficinaCompleta(oficinaId: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   const [o] = await db.select().from(schema.oficinas).where(eq(schema.oficinas.id, oficinaId));
   return o ?? null;
 }
@@ -20,21 +21,24 @@ export async function oficinaCompleta(oficinaId: string) {
 export const placaArquivo = (placa: string) => placa.replace(/[^A-Z0-9]/gi, "");
 
 /** PDF da OS da oficina */
-export async function pdfOS(oficinaId: string, osId: string, opcoes: { via: "cliente" | "oficina"; valores: boolean }) {
-  const oficina = await oficinaCompleta(oficinaId);
+export async function pdfOS(oficinaId: string, osId: string, opcoes: { via: "cliente" | "oficina"; valores: boolean; db?: DB }) {
+  const oficina = await oficinaCompleta(oficinaId, opcoes.db);
   if (!oficina) return null;
-  const dados = await obterOS(oficinaId, osId);
+  const dados = await obterOS(oficinaId, osId, opcoes.db);
   if (!dados) return null;
   let checklist = null;
   if (opcoes.via === "oficina" && dados.os.checkinId) {
-    const db = await getDb();
-    const [c] = await db.select({ checklist: schema.checkins.checklist }).from(schema.checkins).where(eq(schema.checkins.id, dados.os.checkinId));
+    const db = opcoes.db ?? (await getDb());
+    const [c] = await db
+      .select({ checklist: schema.checkins.checklist })
+      .from(schema.checkins)
+      .where(and(eq(schema.checkins.id, dados.os.checkinId), eq(schema.checkins.oficinaId, oficinaId)));
     checklist = c?.checklist ?? null;
   }
   // Quem registrou a entrega (guardado como id do login)
   let entreguePor: string | null = null;
   if (dados.os.entreguePor) {
-    const db = await getDb();
+    const db = opcoes.db ?? (await getDb());
     const [m] = await db
       .select({ nome: schema.membros.nome, email: schema.membros.email })
       .from(schema.membros)
@@ -91,10 +95,10 @@ export async function pdfOrcamentoPorToken(token: string) {
 }
 
 /** PDF do termo de entrada */
-export async function pdfTermo(oficinaId: string, checkinId: string) {
-  const oficina = await oficinaCompleta(oficinaId);
+export async function pdfTermo(oficinaId: string, checkinId: string, db?: DB) {
+  const oficina = await oficinaCompleta(oficinaId, db);
   if (!oficina) return null;
-  const dados = await obterCheckin(oficinaId, checkinId);
+  const dados = await obterCheckin(oficinaId, checkinId, db);
   if (!dados) return null;
   const doc = await documentoTermo({
     oficina,
@@ -110,8 +114,8 @@ export async function pdfTermo(oficinaId: string, checkinId: string) {
 /* ---------- Links públicos ---------- */
 
 /** Token do link público do documento (cria na primeira vez) */
-export async function linkPublico(oficinaId: string, tipo: "os" | "termo", refId: string) {
-  const db = await getDb();
+export async function linkPublico(oficinaId: string, tipo: "os" | "termo" | "portal", refId: string, conexao?: DB) {
+  const db = conexao ?? (await getDb());
   const t = schema.linksDocumento;
   const [existente] = await db.select({ token: t.token }).from(t).where(and(eq(t.tipo, tipo), eq(t.refId, refId), eq(t.oficinaId, oficinaId)));
   if (existente) return existente.token;
@@ -125,8 +129,9 @@ export async function linkPublico(oficinaId: string, tipo: "os" | "termo", refId
   return outro?.token ?? null;
 }
 
+/** Link público pelo token (sem login: conexão do sistema, filtrada pelo token) */
 export async function documentoPorToken(token: string) {
-  const db = await getDb();
+  const db = await getDbSistema();
   const [l] = await db.select().from(schema.linksDocumento).where(eq(schema.linksDocumento.token, token));
   return l ?? null;
 }
