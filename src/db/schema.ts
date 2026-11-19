@@ -641,6 +641,74 @@ export const comissoesFechamentos = pgTable("comissoes_fechamentos", {
   criadoEm: criadoEm(),
 });
 
+/* ---------- Cobrança online (Fase 2.5) ---------- */
+
+/** Conta da oficina no gateway de pagamento (hoje só Asaas). Uma por oficina. */
+export const gatewaysPagamento = pgTable("gateways_pagamento", {
+  id: id(),
+  oficinaId: uuid("oficina_id")
+    .notNull()
+    .unique()
+    .references(() => oficinas.id, { onDelete: "cascade" }),
+  provedor: text("provedor").$type<"asaas">().notNull().default("asaas"),
+  ambiente: text("ambiente").$type<"sandbox" | "producao">().notNull(),
+  /** Chave da API cifrada (lib/cripto); nunca vai para o navegador */
+  apiKeyCifrada: text("api_key_cifrada").notNull(),
+  /** Final da chave, só para exibir ("…a1b2") */
+  apiKeyFinal: text("api_key_final").notNull(),
+  /** Token que o gateway manda no cabeçalho do webhook */
+  webhookToken: text("webhook_token").notNull(),
+  webhookId: text("webhook_id"),
+  /** Conta financeira onde caem os recebimentos */
+  contaId: uuid("conta_id").references(() => contasFinanceiras.id, { onDelete: "set null" }),
+  /** Nome da conta no gateway (retornado ao validar a chave) */
+  titular: text("titular"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: criadoEm(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Cobrança (PIX/boleto/link) gerada no gateway para uma conta a receber */
+export const cobrancas = pgTable(
+  "cobrancas",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    lancamentoId: uuid("lancamento_id").notNull().references(() => lancamentos.id, { onDelete: "cascade" }),
+    provedor: text("provedor").$type<"asaas">().notNull().default("asaas"),
+    ambiente: text("ambiente").$type<"sandbox" | "producao">().notNull(),
+    /** id da cobrança no gateway (ex.: pay_123) */
+    externoId: text("externo_id").notNull(),
+    /** id do cliente no gateway, reaproveitado nas próximas cobranças do mesmo cliente */
+    clienteExternoId: text("cliente_externo_id").notNull(),
+    clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    /** Status do gateway (PENDING, RECEIVED, CONFIRMED, OVERDUE, REFUNDED…) */
+    status: text("status").notNull(),
+    /** pendente | pago | cancelada | estornada (resumo para a tela) */
+    situacao: text("situacao").$type<"pendente" | "pago" | "cancelada" | "estornada">().notNull().default("pendente"),
+    /** UNDEFINED (cliente escolhe), PIX, BOLETO ou CREDIT_CARD */
+    tipo: text("tipo").notNull(),
+    valor: numeric("valor", { precision: 12, scale: 2 }).notNull(),
+    vencimento: date("vencimento").notNull(),
+    linkPagamento: text("link_pagamento"),
+    pixCopiaECola: text("pix_copia_e_cola"),
+    /** Valor líquido e forma usados quando foi paga */
+    valorLiquido: numeric("valor_liquido", { precision: 12, scale: 2 }),
+    formaPaga: text("forma_paga"),
+    pagoEm: date("pago_em"),
+    baixaId: uuid("baixa_id").references(() => baixas.id, { onDelete: "set null" }),
+    canceladaEm: timestamp("cancelada_em", { withTimezone: true }),
+    criadoPor: text("criado_por"),
+    criadoEm: criadoEm(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("cobrancas_externo_idx").on(t.provedor, t.externoId),
+    index("cobrancas_lancamento_idx").on(t.lancamentoId),
+    index("cobrancas_cliente_idx").on(t.oficinaId, t.clienteId, t.ambiente),
+  ],
+);
+
 /* ---------- Relações ---------- */
 
 export const ordensServicoRelations = relations(ordensServico, ({ one, many }) => ({

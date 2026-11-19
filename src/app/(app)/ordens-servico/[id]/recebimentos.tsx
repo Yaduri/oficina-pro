@@ -7,6 +7,7 @@ import { useFormAction } from "@/lib/use-form-action";
 import { cn, formatBRL, parseValor } from "@/lib/utils";
 import { COM_TAXA, FORMAS_PAGAMENTO, taxaPadrao, valorTaxa, type FormaPagamento, type TaxasCartao } from "@/lib/recebimento-regras";
 import { estornarPagamentoOS, registrarPagamentoOS } from "../recebimento";
+import { CobrancaOnline } from "../../financeiro/_lancamentos/cobranca";
 
 export type ParcelaOS = {
   id: string;
@@ -52,6 +53,7 @@ export function RecebimentosOS({
   pagamentos,
   registro,
   podeEstornar,
+  podeCobrar,
 }: {
   osId: string;
   /** Valores em centavos */
@@ -64,8 +66,11 @@ export function RecebimentosOS({
   /** Nulo = sem botão "Registrar pagamento" */
   registro: RegistroPagamento | null;
   podeEstornar: boolean;
+  /** Mostra "Cobrar online" (PIX/link do Asaas) nas parcelas em aberto */
+  podeCobrar: boolean;
 }) {
   const [pending, start] = useTransition();
+  const [cobrando, setCobrando] = useState<string | null>(null);
   const [erro, setErro] = useState<string>();
   const saldo = aReceber + semLancamento;
 
@@ -107,21 +112,41 @@ export function RecebimentosOS({
       ) : (
         <ul className="divide-y divide-border">
           {parcelas.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]">
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {p.formaLabel}
-                  {p.parcelas > 1 && <span className="text-muted"> · {p.parcela}/{p.parcelas}</span>}
-                </p>
-                <p className="text-muted">
-                  Vence {p.vencimento}
-                  {p.pago > 0 && p.pago < p.valor && <> · pago {brl(p.pago)}</>}
-                </p>
+            <li key={p.id} className="px-5 py-3 text-[13px]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium">
+                    {p.formaLabel}
+                    {p.parcelas > 1 && <span className="text-muted"> · {p.parcela}/{p.parcelas}</span>}
+                  </p>
+                  <p className="text-muted">
+                    Vence {p.vencimento}
+                    {p.pago > 0 && p.pago < p.valor && <> · pago {brl(p.pago)}</>}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="font-medium tabular-nums">{brl(p.valor)}</span>
+                  <Badge tom={p.status.tom}>{p.status.label}</Badge>
+                </div>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className="font-medium tabular-nums">{brl(p.valor)}</span>
-                <Badge tom={p.status.tom}>{p.status.label}</Badge>
-              </div>
+              {podeCobrar && p.aberta && (
+                <div className="mt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-8 px-2"
+                    aria-expanded={cobrando === p.id}
+                    onClick={() => setCobrando((x) => (x === p.id ? null : p.id))}
+                  >
+                    {cobrando === p.id ? "Fechar cobrança" : "Cobrar online"}
+                  </Button>
+                  {cobrando === p.id && (
+                    <div className="mt-2 rounded-md border border-border p-3">
+                      <CobrancaOnline lancamentoId={p.id} />
+                    </div>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>

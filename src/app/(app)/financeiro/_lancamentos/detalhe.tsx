@@ -13,6 +13,8 @@ import { Baixar } from "./baixar";
 import { FormLancamento } from "./form-lancamento";
 import { cancelarLancamento, estornarPagamento, reabrirLancamento } from "./actions";
 import { dataBR, statusVisivel } from "./lista";
+import { CobrancaOnline } from "./cobranca";
+import { dadosCobranca } from "./cobranca-dados";
 
 const nomeForma = (f: string | null) => (f && Object.hasOwn(FORMAS, f) ? FORMAS[f as keyof typeof FORMAS] : null);
 
@@ -34,7 +36,10 @@ export async function DetalheLancamento({ tipo, id }: { tipo: TipoLancamento; id
   // Link com o tipo trocado (ex.: /pagar?lancamento= de uma conta a receber): vai para a tela certa
   if (d.l.tipo !== tipo) redirect(`/financeiro/${d.l.tipo}/${id}`);
   const { l, recorrencia } = d;
-  const opcoes = await opcoesFormulario(oficina.id, tipo, l.clienteId);
+  const [opcoes, cobranca] = await Promise.all([
+    opcoesFormulario(oficina.id, tipo, l.clienteId),
+    tipo === "receber" ? dadosCobranca(oficina.id, id) : Promise.resolve(null),
+  ]);
   const { hoje } = opcoes;
 
   const receber = tipo === "receber";
@@ -186,6 +191,15 @@ export async function DetalheLancamento({ tipo, id }: { tipo: TipoLancamento; id
           )}
         </dl>
       </Card>
+
+      {cobranca && (cobranca.emAberto || cobranca.pendente || cobranca.historico.length > 0) && (
+        <Card>
+          <CardHeader title="Cobrança online" />
+          <div className="px-5 py-4">
+            <CobrancaOnline key={`${l.status}-${l.valorPago}-${l.valor}`} lancamentoId={l.id} inicial={cobranca} />
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title={receber ? "Recebimentos" : "Pagamentos"} />

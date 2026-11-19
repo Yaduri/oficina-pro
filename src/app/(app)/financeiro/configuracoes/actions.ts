@@ -8,6 +8,8 @@ import { getContexto } from "@/lib/oficina";
 import { GRUPOS_DRE, TIPOS_CONTA, hojeSP, reais } from "@/lib/financeiro";
 import { DIA_RE } from "@/lib/agenda-datas";
 import { parseValor } from "@/lib/utils";
+import { conectarAsaas, desconectarAsaas } from "@/lib/cobranca";
+import { urlBase } from "@/lib/orcamento";
 
 export type ConfigState = { erro?: string; ok?: boolean } | undefined;
 
@@ -199,5 +201,30 @@ export async function salvarTaxas(_prev: ConfigState, form: FormData): Promise<C
   await db.update(oficinas).set({ taxasCartao: taxas }).where(eq(oficinas.id, ctx.oficina.id));
   revalidar();
   revalidatePath("/ordens-servico", "layout");
+  return { ok: true };
+}
+
+/* ---------- Cobrança online (Asaas) ---------- */
+
+export type AsaasState = { erro?: string; ok?: boolean; aviso?: string } | undefined;
+
+export async function conectarAsaasAction(_prev: AsaasState, form: FormData): Promise<AsaasState> {
+  const ctx = await ctxFin();
+  if (!ctx) return { erro: "Seu usuário não tem permissão para isso" };
+  const apiKey = f(form, "apiKey");
+  const email = f(form, "email");
+  if (!apiKey) return { erro: "Cole a chave de API do Asaas" };
+  if (!z.email().safeParse(email).success) return { erro: "Informe um e-mail válido para os avisos" };
+  const r = await conectarAsaas({ oficinaId: ctx.oficina.id, apiKey, email, urlBase: await urlBase() });
+  if ("erro" in r && r.erro) return { erro: r.erro };
+  revalidar();
+  return { ok: true, aviso: "aviso" in r ? r.aviso : undefined };
+}
+
+export async function desconectarAsaasAction(): Promise<ConfigState> {
+  const ctx = await ctxFin();
+  if (!ctx) return { erro: "Seu usuário não tem permissão para isso" };
+  await desconectarAsaas(ctx.oficina.id);
+  revalidar();
   return { ok: true };
 }

@@ -21,6 +21,7 @@ import {
   type TipoLancamento,
 } from "@/lib/financeiro";
 import { parseValor } from "@/lib/utils";
+import { cancelarPendentesDoLancamento } from "@/lib/cobranca";
 
 export type AcaoState = { erro?: string; ok?: boolean; id?: string } | undefined;
 
@@ -42,6 +43,18 @@ async function contexto() {
 
 function revalidar() {
   revalidatePath("/financeiro", "layout");
+}
+
+/** Conta a receber cancelada ou quitada por aqui: cobranças online pendentes deixam de valer (fora da transação) */
+async function encerrarCobrancas(db: DB, oficinaId: string, id: string) {
+  const [x] = await db
+    .select({ tipo: l.tipo, status: l.status, valor: l.valor, valorPago: l.valorPago })
+    .from(l)
+    .where(and(eq(l.id, id), eq(l.oficinaId, oficinaId)));
+  if (x?.tipo !== "receber") return;
+  // Quitada, cancelada, ou o valor em aberto mudou (baixa parcial/edição): a cobrança antiga não serve mais
+  const aberto = x.status === "pago" || x.status === "cancelado" ? null : centavos(x.valor) - centavos(x.valorPago);
+  await cancelarPendentesDoLancamento(oficinaId, id, aberto).catch(() => undefined);
 }
 
 function dataValida(v: string) {
@@ -310,6 +323,7 @@ export async function editarLancamento(id: string, _prev: AcaoState, form: FormD
       status: pago === 0 ? "aberto" : pago >= d.valor ? "pago" : "parcial",
     })
     .where(eq(l.id, id));
+  await encerrarCobrancas(db, oficinaId, id);
   revalidar();
   return { ok: true, id };
 }
@@ -331,6 +345,7 @@ export async function cancelarLancamento(id: string): Promise<AcaoState> {
     .limit(1);
   if (ativa || centavos(atual.valorPago) > 0) return { erro: "Este lançamento tem pagamentos. Estorne-os antes de cancelar." };
   await db.update(l).set({ status: "cancelado" }).where(eq(l.id, id));
+  await encerrarCobrancas(db, oficinaId, id);
   revalidar();
   return { ok: true };
 }
@@ -402,6 +417,7 @@ export async function baixarLancamento(id: string, _prev: AcaoState, form: FormD
     if (e instanceof Recusa) return { erro: e.message };
     throw e;
   }
+  await encerrarCobrancas(db, oficinaId, id);
   revalidar();
   return { ok: true };
 }
@@ -442,7 +458,7 @@ export async function alterarRecorrencia(id: string, acao: "pausar" | "retomar" 
   } else {
     await db.update(recorrencias).set({ ativo: false, fim: hoje }).where(eq(recorrencias.id, id));
     // Meses futuros já gerados e sem pagamento são cancelados
-    await db
+    const cancelados = await db
       .update(l)
       .set({ status: "cancelado" })
       .where(
@@ -453,7 +469,9 @@ export async function alterarRecorrencia(id: string, acao: "pausar" | "retomar" 
           gt(l.vencimento, hoje),
           sql`${l.valorPago} = 0`,
         ),
-      );
+      )
+      .returning({ id: l.id });
+    if (r.tipo === "receber") for (const x of cancelados) await cancelarPendentesDoLancamento(oficinaId, x.id).catch(() => undefined);
   }
   revalidar();
   return { ok: true };

@@ -293,6 +293,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               }))}
               registro={os.status === "entregue" && pode("fecharOS") && contas.length > 0 ? formasPagamento : null}
               podeEstornar={pode("financeiro")}
+              podeCobrar={pode("financeiro")}
             />
           )}
 

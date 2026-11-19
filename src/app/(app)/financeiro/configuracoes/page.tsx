@@ -1,13 +1,18 @@
 import { Card, CardHeader } from "@/components/ui";
 import { exigir } from "@/lib/oficina";
 import { GRUPOS_DRE, hojeSP, listarCategorias, listarContas } from "@/lib/financeiro";
-import { FormTaxas, ListaCategorias, ListaContas } from "./listas";
+import { resumoGateway } from "@/lib/cobranca";
+import { CobrancaOnline, FormTaxas, ListaCategorias, ListaContas } from "./listas";
 
 export const metadata = { title: "Contas e categorias" };
 
 export default async function ConfigFinanceiroPage() {
-  const { oficina } = await exigir("financeiro");
-  const [contas, cats] = await Promise.all([listarContas(oficina.id, false), listarCategorias(oficina.id, undefined, false)]);
+  const { oficina, membro } = await exigir("financeiro");
+  const [contas, cats, gateway] = await Promise.all([
+    listarContas(oficina.id, false),
+    listarCategorias(oficina.id, undefined, false),
+    resumoGateway(oficina.id),
+  ]);
   const grupos = Object.entries(GRUPOS_DRE).map(([id, g]) => ({ id, label: g.label, tipo: g.tipo }));
   const taxas = oficina.taxasCartao ?? { debito: 0, credito: 0, creditoParcelado: 0 };
 
@@ -30,12 +35,26 @@ export default async function ConfigFinanceiroPage() {
           grupos={grupos}
         />
       </div>
-      <Card>
-        <CardHeader title="Taxas da maquininha" />
-        <div className="p-5">
-          <FormTaxas taxas={taxas} />
-        </div>
-      </Card>
+      <div className="flex min-w-0 flex-col gap-6">
+        <Card>
+          <CardHeader title="Taxas da maquininha" />
+          <div className="p-5">
+            <FormTaxas taxas={taxas} />
+          </div>
+        </Card>
+        <CobrancaOnline
+          gateway={
+            gateway && {
+              ambiente: gateway.ambiente,
+              titular: gateway.titular,
+              apiKeyFinal: gateway.apiKeyFinal,
+              conta: contas.find((c) => c.id === gateway.contaId)?.nome ?? null,
+              webhookAtivo: gateway.webhookAtivo,
+            }
+          }
+          emailPadrao={oficina.email || membro.email || ""}
+        />
+      </div>
     </div>
   );
 }

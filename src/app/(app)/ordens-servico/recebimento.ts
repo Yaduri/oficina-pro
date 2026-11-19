@@ -8,6 +8,7 @@ import { FORMAS, centavos, criarLancamentos, ehForma, estornarBaixa, hojeSP, lis
 import { categoriaDaOS, lancadoNaOS, totaisDaOS } from "@/lib/recebimento";
 import { COM_TAXA, valorTaxa } from "@/lib/recebimento-regras";
 import { formatBRL, parseValor } from "@/lib/utils";
+import { cancelarPendentesDoLancamento } from "@/lib/cobranca";
 
 export type RecebimentoState = { erro?: string; ok?: boolean } | undefined;
 
@@ -120,6 +121,14 @@ export async function registrarPagamentoOS(osId: string, _prev: RecebimentoState
     return { erro: erro ?? (e instanceof Error ? e.message : "Não foi possível registrar o pagamento") };
   }
 
+  // Parcela quitada por aqui: cobrança online pendente deixa de valer
+  if (lancamentoId) {
+    const [pago] = await db
+      .select({ status: schema.lancamentos.status })
+      .from(schema.lancamentos)
+      .where(eq(schema.lancamentos.id, lancamentoId));
+    if (pago?.status === "pago") await cancelarPendentesDoLancamento(ctx.oficina.id, lancamentoId).catch(() => undefined);
+  }
   await registrarEvento(db, ctx.oficina.id, os.id, `Recebeu ${brl(valor)} (${FORMAS[forma]})`, ctx);
   revalidar(os.id);
   return { ok: true };

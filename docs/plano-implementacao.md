@@ -135,10 +135,11 @@ Objetivo: caixa, contas e relatórios da oficina.
 - [x] Faturamento por período, por serviço, por técnico, ticket médio
 - [x] Exportar para Excel/CSV
 
-### 2.5 Cobrança online — **M** (depende do gateway)
-- [ ] Escolher gateway (Asaas, Mercado Pago, Efí…) — um cadastro por oficina
-- [ ] PIX com QR Code e link de pagamento no orçamento/OS
-- [ ] Baixa automática por webhook
+### 2.5 Cobrança online — **M**
+- [x] Gateway: Asaas, uma conta por oficina (chave de API guardada cifrada com `CHAVE_CRIPTOGRAFIA`)
+- [x] PIX, boleto ou cartão com QR Code e link de pagamento na conta a receber e nas parcelas da OS
+- [x] Baixa automática por webhook na conta "Asaas", com a tarifa como taxa; estorno desfaz a baixa
+- [ ] Em produção: definir `CHAVE_CRIPTOGRAFIA` no servidor e conectar a chave de produção do Asaas
 
 ### 2.6 Comissões — **M**
 - [x] Regra por técnico (% sobre serviço, sobre peça, ou valor fixo)
@@ -254,7 +255,6 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 | Certificado A1 do CNPJ | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
 | Estoque separado ou compartilhado? | Sócios | 4.1 |
 | ~~Provedor fiscal~~ | **Decidido:** desenvolver no sandbox do PlugNotas; produção na Focus NFe quando houver os certificados | — |
-| Gateway de pagamento (PIX/link) | Sócios | 2.5 |
 | Provedor de WhatsApp | Sócios | 5.1 |
 | Uso próprio ou vender para outras oficinas? | Sócios | Planos/assinatura (fora deste plano) |
 

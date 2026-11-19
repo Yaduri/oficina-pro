@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge, Button, Campo, Card, CardHeader, Erro, Input, Select } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { cn, formatBRL } from "@/lib/utils";
 import {
   alternarCategoria,
+  conectarAsaasAction,
+  desconectarAsaasAction,
   alternarConta,
   removerCategoria,
   removerConta,
@@ -379,5 +381,121 @@ export function FormTaxas({ taxas }: { taxas: { debito: number; credito: number;
         {pending ? "Salvando…" : "Salvar taxas"}
       </Button>
     </form>
+  );
+}
+
+/* ---------- Cobrança online (Asaas) ---------- */
+
+type GatewayResumo = {
+  ambiente: "sandbox" | "producao";
+  titular: string | null;
+  apiKeyFinal: string;
+  conta: string | null;
+  webhookAtivo: boolean;
+};
+
+function FormAsaas({
+  emailPadrao,
+  onCancel,
+  onConectado,
+}: {
+  emailPadrao: string;
+  onCancel?: () => void;
+  onConectado: (aviso?: string) => void;
+}) {
+  const { state, pending, onSubmit } = useFormAction(conectarAsaasAction);
+  useEffect(() => {
+    if (state?.ok) onConectado(state.aviso);
+  }, [state, onConectado]);
+  return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-3">
+      <p className="text-[13px] text-muted">
+        A oficina precisa de uma conta própria no Asaas. A chave fica em Asaas › Integrações › Chave de API. Chaves de teste (sandbox) começam com
+        $aact_hmlg_ e de produção com $aact_prod_.
+      </p>
+      <Campo label="Chave de API" htmlFor="asaas-chave">
+        <Input id="asaas-chave" name="apiKey" type="password" required autoComplete="off" spellCheck={false} placeholder="$aact_…" />
+      </Campo>
+      <Campo label="E-mail para avisos de falha" htmlFor="asaas-email">
+        <Input id="asaas-email" name="email" type="email" required defaultValue={emailPadrao} />
+      </Campo>
+      <Erro>{state?.erro}</Erro>
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancelar
+          </Button>
+        )}
+        <Button variant="primary" disabled={pending}>
+          {pending ? "Conectando…" : "Conectar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function CobrancaOnline({ gateway, emailPadrao }: { gateway: GatewayResumo | null; emailPadrao: string }) {
+  const [trocando, setTrocando] = useState(false);
+  const [aviso, setAviso] = useState<string>();
+  const [erro, setErro] = useState<string>();
+  const [pending, start] = useTransition();
+
+  // O aviso da conexão (ex.: webhook não criado) continua visível depois de conectado
+  const conectado = useCallback((a?: string) => {
+    setAviso(a);
+    setErro(undefined);
+    setTrocando(false);
+  }, []);
+
+  const desconectar = () => {
+    if (!confirm("Desconectar o Asaas? As cobranças já geradas continuam registradas.")) return;
+    start(async () => {
+      const r = await desconectarAsaasAction();
+      setErro(r?.erro);
+      setAviso(undefined);
+      setTrocando(false);
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader title="Cobrança online" />
+      <div className="flex flex-col gap-3 p-5">
+        {gateway && !trocando ? (
+          <>
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+              <dt className="text-muted">Ambiente</dt>
+              <dd>
+                <Badge tom={gateway.ambiente === "producao" ? "ok" : "warn"}>{gateway.ambiente === "producao" ? "Produção" : "Sandbox (teste)"}</Badge>
+              </dd>
+              <dt className="text-muted">Titular</dt>
+              <dd className="truncate">{gateway.titular ?? "Não informado"}</dd>
+              <dt className="text-muted">Chave</dt>
+              <dd className="tabular-nums">…{gateway.apiKeyFinal}</dd>
+              <dt className="text-muted">Recebe em</dt>
+              <dd className="truncate">{gateway.conta ?? "Conta não encontrada"}</dd>
+              <dt className="text-muted">Aviso automático</dt>
+              <dd>{gateway.webhookAtivo ? "Ativo" : "Inativo: use “Atualizar” na cobrança"}</dd>
+            </dl>
+            {aviso && (
+              <p role="status" className="rounded-md bg-info-soft px-3 py-2 text-[13px] text-info">
+                {aviso}
+              </p>
+            )}
+            <Erro>{erro}</Erro>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={pending} onClick={desconectar}>
+                {pending ? "Desconectando…" : "Desconectar"}
+              </Button>
+              <Button type="button" disabled={pending} onClick={() => setTrocando(true)}>
+                Trocar chave
+              </Button>
+            </div>
+          </>
+        ) : (
+          <FormAsaas emailPadrao={emailPadrao} onCancel={gateway ? () => setTrocando(false) : undefined} onConectado={conectado} />
+        )}
+      </div>
+    </Card>
   );
 }
