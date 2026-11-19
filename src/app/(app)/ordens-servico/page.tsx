@@ -20,7 +20,7 @@ export default async function OrdensServicoPage() {
     <>
       <PageHeader
         title="Ordens de serviço"
-        description={`${abertas.length} ${abertas.length === 1 ? "aberta" : "abertas"} · use o menu do cartão para mudar o status`}
+        description={`${abertas.length} ${abertas.length === 1 ? "aberta" : "abertas"}`}
         actions={
           pode("abrirOS") && (
             <Link href="/ordens-servico/nova" className={buttonClass("primary")}>

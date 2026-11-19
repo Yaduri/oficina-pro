@@ -1,4 +1,3 @@
-import { WifiOff } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { TentarDeNovo } from "./tentar-de-novo";
 
@@ -12,9 +11,6 @@ export default function OfflinePage() {
       <Brand />
       <main className="m-auto w-full max-w-[440px] py-10">
         <div className="flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-6 shadow-pop sm:p-8">
-          <span className="grid size-10 place-items-center rounded-md bg-subtle text-foreground-2">
-            <WifiOff className="size-5" strokeWidth={1.75} />
-          </span>
           <h1 className="text-xl font-semibold tracking-tight">Sem internet</h1>
           <p className="text-muted">
             Não foi possível abrir esta tela. Confira o Wi-Fi ou os dados móveis e tente de novo.

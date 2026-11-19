@@ -37,7 +37,7 @@ export default async function TecnicosPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" description="Quem trabalha nos carros. Aparecem como responsável da OS e não precisam de login." />
+      <PageHeader title="Configurações" description="Aparecem como responsável da OS e não precisam de login." />
       <AbasConfig />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <ListaTecnicos tecnicos={tecnicos} />

@@ -17,7 +17,7 @@ export default async function UsuariosPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" description="Quem acessa a oficina e com qual papel." />
+      <PageHeader title="Configurações" />
       <AbasConfig />
 
       <div className="flex flex-col gap-3">

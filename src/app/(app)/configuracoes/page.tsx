@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/ui";
 import { exigirAdmin } from "@/lib/oficina";
-import { formatDocumento } from "@/lib/utils";
 import { FiscalForm, OficinaForm, TextosForm } from "./forms";
 import { AbasConfig } from "./abas";
 
@@ -12,7 +11,7 @@ export default async function ConfiguracoesPage() {
 
   return (
     <>
-      <PageHeader title="Configurações" description="Dados da oficina e do CNPJ, usados no orçamento, no termo de entrada, nos PDFs e nas notas fiscais." />
+      <PageHeader title="Configurações" />
 
       <AbasConfig />
 
@@ -28,31 +27,27 @@ export default async function ConfiguracoesPage() {
         </a>
       </nav>
 
-      <Secao id="oficina" titulo="Oficina" descricao="Nome, logo, contato e endereço que o cliente vê no orçamento e nos documentos.">
+      <Secao id="oficina" titulo="Oficina" descricao="Aparecem para o cliente no orçamento e nos documentos.">
         <OficinaForm oficina={oficina} />
       </Secao>
 
-      <Secao
-        id="fiscal"
-        titulo="Dados fiscais"
-        descricao={<>CNPJ{oficina.cnpj ? ` ${formatDocumento(oficina.cnpj)}` : ""}, razão social e tributação. Aparecem nos documentos e serão usados na emissão de notas fiscais.</>}
-      >
+      <Secao id="fiscal" titulo="Dados fiscais" descricao="Aparecem nos documentos e serão usados na emissão de notas fiscais.">
         <FiscalForm fiscal={oficina} />
       </Secao>
 
-      <Secao id="textos" titulo="Textos padrão" descricao="Garantia, termo de entrada do veículo e padrões do orçamento.">
+      <Secao id="textos" titulo="Textos padrão">
         <TextosForm textos={oficina} />
       </Secao>
     </>
   );
 }
 
-function Secao({ id, titulo, descricao, children }: { id: string; titulo: ReactNode; descricao: ReactNode; children: ReactNode }) {
+function Secao({ id, titulo, descricao, children }: { id: string; titulo: ReactNode; descricao?: ReactNode; children: ReactNode }) {
   return (
     <section id={id} className="grid scroll-mt-36 gap-4 border-t border-border pt-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-[15px] font-semibold">{titulo}</h2>
-        <p className="text-[13px] text-muted">{descricao}</p>
+        {descricao && <p className="text-[13px] text-muted">{descricao}</p>}
       </div>
       <div className="min-w-0">{children}</div>
     </section>

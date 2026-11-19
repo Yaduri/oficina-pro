@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { Download, Share, Smartphone, X } from "lucide-react";
+import { Download, Share, X } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 
 /* ---------- Service worker ---------- */
@@ -97,9 +97,6 @@ export function InstalarApp() {
 
   return (
     <Card className="flex items-start gap-3.5 px-5 py-4 sm:items-center">
-      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-subtle text-foreground-2">
-        <Smartphone className="size-[18px]" strokeWidth={1.75} />
-      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <div className="font-medium">Use o Oficina Pro como app</div>

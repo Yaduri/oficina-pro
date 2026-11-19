@@ -65,7 +65,6 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
           ) : (
             <>
               <div className="flex flex-col gap-1.5">
-                <p className="text-[13px] font-medium uppercase tracking-wide text-muted">Convite</p>
                 <h1 className="text-xl font-semibold tracking-tight">Entrar na {oficina.nome}</h1>
                 <p className="text-muted">
                   Você foi convidado como <strong className="font-semibold text-foreground">{PAPEIS[convite.papel].label}</strong>.

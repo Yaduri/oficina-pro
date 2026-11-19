@@ -21,7 +21,7 @@ export default async function NovoAgendamentoPage({ searchParams }: PageProps<"/
         <ArrowLeft className="size-4" />
         Agenda
       </Link>
-      <PageHeader title="Novo agendamento" description="Veículo novo é cadastrado junto, com o cliente." />
+      <PageHeader title="Novo agendamento" />
       <Card className="p-5 sm:p-6">
         <FormAgendamento
           id={null}

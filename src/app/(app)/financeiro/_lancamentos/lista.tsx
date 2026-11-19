@@ -269,7 +269,7 @@ export async function ListaLancamentos({ tipo, searchParams }: { tipo: TipoLanca
 
       {recs.length > 0 && (
         <Card>
-          <CardHeader title={receber ? "Recebimentos que se repetem todo mês" : "Contas que se repetem todo mês"} />
+          <CardHeader title={receber ? "Recebimentos recorrentes" : "Contas recorrentes"} />
           <ul className="divide-y divide-border">
             {recs.map(({ r, categoria }) => {
               const encerrada = !!r.fim && r.fim < hoje;

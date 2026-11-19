@@ -151,7 +151,7 @@ function LogoUpload({ inicial }: { inicial: string | null }) {
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted">PNG ou JPG. Aparece no orçamento, no termo de entrada e nos PDFs. Salve para aplicar.</p>
+        <p className="text-xs text-muted">PNG ou JPG. Salve para aplicar.</p>
         {erro && <p className="text-xs text-danger">{erro}</p>}
       </div>
       <input

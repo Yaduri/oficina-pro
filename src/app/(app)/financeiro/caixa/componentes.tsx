@@ -17,7 +17,7 @@ import {
   type CaixaState,
 } from "./actions";
 
-const brl = (c: number) => formatBRL(c / 100);
+const brl = (c: number) => formatBRL(c / 100 || 0);
 const valorTxt = (reais: number) => reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ---------- Janela (dialog nativo) ---------- */
@@ -180,7 +180,6 @@ export function AbrirCaixa({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <p className="text-[13px] text-muted">
-        Conte o dinheiro da gaveta e informe o valor para começar o dia.{" "}
         {ultimoContado != null ? `No último fechamento havia ${formatBRL(ultimoContado)}.` : `Saldo no sistema: ${brl(saldoSistema)}.`}
       </p>
       <Campo label="Valor de abertura (troco)" htmlFor="cx-abertura">

@@ -19,7 +19,7 @@ import {
 
 export const metadata = { title: "Caixa e bancos" };
 
-const brl = (c: number) => formatBRL(c / 100);
+const brl = (c: number) => formatBRL(c / 100 || 0);
 const dia = (d: string) => d.split("-").reverse().join("/");
 const quando = (d: Date) => `${d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ${horaSP(d)}`;
 
@@ -218,7 +218,7 @@ async function CaixaDoDia({ oficinaId, conta, saldo }: { oficinaId: string; cont
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
       <Card>
-        <CardHeader title={aberta ? "Caixa aberto" : "Caixa fechado"} action={aberta ? <Badge tom="ok">Aberto</Badge> : null} />
+        <CardHeader title={aberta ? "Caixa aberto" : "Caixa fechado"} />
         <div className="p-4 sm:p-5">
           {aberta && calc ? (
             <div className="flex flex-col gap-4">
@@ -347,9 +347,7 @@ async function Conciliacao({
 
       {d.linhas.length === 0 ? (
         <Vazio titulo={total === 0 ? "Nenhum extrato importado" : "Tudo conciliado"}>
-          {total === 0
-            ? "Baixe o extrato em OFX no site ou app do banco e importe aqui para conferir com os lançamentos do sistema."
-            : "Todas as linhas do extrato estão conciliadas ou ignoradas."}
+          {total === 0 && "Baixe o extrato em OFX no site ou app do banco e importe aqui."}
         </Vazio>
       ) : (
         <ul className="divide-y divide-border">

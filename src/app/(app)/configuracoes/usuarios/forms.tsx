@@ -75,8 +75,7 @@ export function ConvidarForm({ papeis }: { papeis: Papel[] }) {
       <div>
         <h3 className="text-[15px] font-semibold">Novo convite</h3>
         <p className="text-[13px] text-muted">
-          Gera um link para enviar pelo WhatsApp. A pessoa abre, entra com a conta dela (ou cria uma) e passa a acessar a
-          oficina. O link vale 7 dias e só pode ser usado uma vez.
+          A pessoa entra com a conta dela ou cria uma. O link vale 7 dias e só pode ser usado uma vez.
         </p>
       </div>
       <Campo label="Nome" hint="(para identificar o convite)" htmlFor="cv-nome">
@@ -120,7 +119,6 @@ export function ConvitePendente({
     <li className={cn("flex flex-col gap-3 px-4 py-3.5 sm:px-5", pending && "opacity-60")}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-medium">{nome}</span>
-        <Badge tom="warn">Convite pendente</Badge>
         <span className="text-[13px] text-muted">
           {PAPEIS[papel].label} · vale até {expira}
         </span>

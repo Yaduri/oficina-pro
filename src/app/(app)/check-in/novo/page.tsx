@@ -25,7 +25,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
     ag && ag.agendamento.status !== "atendido"
       ? {
           id: ag.agendamento.id,
-          relato: [ag.agendamento.titulo, ag.agendamento.detalhe].filter(Boolean).join(" — "),
+          relato: [ag.agendamento.titulo, ag.agendamento.detalhe].filter(Boolean).join(". "),
         }
       : null;
   const veiculoId = param("veiculo") ?? ag?.agendamento.veiculoId ?? undefined;
@@ -46,7 +46,7 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
       <Link href="/check-in" className="inline-flex w-fit items-center gap-1.5 text-[13px] text-muted hover:text-foreground">
         <ArrowLeft className="size-4" />Check-in
       </Link>
-      <PageHeader title="Novo check-in" description="Registre a chegada do veículo. Ao final, a OS é aberta automaticamente." />
+      <PageHeader title="Novo check-in" description="Ao registrar a entrada, a OS é aberta." />
       <Card className="p-5 sm:p-6">
         <CheckinForm
           oficinaId={oficina.id}

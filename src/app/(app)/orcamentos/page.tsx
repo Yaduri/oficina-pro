@@ -17,10 +17,7 @@ export default async function OrcamentosPage() {
 
   return (
     <>
-      <PageHeader
-        title="Orçamentos"
-        description="Orçamentos enviados por link para o cliente aprovar. Para enviar um, abra a OS e use o cartão Orçamento."
-      />
+      <PageHeader title="Orçamentos" />
 
       {lista.length === 0 ? (
         <Card>

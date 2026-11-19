@@ -187,8 +187,8 @@ function EnviarForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       {!reenvio && (
         <p className="text-[13px] text-muted">
-          O cliente recebe um link, vê as peças e serviços e aprova pelo celular, item por item. A OS passa para
-          “Aguardando aprovação” e, quando ele aprova, vai para “Em execução”.
+          O cliente aprova pelo link, item por item. A OS vai para “Aguardando aprovação” e, com a aprovação, para “Em
+          execução”.
         </p>
       )}
       <Campo label="Observações para o cliente" hint="(opcional)" htmlFor="obs-orcamento">

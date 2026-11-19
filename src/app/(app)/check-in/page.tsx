@@ -16,7 +16,6 @@ export default async function CheckinsPage() {
     <>
       <PageHeader
         title="Check-in"
-        description="Recepção do veículo com fotos, estado na chegada e assinatura do cliente"
         actions={
           <Link href="/check-in/novo" className={buttonClass("primary")}>
             <Camera />Novo check-in
@@ -27,7 +26,7 @@ export default async function CheckinsPage() {
       <Card>
         {lista.length === 0 ? (
           <Vazio titulo="Nenhum check-in ainda">
-            Faça o check-in pelo celular quando o veículo chegar: fotos, km, combustível, avarias e assinatura do cliente.
+            Faça o check-in pelo celular quando o veículo chegar.
           </Vazio>
         ) : (
           <ul className="divide-y divide-border">

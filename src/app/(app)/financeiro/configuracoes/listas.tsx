@@ -81,7 +81,7 @@ function FormConta({ conta, hoje, onDone }: { conta?: Conta; hoje: string; onDon
             className="text-right"
           />
         </Campo>
-        <Campo label="Saldo em" hint="(data)" htmlFor={`${pid}-desde`}>
+        <Campo label="Saldo em" htmlFor={`${pid}-desde`}>
           <Input id={`${pid}-desde`} name="saldoInicialEm" type="date" defaultValue={conta?.saldoInicialEm ?? hoje} required />
         </Campo>
       </div>

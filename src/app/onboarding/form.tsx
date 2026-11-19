@@ -19,7 +19,7 @@ export function OnboardingForm() {
         </Label>
         <Input id="cnpj" name="cnpj" placeholder="00.000.000/0000-00" autoCapitalize="characters" spellCheck={false} />
       </div>
-      <p className="text-[13px] text-muted">Depois você completa razão social, endereço e logo em Configurações, e convida as outras pessoas da equipe.</p>
+      <p className="text-[13px] text-muted">Depois você completa razão social, endereço e logo em Configurações.</p>
 
       {state?.erro && (
         <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">

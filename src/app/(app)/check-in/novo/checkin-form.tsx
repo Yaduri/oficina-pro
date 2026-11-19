@@ -449,14 +449,14 @@ function FormularioCheckin({
       {!conectado ? (
         <AvisoConexao>Sem internet. As fotos serão enviadas quando a conexão voltar.</AvisoConexao>
       ) : (
-        aguardando > 0 && <AvisoConexao>Conexão instável. Reenviando {plural(aguardando, "foto", "fotos")} automaticamente…</AvisoConexao>
+        aguardando > 0 && <AvisoConexao>Conexão instável. Reenviando {plural(aguardando, "foto", "fotos")}…</AvisoConexao>
       )}
 
       <Secao n={1} titulo="Veículo e cliente">
         <SeletorVeiculo clientes={clientes} inicial={r ? r.veiculo : inicial} inicialClienteId={r?.clienteId} onChange={setResultado} />
       </Secao>
 
-      <Secao n={2} titulo="Fotos de chegada" descricao="Toque para abrir a câmera. As fotos são reduzidas no celular antes do envio.">
+      <Secao n={2} titulo="Fotos de chegada">
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {fotos.map((f) => (
             <li key={f.id}>
@@ -521,7 +521,7 @@ function FormularioCheckin({
             </div>
           </fieldset>
         </div>
-        <Campo label="Avarias já existentes" htmlFor="avarias" hint="(riscos, amassados, vidros, rodas)">
+        <Campo label="Avarias já existentes" htmlFor="avarias">
           <Textarea id="avarias" name="avarias" rows={2} placeholder="Ex.: risco na porta traseira direita, para-choque trincado" />
         </Campo>
         <Campo label="Objetos deixados no veículo" htmlFor="objetos" hint="(opcional)">
@@ -530,7 +530,7 @@ function FormularioCheckin({
       </Secao>
 
       {checklist.length > 0 && (
-        <Secao n={4} titulo="Checklist" descricao="Confira cada item com o cliente. Itens com problema aparecem em destaque no termo.">
+        <Secao n={4} titulo="Checklist">
           <ChecklistCampo itens={checklist} inicial={r?.checklist} />
         </Secao>
       )}
@@ -549,7 +549,7 @@ function FormularioCheckin({
         </Campo>
       </Secao>
 
-      <Secao n={checklist.length > 0 ? 6 : 5} titulo="Assinatura do cliente" descricao="O cliente confirma o estado do veículo e os objetos deixados.">
+      <Secao n={checklist.length > 0 ? 6 : 5} titulo="Assinatura do cliente">
         <p className="text-[13px] text-foreground-2">{termo}</p>
         <Assinatura ref={assinatura} />
       </Secao>
@@ -594,15 +594,12 @@ function AvisoConexao({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Secao({ n, titulo, descricao, children }: { n: number; titulo: string; descricao?: string; children: React.ReactNode }) {
+function Secao({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex gap-3">
         <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-white">{n}</span>
-        <div>
-          <h2 className="text-[15px] font-semibold leading-6">{titulo}</h2>
-          {descricao && <p className="text-[13px] text-muted">{descricao}</p>}
-        </div>
+        <h2 className="text-[15px] font-semibold leading-6">{titulo}</h2>
       </div>
       <div className="flex flex-col gap-4 sm:pl-9">{children}</div>
     </section>

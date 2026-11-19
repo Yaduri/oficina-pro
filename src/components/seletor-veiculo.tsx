@@ -70,7 +70,7 @@ export function SeletorVeiculo({
         ) : (
           <>
             <input type="hidden" name="veiculoId" value="" />
-            <Campo label="Placa" htmlFor="placa" hint="— busca o veículo já cadastrado">
+            <Campo label="Placa" htmlFor="placa">
               <div className="flex gap-2">
                 <Input
                   id="placa"
@@ -105,7 +105,7 @@ export function SeletorVeiculo({
             {novo && (
               <div className="flex flex-col gap-4 rounded-lg border border-dashed border-border-strong p-4">
                 <p className="text-[13px] text-muted">
-                  Placa <strong className="text-foreground">{formatPlaca(placa)}</strong> não cadastrada. Preencha os dados para cadastrar junto com a OS.
+                  Placa <strong className="text-foreground">{formatPlaca(placa)}</strong> não cadastrada. Preencha os dados para cadastrar o veículo.
                 </p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Marca" htmlFor="marca">

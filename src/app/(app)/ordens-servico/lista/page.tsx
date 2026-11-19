@@ -46,7 +46,7 @@ export default async function ListaOSPage({ searchParams }: PageProps<"/ordens-s
 
   return (
     <>
-      <PageHeader title="Ordens de serviço" description="Todas as OS, inclusive entregues e canceladas" />
+      <PageHeader title="Ordens de serviço" />
       <AbasOS atual="lista" />
 
       <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_auto] lg:items-end">

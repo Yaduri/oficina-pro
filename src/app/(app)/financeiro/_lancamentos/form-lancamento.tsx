@@ -158,7 +158,7 @@ function Campos({ tipo, opcoes, editar, uid }: Props & { uid: string }) {
           required
           maxLength={200}
           defaultValue={v?.descricao}
-          placeholder={receber ? "Ex.: Serviço de frota — Transportes Silva" : "Ex.: Aluguel do galpão"}
+          placeholder={receber ? "Ex.: Serviço de frota, Transportes Silva" : "Ex.: Aluguel do galpão"}
         />
       </Campo>
 
@@ -301,7 +301,7 @@ function Campos({ tipo, opcoes, editar, uid }: Props & { uid: string }) {
               </Campo>
               <p className="pb-3 text-[13px] text-muted" aria-live="polite">
                 {Number.isFinite(total) && total > 0 ? `${n}× de ${formatBRL(Math.floor((total * 100) / n) / 100)}` : `${n} parcelas`}
-                {dia ? `, todo dia ${dia} (mês a mês)` : ""}
+                {dia ? `, todo dia ${dia}` : ""}
               </p>
             </div>
           )}
@@ -311,7 +311,7 @@ function Campos({ tipo, opcoes, editar, uid }: Props & { uid: string }) {
                 <Input id={id("fim")} name="recFim" type="date" min={vencimento} />
               </Campo>
               <p className="pb-3 text-[13px] text-muted">
-                Repete todo mês{dia ? ` no dia ${dia}` : ""}. Os lançamentos são criados até o fim do mês que vem.
+                {dia ? `Todo dia ${dia}. ` : ""}Os lançamentos são criados até o fim do mês que vem.
               </p>
             </div>
           )}

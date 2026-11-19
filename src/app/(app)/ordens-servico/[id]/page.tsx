@@ -133,8 +133,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     { href: `/pdf/os/${os.id}`, label: "Ordem de serviço", detalhe: "Via do cliente" },
     { href: `/pdf/os/${os.id}?via=oficina`, label: "Ordem de serviço", detalhe: "Via da oficina, com responsável e checklist" },
     ...(valores && itens.length > 0 ? [{ href: `/pdf/orcamento/${os.id}`, label: "Orçamento", detalhe: orc ? "Como foi enviado ao cliente" : "Ainda não enviado" }] : []),
-    ...(os.checkinId ? [{ href: `/pdf/termo/${os.checkinId}`, label: "Termo de entrada", detalhe: "Fotos, checklist e assinatura" }] : []),
-    ...(pagamentosAtivos.length > 0 ? [{ href: `/pdf/recibo/${os.id}`, label: "Recibo", detalhe: "Pagamentos recebidos" }] : []),
+    ...(os.checkinId ? [{ href: `/pdf/termo/${os.checkinId}`, label: "Termo de entrada" }] : []),
+    ...(pagamentosAtivos.length > 0 ? [{ href: `/pdf/recibo/${os.id}`, label: "Recibo" }] : []),
   ];
 
   return (

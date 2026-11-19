@@ -38,7 +38,7 @@ export function TransferirVeiculo({ veiculoId, donoAtual, clientes }: { veiculoI
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3 rounded-md border border-border bg-subtle/60 p-4">
       <p className="text-[13px] text-foreground-2">
-        As OS antigas continuam no nome do dono anterior. O veículo passa a aparecer no cadastro do novo dono.
+        As OS antigas continuam no nome do dono anterior.
       </p>
       {escolhido ? (
         <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2">

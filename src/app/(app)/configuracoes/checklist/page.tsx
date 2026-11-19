@@ -18,7 +18,7 @@ export default async function ChecklistPage() {
     <>
       <PageHeader
         title="Configurações"
-        description="Itens conferidos na chegada do veículo. Desmarque para não usar um item; os check-ins já feitos não mudam."
+        description="Itens conferidos na chegada do veículo. Mudanças não alteram os check-ins já feitos."
       />
       <AbasConfig />
 

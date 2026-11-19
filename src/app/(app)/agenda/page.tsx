@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, PackageCheck, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageCheck, Plus } from "lucide-react";
 import { Badge, Card, CardHeader, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
 import { getContexto } from "@/lib/oficina";
 import { listarTecnicos } from "@/lib/queries";
@@ -50,7 +50,6 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
     <>
       <PageHeader
         title="Agenda"
-        description="Horários marcados e entregas previstas das OS"
         actions={
           podeEditar && (
             <Link href={`/agenda/novo?data=${dia}`} className={buttonClass("primary")}>
@@ -128,12 +127,10 @@ export default async function AgendaPage({ searchParams }: PageProps<"/agenda">)
             <CardHeader title="Horários" action={<span className="text-[13px] text-muted">{itens.filter((a) => a.status !== "cancelado").length}</span>} />
             {itens.length === 0 ? (
               <Vazio titulo="Nenhum horário marcado">
-                {podeEditar ? (
+                {podeEditar && (
                   <Link href={`/agenda/novo?data=${dia}`} className="underline">
                     Agendar um serviço para este dia
                   </Link>
-                ) : (
-                  "Os agendamentos do dia aparecem aqui."
                 )}
               </Vazio>
             ) : (
@@ -180,9 +177,6 @@ function Entregas({ entregas }: { entregas: EntregaPrevista[] }) {
           ))}
         </ul>
       )}
-      <p className="flex items-center gap-2 border-t border-border px-5 py-3 text-[12px] text-muted">
-        <CalendarDays className="size-3.5" aria-hidden />A previsão é definida em cada OS, em “Editar” no relato.
-      </p>
     </Card>
   );
 }

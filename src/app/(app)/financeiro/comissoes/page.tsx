@@ -38,7 +38,7 @@ export default async function ComissoesPage({ searchParams }: PageProps<"/financ
       {visiveis.length === 0 ? (
         <Card>
           <Vazio titulo="Nenhum técnico com regra de comissão">
-            Defina a comissão de cada técnico (% sobre serviços, % sobre peças ou valor fixo por OS) em {linkRegras}.
+            Defina a comissão de cada técnico em {linkRegras}.
           </Vazio>
         </Card>
       ) : (

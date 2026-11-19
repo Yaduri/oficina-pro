@@ -88,7 +88,7 @@ export function Baixar({ id, tipo, hoje, emAberto, contaId, forma, contas, forma
             </Button>
           </div>
           <div className="flex flex-col gap-4 overflow-y-auto px-5 py-4">
-            <p className="text-[13px] text-muted">Em aberto: {formatBRL(emAberto)}. Pode registrar só uma parte; o restante continua em aberto.</p>
+            <p className="text-[13px] text-muted">Em aberto: {formatBRL(emAberto)}</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo label="Data" htmlFor={`${uid}-data`}>
                 <Input id={`${uid}-data`} name="data" type="date" required max={hoje} defaultValue={hoje} />

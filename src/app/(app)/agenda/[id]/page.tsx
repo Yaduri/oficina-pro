@@ -26,7 +26,7 @@ export default async function EditarAgendamentoPage({ params }: PageProps<"/agen
         <ArrowLeft className="size-4" />
         Agenda
       </Link>
-      <PageHeader title="Editar agendamento" description="Mude o horário para remarcar." />
+      <PageHeader title="Editar agendamento" />
       <Card className="p-5 sm:p-6">
         <FormAgendamento
           id={a.id}

@@ -190,7 +190,7 @@ async function Fluxo({ oficinaId, periodo, por: porParam }: { oficinaId: string;
       </Card>
       <p className="px-1 text-[13px] text-muted">
         Realizado: pagamentos registrados pela data em que foram feitos (recebimentos já sem a taxa do cartão; estornos não contam). Previsto: o que
-        falta receber ou pagar das contas em aberto, pelo vencimento — inclusive as vencidas dentro do período. Transferências entre contas não
+        falta receber ou pagar das contas em aberto, pelo vencimento, inclusive as vencidas dentro do período. Transferências entre contas não
         aparecem. O saldo inicial é a soma das contas no dia anterior ao período.
       </p>
     </>
@@ -259,8 +259,8 @@ async function Dre({ oficinaId, periodo }: { oficinaId: string; periodo: Periodo
         </Tabela>
       </Card>
       <p className="px-1 text-[13px] text-muted">
-        Regime de competência: entram todas as contas a receber e a pagar não canceladas com data de competência no período — pagas ou ainda em
-        aberto — somadas pelo grupo da DRE da categoria (ajuste em Contas e categorias). As taxas de cartão descontadas nos recebimentos do período
+        Regime de competência: entram todas as contas a receber e a pagar não canceladas com data de competência no período, pagas ou ainda em
+        aberto. Elas são somadas pelo grupo da DRE da categoria (ajuste em Contas e categorias). As taxas de cartão descontadas nos recebimentos do período
         entram em despesas financeiras. Juros, multas e descontos dos pagamentos não entram.
       </p>
     </>

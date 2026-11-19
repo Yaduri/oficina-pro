@@ -8,7 +8,7 @@ import { cn, formatBRL } from "@/lib/utils";
 
 export const metadata = { title: "Financeiro" };
 
-const brl = (c: number) => formatBRL(c / 100);
+const brl = (c: number) => formatBRL(c / 100 || 0);
 const dia = (d: string) => d.split("-").reverse().join("/").slice(0, 5);
 const qtdTxt = (n: number) => (n === 1 ? "1 conta" : `${n} contas`);
 
@@ -41,7 +41,7 @@ export default async function FinanceiroPage() {
           vencido={r.pagar.vencido}
           hrefVencido={q("pagar", { status: "vencidas" })}
         />
-        <Card className="flex flex-col gap-1.5 px-5 py-[18px]">
+        <Card className="flex flex-col gap-1.5 p-5">
           <p className="text-[13px] font-medium text-muted">Entradas e saídas do mês</p>
           <p className={cn("text-[26px] font-semibold tracking-tight tabular-nums", resultadoMes < 0 && "text-danger")}>{brl(resultadoMes)}</p>
           <p className="flex flex-wrap gap-x-3 text-[13px] tabular-nums">
@@ -50,7 +50,7 @@ export default async function FinanceiroPage() {
           </p>
           <p className="text-[12px] text-muted">Recebido e pago desde {dia(inicioDoMes(r.hoje))}</p>
         </Card>
-        <Card className="flex flex-col gap-1.5 px-5 py-[18px]">
+        <Card className="flex flex-col gap-1.5 p-5">
           <p className="flex items-center gap-2 text-[13px] font-medium text-muted">
             <CalendarClock className="size-4" strokeWidth={1.75} aria-hidden />
             Próximos 7 dias
@@ -150,7 +150,7 @@ function Cartao({
 }) {
   const Icone = tipo === "receber" ? ArrowDownLeft : ArrowUpRight;
   return (
-    <Card className="flex flex-col gap-1.5 px-5 py-[18px]">
+    <Card className="flex flex-col gap-1.5 p-5">
       <Link href={href} className="group flex flex-col gap-1.5">
         <span className="flex items-center gap-2 text-[13px] font-medium text-muted">
           <Icone className={cn("size-4", tipo === "receber" ? "text-ok" : "text-danger")} strokeWidth={1.75} aria-hidden />

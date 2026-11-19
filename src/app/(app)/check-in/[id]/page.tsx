@@ -56,7 +56,7 @@ export default async function CheckinPage({ params }: PageProps<"/check-in/[id]"
             </a>
           )}
           <DocumentosPdf
-            documentos={[{ href: `/pdf/termo/${checkin.id}`, label: "Termo de entrada", detalhe: "Fotos, checklist e assinatura" }]}
+            documentos={[{ href: `/pdf/termo/${checkin.id}`, label: "Termo de entrada" }]}
             enviar={{ tipo: "termo", id: checkin.id, label: "Enviar termo pelo WhatsApp" }}
           />
         </div>

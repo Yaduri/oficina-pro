@@ -114,7 +114,7 @@ export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
         <Vazio titulo={servico ? "Nenhum serviço no catálogo" : "Nenhuma peça no catálogo"}>
           {servico
             ? "Cadastre os serviços mais comuns com o valor. Na OS, é só buscar e o preço já vem preenchido."
-            : "Cadastre as peças que vocês vendem com o preço. Na fase de estoque, elas ganham quantidade e custo."}
+            : "Cadastre as peças que vocês vendem com o preço."}
         </Vazio>
       ) : filtrados.length === 0 ? (
         <p className="px-5 py-6 text-[13px] text-muted">Nada encontrado para “{busca}”.</p>

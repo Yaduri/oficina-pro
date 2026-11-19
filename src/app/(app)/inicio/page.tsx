@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { CalendarDays, Car, CircleCheck, Clock, TrendingUp } from "lucide-react";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, PageHeader, Placa } from "@/components/ui";
 import { InstalarApp } from "@/components/pwa";
@@ -50,31 +49,31 @@ export default async function InicioPage() {
       <InstalarApp />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Car} label="Veículos no pátio" value={String(abertas.length)}>
+        <Kpi label="Veículos no pátio" value={String(abertas.length)}>
           <span className="text-[13px] text-muted">OS abertas</span>
         </Kpi>
-        <Kpi icon={Clock} label="Aguardando aprovação" value={String(aguardando.length)}>
+        <Kpi label="Aguardando aprovação" value={String(aguardando.length)}>
           {valores && <span className="text-[13px] text-muted">{formatBRL(aguardando.reduce((s, o) => s + o.total, 0))} em orçamentos</span>}
         </Kpi>
-        <Kpi icon={CircleCheck} label="Prontos para entrega" value={String(prontos.length)}>
+        <Kpi label="Prontos para entrega" value={String(prontos.length)}>
           <span className="text-[13px] text-muted">
             {(() => {
               const semAviso = prontos.filter((o) => !o.clienteAvisadoEm).length;
-              if (prontos.length === 0) return "Nenhum no momento";
+              if (prontos.length === 0) return null;
               if (semAviso === 0) return "Clientes já avisados";
               return semAviso === 1 ? "1 cliente ainda não avisado" : `${semAviso} clientes ainda não avisados`;
             })()}
           </span>
         </Kpi>
         {!valores && (
-          <Kpi icon={CalendarDays} label="Agendados hoje" value={String(agendadosHoje.length)}>
+          <Kpi label="Agendados hoje" value={String(agendadosHoje.length)}>
             <span className="text-[13px] text-muted">
               {agendadosHoje.filter((a) => a.status === "atendido").length} já chegaram · {entregas.length} entregas previstas
             </span>
           </Kpi>
         )}
         {valores && (
-        <Kpi icon={TrendingUp} label="Faturamento do mês" value={formatBRLInteiro(faturamento.mes)}>
+        <Kpi label="Faturamento do mês" value={formatBRLInteiro(faturamento.mes)}>
           <span className="text-[13px] text-muted">{formatBRL(faturamento.hoje)} hoje (OS entregues)</span>
         </Kpi>
         )}
@@ -175,13 +174,10 @@ export default async function InicioPage() {
   );
 }
 
-function Kpi({ icon: Icon, label, value, children }: { icon: typeof Car; label: string; value: string; children?: React.ReactNode }) {
+function Kpi({ label, value, children }: { label: string; value: string; children?: React.ReactNode }) {
   return (
-    <Card className="flex flex-col gap-1.5 px-5 py-[18px]">
-      <div className="flex items-center gap-2 text-[13px] font-medium text-muted">
-        <Icon className="size-4" strokeWidth={1.75} />
-        {label}
-      </div>
+    <Card className="flex flex-col gap-1.5 p-5">
+      <div className="text-[13px] font-medium text-muted">{label}</div>
       <div className="text-[26px] font-semibold tracking-tight tabular-nums">{value}</div>
       {children}
     </Card>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CalendarClock, CheckCircle2, CircleAlert, Clock, Eye, PackageX, PauseCircle, TruckIcon, XCircle } from "lucide-react";
+import { Bell, CalendarClock, CheckCircle2, CircleAlert, Eye, PackageX, PauseCircle, TruckIcon, XCircle } from "lucide-react";
 import { formatEntrada, cn } from "@/lib/utils";
 import { marcarNotificacoesLidas, minhasNotificacoes, type Notificacao } from "@/app/notificacoes/actions";
 
@@ -87,15 +87,12 @@ export function Sino() {
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <h2 className="text-[15px] font-semibold">Notificações</h2>
-            <span className="flex items-center gap-1 text-[12px] text-muted">
-              <Clock className="size-3.5" aria-hidden />
-              Últimos 7 dias e pendências
-            </span>
+            <span className="text-[12px] text-muted">Últimos 7 dias e pendências</span>
           </div>
           {!dados ? (
             <p className="px-4 py-6 text-[13px] text-muted">Carregando…</p>
           ) : dados.itens.length === 0 ? (
-            <p className="px-4 py-8 text-center text-[13px] text-muted">Tudo em dia. Nenhuma notificação.</p>
+            <p className="px-4 py-8 text-center text-[13px] text-muted">Nenhuma notificação.</p>
           ) : (
             <ul className="max-h-[70vh] divide-y divide-border overflow-y-auto">
               {dados.itens.map((n) => {

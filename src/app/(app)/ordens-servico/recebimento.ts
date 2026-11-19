@@ -87,7 +87,7 @@ export async function registrarPagamentoOS(osId: string, _prev: RecebimentoState
           {
             oficinaId: ctx.oficina.id,
             tipo: "receber",
-            descricao: `OS #${os.numero} — ${novo.placa}`,
+            descricao: `OS #${os.numero} · ${novo.placa}`,
             categoriaId: novo.categoriaId,
             contaId: conta.id,
             clienteId: os.clienteId,

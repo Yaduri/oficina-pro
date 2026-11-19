@@ -295,7 +295,7 @@ export function TermoPdf(p: TermoPdfProps) {
                     <View key={i.descricao} style={[s.linha, { justifyContent: "space-between", gap: 6, marginBottom: 1 }]}>
                       <Text style={{ flex: 1 }}>
                         {i.descricao}
-                        {i.obs ? <Text style={s.muted}> — {i.obs}</Text> : null}
+                        {i.obs ? <Text style={s.muted}>: {i.obs}</Text> : null}
                       </Text>
                       <Text style={i.problema ? [s.negrito, { color: COR.perigo }] : s.muted}>{i.estado}</Text>
                     </View>

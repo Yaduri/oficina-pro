@@ -6,7 +6,7 @@ import { PRESETS, rotuloPeriodo, type Periodo, type Preset } from "@/lib/finance
 import { cn, formatBRL } from "@/lib/utils";
 
 /** Centavos → "R$ 1.234,56" */
-export const brl = (c: number) => formatBRL(c / 100);
+export const brl = (c: number) => formatBRL(c / 100 || 0);
 
 /** Monta a URL com os parâmetros (vazios são omitidos) */
 export function urlCom(base: string, params: Record<string, string | undefined>) {

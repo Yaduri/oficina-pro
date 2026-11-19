@@ -114,7 +114,7 @@ export default async function VeiculoPage({ params }: PageProps<"/veiculos/[id]"
             </dl>
             {editavel && cliente && (
               <p className="border-t border-border px-5 py-3 text-[13px] text-muted">
-                Para editar, use o lápis do veículo no{" "}
+                Para editar, abra o{" "}
                 <Link href={`/clientes/${cliente.id}`} className="underline">
                   cadastro do cliente
                 </Link>

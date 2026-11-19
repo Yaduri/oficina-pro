@@ -22,7 +22,7 @@ import { formatBRL, parseValor } from "@/lib/utils";
 /*
  * Recebimento da OS (Fase 2.1). Regras contábeis:
  * - Cada linha de pagamento vira um lançamento "receber" por parcela, ligado à OS e ao cliente,
- *   com competência = dia da entrega e descrição "OS #N — PLACA".
+ *   com competência = dia da entrega e descrição "OS #N · PLACA".
  * - Categoria: "Serviços" quando o total de serviços ≥ peças, senão "Peças" (uma só por OS, para a DRE).
  * - À vista (dinheiro, PIX, débito, transferência): vencimento hoje e baixa automática na conta escolhida;
  *   no débito a taxa da maquininha vai na baixa (sai do valor que entra na conta).
@@ -196,7 +196,7 @@ export async function lancarPagamentos(
       {
         oficinaId: d.oficinaId,
         tipo: "receber",
-        descricao: `OS #${d.os.numero} — ${d.placa}`,
+        descricao: `OS #${d.os.numero} · ${d.placa}`,
         categoriaId: d.categoriaId,
         contaId: p.contaId,
         clienteId: d.os.clienteId,

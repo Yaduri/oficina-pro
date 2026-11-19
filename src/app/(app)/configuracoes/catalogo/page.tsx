@@ -16,7 +16,7 @@ export default async function CatalogoPage({ searchParams }: PageProps<"/configu
 
   return (
     <>
-      <PageHeader title="Configurações" description="Serviços e peças com preço, para lançar na OS sem digitar tudo de novo." />
+      <PageHeader title="Configurações" />
       <AbasConfig />
 
       <div className="flex gap-1 rounded-md bg-subtle p-1 text-[13px] font-medium sm:w-fit">
