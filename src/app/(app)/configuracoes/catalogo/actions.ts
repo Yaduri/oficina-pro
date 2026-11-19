@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { getDb, schema } from "@/db";
+import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
-import { parseValor } from "@/lib/utils";
+import { nomeDoUsuario } from "@/lib/os-acesso";
+import { movimentar } from "@/lib/estoque";
+import { UNIDADES } from "@/lib/estoque-formato";
+import { parseValor, soDigitos } from "@/lib/utils";
 
 export type CatalogoState = { erro?: string; ok?: boolean } | undefined;
 
@@ -43,6 +46,43 @@ const itemSchema = z.object({
     .transform((v) => v || null),
 });
 
+const textoOpcional = (max: number, msg: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, msg)
+    .transform((v) => v || null);
+
+const qtdSchema = (msg: string) =>
+  z
+    .string()
+    .transform((v) => (v.trim() ? parseValor(v) : 0))
+    .refine((n) => Number.isFinite(n) && n >= 0 && n < 1_000_000, msg);
+
+/** Campos de estoque (só peça) */
+const pecaSchema = z.object({
+  controlaEstoque: z.boolean(),
+  unidade: z.enum(UNIDADES, "Unidade inválida"),
+  estoqueMinimo: qtdSchema("Estoque mínimo inválido"),
+  localizacao: textoOpcional(60, "Localização muito longa"),
+  marca: textoOpcional(60, "Marca muito longa"),
+  gtin: z
+    .string()
+    .transform(soDigitos)
+    .refine((v) => !v || (v.length >= 8 && v.length <= 14), "Código de barras inválido (8 a 14 dígitos)")
+    .transform((v) => v || null),
+  ncm: z
+    .string()
+    .transform(soDigitos)
+    .refine((v) => !v || v.length === 8, "O NCM tem 8 dígitos")
+    .transform((v) => v || null),
+  estoqueInicial: qtdSchema("Estoque inicial inválido"),
+  custoInicial: z
+    .string()
+    .transform((v) => (v.trim() ? parseValor(v) : null))
+    .refine((n) => n === null || (Number.isFinite(n) && n >= 0 && n < 10_000_000), "Custo unitário inválido"),
+});
+
 const f = (form: FormData, k: string) => String(form.get(k) ?? "");
 
 async function admin() {
@@ -53,6 +93,7 @@ async function admin() {
 function revalidar() {
   revalidatePath("/configuracoes/catalogo");
   revalidatePath("/ordens-servico", "layout");
+  revalidatePath("/estoque", "layout");
 }
 
 /** Cria (sem id) ou atualiza um item do catálogo */
@@ -69,6 +110,20 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
   });
   if (!p.success) return { erro: p.error.issues[0].message };
   const d = p.data;
+  const ehPeca = d.tipo === "peca";
+  const pp = pecaSchema.safeParse({
+    controlaEstoque: form.get("controlaEstoque") === "on",
+    unidade: f(form, "unidade") || "UN",
+    estoqueMinimo: f(form, "estoqueMinimo"),
+    localizacao: f(form, "localizacao"),
+    marca: f(form, "marca"),
+    gtin: f(form, "gtin"),
+    ncm: f(form, "ncm"),
+    estoqueInicial: f(form, "estoqueInicial"),
+    custoInicial: f(form, "custoInicial"),
+  });
+  if (ehPeca && !pp.success) return { erro: pp.error.issues[0].message };
+  const peca = ehPeca && pp.success ? pp.data : null;
 
   const db = await getDb();
   const c = schema.catalogoItens;
@@ -86,6 +141,18 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
     valor: d.valor.toFixed(2),
     tempoMinutos: d.tipo === "servico" ? d.tempo : null,
     codigoServicoMunicipal: d.tipo === "servico" ? d.codigoServicoMunicipal : null,
+    // Saldo e custo médio não se editam aqui: só pelos movimentos de estoque
+    ...(peca
+      ? {
+          controlaEstoque: peca.controlaEstoque,
+          unidade: peca.unidade,
+          estoqueMinimo: peca.estoqueMinimo.toFixed(3),
+          localizacao: peca.localizacao,
+          marca: peca.marca,
+          gtin: peca.gtin,
+          ncm: peca.ncm,
+        }
+      : {}),
   };
   if (id) {
     if (!z.uuid().safeParse(id).success) return { erro: "Item não encontrado" };
@@ -96,7 +163,20 @@ export async function salvarItemCatalogo(id: string | null, _prev: CatalogoState
       .returning({ id: c.id });
     if (res.length === 0) return { erro: "Item não encontrado" };
   } else {
-    await db.insert(c).values({ oficinaId: ctx.oficina.id, ...valores });
+    await db.transaction(async (tx) => {
+      const [novo] = await tx.insert(c).values({ oficinaId: ctx.oficina.id, ...valores }).returning({ id: c.id });
+      if (peca?.controlaEstoque && peca.estoqueInicial > 0) {
+        await movimentar(tx as unknown as DB, {
+          oficinaId: ctx.oficina.id,
+          catalogoItemId: novo.id,
+          tipo: "ajuste",
+          quantidade: peca.estoqueInicial,
+          custoUnitario: peca.custoInicial,
+          motivo: "Estoque inicial",
+          criadoPor: nomeDoUsuario(ctx),
+        });
+      }
+    });
   }
   revalidar();
   return { ok: true };

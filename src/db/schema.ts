@@ -213,6 +213,19 @@ export const catalogoItens = pgTable(
     tempoMinutos: integer("tempo_minutos"),
     /** Serviço: código da lista de serviços municipal (NFS-e) */
     codigoServicoMunicipal: text("codigo_servico_municipal"),
+    /* Peça: estoque (Fase 4). Saldo e custo médio só mudam por movimentos (lib/estoque.ts) */
+    controlaEstoque: boolean("controla_estoque").notNull().default(false),
+    unidade: text("unidade").notNull().default("UN"),
+    estoqueAtual: numeric("estoque_atual", { precision: 12, scale: 3 }).notNull().default("0"),
+    estoqueMinimo: numeric("estoque_minimo", { precision: 12, scale: 3 }).notNull().default("0"),
+    custoMedio: numeric("custo_medio", { precision: 12, scale: 4 }).notNull().default("0"),
+    /** Onde fica guardada (prateleira, gaveta) */
+    localizacao: text("localizacao"),
+    marca: text("marca"),
+    /** Código de barras (GTIN/EAN) */
+    gtin: text("gtin"),
+    /** NCM (8 dígitos), usado na NF-e de peças (Fase 3) */
+    ncm: text("ncm"),
     ativo: boolean("ativo").notNull().default(true),
     criadoEm: criadoEm(),
   },
@@ -501,8 +514,11 @@ export const lancamentos = pgTable(
     /** Conta prevista para receber/pagar */
     contaId: uuid("conta_id").references(() => contasFinanceiras.id, { onDelete: "set null" }),
     clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
-    /** Fornecedor (texto livre até existir o cadastro de fornecedores, Fase 4) */
+    /** Nome do fornecedor (texto livre; preenchido também quando há fornecedorId) */
     fornecedor: text("fornecedor"),
+    fornecedorId: uuid("fornecedor_id").references(() => fornecedores.id, { onDelete: "set null" }),
+    /** Conta a pagar gerada pela entrada de uma compra */
+    compraId: uuid("compra_id").references(() => compras.id, { onDelete: "set null" }),
     tecnicoId: uuid("tecnico_id").references(() => tecnicos.id, { onDelete: "set null" }),
     osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
     centroCusto: text("centro_custo"),
@@ -708,6 +724,150 @@ export const cobrancas = pgTable(
     index("cobrancas_cliente_idx").on(t.oficinaId, t.clienteId, t.ambiente),
   ],
 );
+
+/* ---------- Estoque e compras (Fase 4) ---------- */
+
+export const fornecedores = pgTable(
+  "fornecedores",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    tipoPessoa: tipoPessoa("tipo_pessoa").notNull().default("pj"),
+    /** Razão social ou nome */
+    nome: text("nome").notNull(),
+    nomeFantasia: text("nome_fantasia"),
+    /** Só dígitos */
+    cpfCnpj: text("cpf_cnpj"),
+    inscricaoEstadual: text("inscricao_estadual"),
+    telefone: text("telefone"),
+    email: text("email"),
+    contato: text("contato"),
+    ...endereco(),
+    observacoes: text("observacoes"),
+    ativo: boolean("ativo").notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("fornecedores_oficina_idx").on(t.oficinaId), uniqueIndex("fornecedores_doc_uq").on(t.oficinaId, t.cpfCnpj)],
+);
+
+/**
+ * Código que o fornecedor usa para uma peça do catálogo (aprendido na entrada por XML).
+ * `fator` converte a unidade do fornecedor para a do catálogo (ex.: caixa com 10 → 10).
+ */
+export const fornecedorCodigos = pgTable(
+  "fornecedor_codigos",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    fornecedorId: uuid("fornecedor_id").notNull().references(() => fornecedores.id, { onDelete: "cascade" }),
+    codigo: text("codigo").notNull(),
+    catalogoItemId: uuid("catalogo_item_id").notNull().references(() => catalogoItens.id, { onDelete: "cascade" }),
+    fator: numeric("fator", { precision: 12, scale: 4 }).notNull().default("1"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex("fornecedor_codigos_uq").on(t.fornecedorId, t.codigo)],
+);
+
+/**
+ * Compra de peças. Começa como pedido (ou já como entrada) e vira "recebida" quando a
+ * mercadoria chega: aí entra no estoque e gera as contas a pagar.
+ */
+export const compras = pgTable(
+  "compras",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    numero: integer("numero").notNull(),
+    status: text("status").$type<"pedido" | "recebida" | "cancelada">().notNull().default("pedido"),
+    fornecedorId: uuid("fornecedor_id").references(() => fornecedores.id, { onDelete: "set null" }),
+    /** Pedido feito para atender uma OS (a OS fica "Aguardando peça") */
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    previsaoEm: date("previsao_em"),
+    recebidaEm: timestamp("recebida_em", { withTimezone: true }),
+    /** Nota do fornecedor */
+    notaNumero: text("nota_numero"),
+    notaSerie: text("nota_serie"),
+    /** Chave de acesso (44 dígitos): impede importar a mesma nota duas vezes */
+    notaChave: text("nota_chave"),
+    notaEmissao: date("nota_emissao"),
+    xmlKey: text("xml_key"),
+    valorProdutos: numeric("valor_produtos", { precision: 12, scale: 2 }).notNull().default("0"),
+    frete: numeric("frete", { precision: 12, scale: 2 }).notNull().default("0"),
+    desconto: numeric("desconto", { precision: 12, scale: 2 }).notNull().default("0"),
+    /** IPI, ST, seguro e outras despesas da nota (entram no custo) */
+    outros: numeric("outros", { precision: 12, scale: 2 }).notNull().default("0"),
+    valorTotal: numeric("valor_total", { precision: 12, scale: 2 }).notNull().default("0"),
+    observacao: text("observacao"),
+    criadoPor: text("criado_por"),
+    canceladaEm: timestamp("cancelada_em", { withTimezone: true }),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    uniqueIndex("compras_numero_uq").on(t.oficinaId, t.numero),
+    // Nota estornada (compra cancelada) pode ser importada de novo
+    uniqueIndex("compras_chave_uq").on(t.oficinaId, t.notaChave).where(sql`${t.status} <> 'cancelada'`),
+    index("compras_status_idx").on(t.oficinaId, t.status),
+    index("compras_os_idx").on(t.osId),
+  ],
+);
+
+export const compraItens = pgTable(
+  "compra_itens",
+  {
+    id: id(),
+    compraId: uuid("compra_id").notNull().references(() => compras.id, { onDelete: "cascade" }),
+    /** Peça do catálogo (obrigatória para receber; na importação pode começar vazia) */
+    catalogoItemId: uuid("catalogo_item_id").references(() => catalogoItens.id, { onDelete: "set null" }),
+    /** Como veio do fornecedor */
+    codigoFornecedor: text("codigo_fornecedor"),
+    descricao: text("descricao").notNull(),
+    ncm: text("ncm"),
+    gtin: text("gtin"),
+    unidade: text("unidade"),
+    /** Na unidade do catálogo (já multiplicada pelo fator) */
+    quantidade: numeric("quantidade", { precision: 12, scale: 3 }).notNull(),
+    /** Preço unitário na unidade do catálogo, como na nota */
+    valorUnitario: numeric("valor_unitario", { precision: 12, scale: 4 }).notNull(),
+    /** Custo unitário com frete, outros e desconto rateados (é o que entra no custo médio) */
+    custoUnitario: numeric("custo_unitario", { precision: 12, scale: 4 }).notNull().default("0"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("compra_itens_compra_idx").on(t.compraId)],
+);
+
+/**
+ * Cada entrada ou saída de uma peça. `quantidade` com sinal (+ entra, − sai).
+ * Saída pela OS fica ligada ao item da OS (osItemId); a soma por item é o que já saiu.
+ */
+export const estoqueMovimentos = pgTable(
+  "estoque_movimentos",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    catalogoItemId: uuid("catalogo_item_id").notNull().references(() => catalogoItens.id, { onDelete: "cascade" }),
+    tipo: text("tipo").$type<TipoMovimentoEstoque>().notNull(),
+    quantidade: numeric("quantidade", { precision: 12, scale: 3 }).notNull(),
+    /** Custo unitário do movimento (entrada: custo da compra; saída: custo médio do momento) */
+    custoUnitario: numeric("custo_unitario", { precision: 12, scale: 4 }).notNull().default("0"),
+    saldoApos: numeric("saldo_apos", { precision: 12, scale: 3 }).notNull(),
+    custoMedioApos: numeric("custo_medio_apos", { precision: 12, scale: 4 }).notNull(),
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    /** Sem FK: o item pode ser removido da OS e o movimento de devolução continua apontando para ele */
+    osItemId: uuid("os_item_id"),
+    compraId: uuid("compra_id").references(() => compras.id, { onDelete: "set null" }),
+    /** Ajuste e inventário: por que mudou */
+    motivo: text("motivo"),
+    criadoPor: text("criado_por"),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("estoque_mov_item_idx").on(t.catalogoItemId, t.criadoEm),
+    index("estoque_mov_os_idx").on(t.osId),
+    index("estoque_mov_os_item_idx").on(t.osItemId),
+  ],
+);
+
+export type TipoMovimentoEstoque = "entrada" | "saida_os" | "devolucao_os" | "ajuste" | "estorno_compra";
 
 /* ---------- Relações ---------- */
 

@@ -7,7 +7,8 @@ import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import type { Acao } from "@/lib/permissoes";
-import { registrarEvento } from "@/lib/os-acesso";
+import { nomeDoUsuario, registrarEvento } from "@/lib/os-acesso";
+import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 import { STATUS } from "@/lib/os";
 import { atualizarStatusOS } from "@/lib/queries";
 import { buscarVeiculoPorPlaca } from "@/lib/cadastros";
@@ -49,6 +50,7 @@ export async function moverOS(osId: string, status: string) {
     .where(and(eq(schema.ordensServico.id, parsed.data.osId), eq(schema.ordensServico.oficinaId, oficina.id)));
   const ok = await atualizarStatusOS(oficina.id, parsed.data.osId, parsed.data.status);
   if (!ok) return { ok: false, erro: "OS não encontrada" };
+  await sincronizarEstoqueDaOS(oficina.id, parsed.data.osId, nomeDoUsuario(ctx));
   if (antes && antes.status !== parsed.data.status) {
     await registrarEvento(db, oficina.id, parsed.data.osId, `Status: ${STATUS[antes.status].label} → ${STATUS[parsed.data.status].label}`, ctx);
   }
@@ -205,6 +207,7 @@ export async function criarOS(_prev: NovaOSState, form: FormData): Promise<NovaO
     return nova.id;
   });
   await registrarEvento(db, oficina.id, osId, "Abriu a OS", await getContexto());
+  await sincronizarEstoqueDaOS(oficina.id, osId, nomeDoUsuario(await getContexto()));
 
   revalidarOS();
   revalidatePath("/clientes");
@@ -257,6 +260,7 @@ export async function adicionarItem(osId: string, _prev: ItemState, form: FormDa
     quantidade: String(item.data.quantidade),
     valorUnitario: item.data.valor.toFixed(2),
   });
+  await sincronizarEstoqueDaOS(r.oficinaId, osId, nomeDoUsuario(await getContexto()));
   await registrarEvento(
     r.db,
     r.oficinaId,
@@ -289,8 +293,24 @@ export async function removerItem(osId: string, itemId: string) {
     .delete(schema.osItens)
     .where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)))
     .returning({ descricao: schema.osItens.descricao });
-  if (item) await registrarEvento(r.db, r.oficinaId, osId, `Removeu o item “${item.descricao}”`, await getContexto());
+  if (item) {
+    await sincronizarEstoqueDaOS(r.oficinaId, osId, nomeDoUsuario(await getContexto()));
+    await registrarEvento(r.db, r.oficinaId, osId, `Removeu o item “${item.descricao}”`, await getContexto());
+  }
   revalidarOS(osId);
+}
+
+/** Saldo das peças com controle de estoque (mostrado ao lançar peça na OS) */
+export async function saldosDoCatalogo(): Promise<Record<string, { saldo: number; unidade: string }>> {
+  const { oficina, pode } = await getContexto();
+  if (!pode("editarItens")) return {};
+  const db = await getDb();
+  const c = schema.catalogoItens;
+  const rows = await db
+    .select({ id: c.id, saldo: c.estoqueAtual, unidade: c.unidade })
+    .from(c)
+    .where(and(eq(c.oficinaId, oficina.id), eq(c.tipo, "peca"), eq(c.controlaEstoque, true), eq(c.ativo, true)));
+  return Object.fromEntries(rows.map((r) => [r.id, { saldo: Number(r.saldo), unidade: r.unidade }]));
 }
 
 /* ---------- Orçamento com link para o cliente ---------- */
@@ -361,6 +381,8 @@ export async function enviarOrcamento(osId: string, _prev: OrcamentoState, form:
       .set({ status: "aguardando_aprovacao", aprovacaoEnviadaEm: agora })
       .where(eq(schema.ordensServico.id, osId));
   });
+  // Volta para aprovação: as peças que já tinham saído voltam ao estoque até o cliente aprovar
+  await sincronizarEstoqueDaOS(oficina.id, osId, nomeDoUsuario(await getContexto()));
   await registrarEvento(r.db, oficina.id, osId, `Enviou o orçamento (${formatBRL(totais.total)}) para o cliente`, await getContexto());
 
   revalidarOS(osId);

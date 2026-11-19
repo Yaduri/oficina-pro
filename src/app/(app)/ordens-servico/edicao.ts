@@ -15,7 +15,8 @@ import {
   totaisDaOS,
   type PlanoPagamento,
 } from "@/lib/recebimento";
-import { ehUuid, osDaOficina, registrarEvento } from "@/lib/os-acesso";
+import { ehUuid, nomeDoUsuario, osDaOficina, registrarEvento } from "@/lib/os-acesso";
+import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 import { formatBRL, formatData, parseValor, soDigitos } from "@/lib/utils";
 
 export type EdicaoState = { erro?: string; ok?: boolean } | undefined;
@@ -137,6 +138,7 @@ export async function editarItem(osId: string, itemId: string, _prev: EdicaoStat
       valorUnitario: d.data.valor.toFixed(2),
     })
     .where(eq(schema.osItens.id, itemId));
+  await sincronizarEstoqueDaOS(ctx.oficina.id, os.id, nomeDoUsuario(ctx));
 
   const detalhes: string[] = [];
   if (Number(antes.valorUnitario) !== d.data.valor) detalhes.push(`valor ${formatBRL(antes.valorUnitario)} → ${formatBRL(d.data.valor)}`);
@@ -263,6 +265,7 @@ export async function entregarOS(osId: string, _prev: EdicaoState, form: FormDat
   } catch (e) {
     return { erro: e instanceof Error && e.message ? `Não foi possível registrar o pagamento: ${e.message}` : "Não foi possível registrar a entrega" };
   }
+  await sincronizarEstoqueDaOS(ctx.oficina.id, os.id, nomeDoUsuario(ctx));
   await registrarEvento(
     db,
     ctx.oficina.id,

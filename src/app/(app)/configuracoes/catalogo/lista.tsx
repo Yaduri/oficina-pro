@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { Button, Campo, Card, CardHeader, Erro, Input, Vazio } from "@/components/ui";
+import Link from "next/link";
+import { Button, Campo, Card, CardHeader, Erro, Input, Select, Vazio } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
+import { qtdTexto, UNIDADES } from "@/lib/estoque-formato";
 import { cn, formatBRL } from "@/lib/utils";
-import { alternarItemCatalogo, removerItemCatalogo, salvarItemCatalogo } from "./actions";
+import { alternarItemCatalogo, removerItemCatalogo, salvarItemCatalogo, type CatalogoState } from "./actions";
 
 type Tipo = "servico" | "peca";
 type Item = {
@@ -18,15 +20,29 @@ type Item = {
   tempo: string | null;
   codigoServicoMunicipal: string | null;
   ativo: boolean;
+  controlaEstoque: boolean;
+  unidade: string;
+  estoqueAtual: number;
+  estoqueMinimo: number;
+  localizacao: string | null;
+  marca: string | null;
+  gtin: string | null;
+  ncm: string | null;
 };
 
 const valorTxt = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const qtdCampo = (n: number) => (n ? n.toLocaleString("pt-BR", { maximumFractionDigits: 3, useGrouping: false }) : "");
 
 /* ---------- Formulário (novo e edição) ---------- */
 
 export function FormItemCatalogo({ tipo, item, onDone }: { tipo: Tipo; item?: Item; onDone?: () => void }) {
   const form = useRef<HTMLFormElement>(null);
-  const { state, pending, onSubmit } = useFormAction(salvarItemCatalogo.bind(null, item?.id ?? null));
+  const [controla, setControla] = useState(item?.controlaEstoque ?? false);
+  const { state, pending, onSubmit } = useFormAction(async (prev: CatalogoState, dados: FormData) => {
+    const r = await salvarItemCatalogo(item?.id ?? null, prev, dados);
+    if (r?.ok && !item) setControla(false);
+    return r;
+  });
   useEffect(() => {
     if (!state?.ok) return;
     if (item) onDone?.();
@@ -68,6 +84,71 @@ export function FormItemCatalogo({ tipo, item, onDone }: { tipo: Tipo; item?: It
           </Campo>
         </div>
       )}
+      {!servico && (
+        <>
+          <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-3">
+            <Campo label="Marca" hint="(opcional)" htmlFor={`${pid}-marca`}>
+              <Input id={`${pid}-marca`} name="marca" defaultValue={item?.marca ?? ""} autoComplete="off" />
+            </Campo>
+            <Campo label="Unidade" htmlFor={`${pid}-un`}>
+              <Select id={`${pid}-un`} name="unidade" defaultValue={item?.unidade ?? "UN"}>
+                {UNIDADES.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-foreground-2">
+            <input
+              type="checkbox"
+              name="controlaEstoque"
+              checked={controla}
+              onChange={(e) => setControla(e.target.checked)}
+              className="size-4 accent-zinc-900"
+            />
+            Controlar estoque
+          </label>
+          {controla && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="Estoque mínimo" htmlFor={`${pid}-min`}>
+                  <Input id={`${pid}-min`} name="estoqueMinimo" inputMode="decimal" defaultValue={qtdCampo(item?.estoqueMinimo ?? 0)} placeholder="0" className="text-right" />
+                </Campo>
+                <Campo label="Localização" hint="(opcional)" htmlFor={`${pid}-loc`}>
+                  <Input id={`${pid}-loc`} name="localizacao" defaultValue={item?.localizacao ?? ""} placeholder="Prateleira A2" autoComplete="off" />
+                </Campo>
+              </div>
+              {!item && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Campo label="Estoque inicial" hint="(opcional)" htmlFor={`${pid}-ini`}>
+                    <Input id={`${pid}-ini`} name="estoqueInicial" inputMode="decimal" placeholder="0" className="text-right" />
+                  </Campo>
+                  <Campo label="Custo unitário" hint="(opcional)" htmlFor={`${pid}-custo`}>
+                    <Input id={`${pid}-custo`} name="custoInicial" inputMode="decimal" placeholder="R$ 0,00" className="text-right" />
+                  </Campo>
+                </div>
+              )}
+            </>
+          )}
+          {/* Sem controle, mantém a localização e o mínimo já cadastrados */}
+          {!controla && item && (
+            <>
+              <input type="hidden" name="estoqueMinimo" value={qtdCampo(item.estoqueMinimo)} />
+              <input type="hidden" name="localizacao" value={item.localizacao ?? ""} />
+            </>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <Campo label="Código de barras" hint="(opcional)" htmlFor={`${pid}-gtin`}>
+              <Input id={`${pid}-gtin`} name="gtin" inputMode="numeric" defaultValue={item?.gtin ?? ""} autoComplete="off" />
+            </Campo>
+            <Campo label="NCM" hint="(opcional)" htmlFor={`${pid}-ncm`}>
+              <Input id={`${pid}-ncm`} name="ncm" inputMode="numeric" maxLength={10} defaultValue={item?.ncm ?? ""} placeholder="8 dígitos" autoComplete="off" />
+            </Campo>
+          </div>
+        </>
+      )}
       <Erro>{state?.erro}</Erro>
       <div className="flex justify-end gap-2">
         {onDone && (
@@ -95,7 +176,9 @@ export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return itens;
-    return itens.filter((i) => i.descricao.toLowerCase().includes(q) || i.codigo?.toLowerCase().includes(q));
+    return itens.filter(
+      (i) => i.descricao.toLowerCase().includes(q) || i.codigo?.toLowerCase().includes(q) || i.marca?.toLowerCase().includes(q) || i.gtin?.includes(q),
+    );
   }, [busca, itens]);
 
   return (
@@ -107,7 +190,7 @@ export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
       {itens.length > 6 && (
         <div className="relative border-b border-border px-4 py-3 sm:px-5">
           <Search className="pointer-events-none absolute left-7 top-1/2 size-4 -translate-y-1/2 text-muted sm:left-8" aria-hidden />
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por descrição ou código" aria-label="Buscar no catálogo" className="pl-9" />
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={servico ? "Buscar por descrição ou código" : "Buscar por descrição, código ou marca"} aria-label="Buscar no catálogo" className="pl-9" />
         </div>
       )}
       {itens.length === 0 ? (
@@ -134,6 +217,12 @@ export function ListaCatalogo({ tipo, itens }: { tipo: Tipo; itens: Item[] }) {
                   <p className={cn("font-medium", !i.ativo && "line-through")}>{i.descricao}</p>
                   <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
                     {i.codigo && <span>Cód. {i.codigo}</span>}
+                    {i.marca && <span>{i.marca}</span>}
+                    {i.controlaEstoque && (
+                      <Link href={`/estoque/${i.id}`} className={cn("font-medium underline-offset-4 hover:underline", i.estoqueAtual <= 0 ? "text-warn" : "text-foreground-2")}>
+                        {i.estoqueAtual <= 0 ? (i.estoqueAtual < 0 ? `Saldo ${qtdTexto(i.estoqueAtual, i.unidade)}` : "Sem estoque") : `${qtdTexto(i.estoqueAtual, i.unidade)} em estoque`}
+                      </Link>
+                    )}
                     {i.tempo && <span>{i.tempo}</span>}
                     {i.codigoServicoMunicipal && <span>NFS-e {i.codigoServicoMunicipal}</span>}
                     {!i.ativo && <span>Desativado</span>}

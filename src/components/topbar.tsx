@@ -17,7 +17,7 @@ const NAV: { href: string; label: string; acao?: Acao }[] = [
   { href: "/orcamentos", label: "Orçamentos", acao: "verValores" },
   { href: "/ordens-servico", label: "Ordens de serviço" },
   { href: "/clientes", label: "Clientes" },
-  { href: "/estoque", label: "Estoque" },
+  { href: "/estoque", label: "Estoque", acao: "estoque" },
   { href: "/financeiro", label: "Financeiro", acao: "financeiro" },
 ];
 

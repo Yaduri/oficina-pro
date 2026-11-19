@@ -26,7 +26,9 @@ export type Acao =
   | "editarItens"
   | "orcamento"
   | "fecharOS"
-  | "financeiro";
+  | "financeiro"
+  /** Estoque, compras e fornecedores */
+  | "estoque";
 
 const TODOS: Papel[] = ORDEM_PAPEIS;
 
@@ -42,6 +44,7 @@ const REGRAS: Record<Acao, Papel[]> = {
   /** Entregar, cancelar ou reabrir uma OS */
   fecharOS: ["dono", "gerente", "atendente", "financeiro"],
   financeiro: ["dono", "gerente", "financeiro"],
+  estoque: ["dono", "gerente", "financeiro", "atendente"],
 };
 
 export function pode(papel: Papel, acao: Acao) {

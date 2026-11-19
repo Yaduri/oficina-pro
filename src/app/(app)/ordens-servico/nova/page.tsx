@@ -49,7 +49,14 @@ export default async function NovaOSPage({ searchParams }: PageProps<"/ordens-se
           clientes={clientes}
           tecnicos={tecnicos.map((t) => t.nome)}
           inicial={inicial}
-          catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor }))}
+          catalogo={catalogo.map((c) => ({
+            id: c.id,
+            tipo: c.tipo,
+            codigo: c.codigo,
+            descricao: c.descricao,
+            valor: c.valor,
+            estoque: c.tipo === "peca" && c.controlaEstoque ? { saldo: c.estoqueAtual, unidade: c.unidade } : null,
+          }))}
         />
       </Card>
     </div>

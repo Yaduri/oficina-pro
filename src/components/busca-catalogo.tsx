@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { Input } from "@/components/ui";
+import { qtdTexto } from "@/lib/estoque-formato";
 import { cn, formatBRL } from "@/lib/utils";
 
 /** Item do catálogo oferecido ao lançar peça ou serviço */
@@ -13,7 +14,18 @@ export type OpcaoCatalogo = {
   valor: number;
   /** Serviço: tempo padrão em minutos */
   tempoMinutos?: number | null;
+  /** Peça com controle de estoque: saldo atual */
+  estoque?: { saldo: number; unidade: string } | null;
 };
+
+/** "12 em estoque" / "sem estoque" (tom de aviso quando não tem) */
+function TextoEstoque({ e }: { e: { saldo: number; unidade: string } }) {
+  return e.saldo > 0 ? (
+    <span>{qtdTexto(e.saldo, e.unidade)} em estoque</span>
+  ) : (
+    <span className="font-medium text-warn">{e.saldo < 0 ? `saldo ${qtdTexto(e.saldo, e.unidade)}` : "sem estoque"}</span>
+  );
+}
 
 /**
  * Campo de descrição que sugere itens do catálogo enquanto digita.
@@ -110,6 +122,12 @@ export function BuscaCatalogo({
                 <span className="text-[12px] text-muted">
                   {c.tipo === "peca" ? "Peça" : "Serviço"}
                   {c.codigo && ` · ${c.codigo}`}
+                  {c.estoque && (
+                    <>
+                      {" · "}
+                      <TextoEstoque e={c.estoque} />
+                    </>
+                  )}
                 </span>
               </span>
               <span className="shrink-0 tabular-nums text-foreground-2">{formatBRL(c.valor)}</span>

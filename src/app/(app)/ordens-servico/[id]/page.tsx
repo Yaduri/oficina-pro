@@ -25,6 +25,7 @@ import { FORMAS, STATUS_LANCAMENTO, centavos, contaSugerida, ehForma, hojeSP, li
 import { situacaoRecebimento } from "@/lib/recebimento";
 import { FORMAS_PAGAMENTO } from "@/lib/recebimento-regras";
 import { RecebimentosOS } from "./recebimentos";
+import { ComprasOS } from "./compras";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -252,6 +253,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               catalogo={catalogo.map((c) => ({ id: c.id, tipo: c.tipo, codigo: c.codigo, descricao: c.descricao, valor: c.valor }))}
             />
           </Card>
+
+          {pode("estoque") && <ComprasOS oficinaId={oficina.id} osId={os.id} podePedir={!fechada} />}
 
           {valores && (
             <OrcamentoOS

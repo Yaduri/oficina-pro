@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Ban, FileText, RotateCcw, Undo2 } from "lucide-react";
+import { and, eq } from "drizzle-orm";
+import { getDb, schema } from "@/db";
 import { Badge, Card, CardHeader } from "@/components/ui";
 import { exigir } from "@/lib/oficina";
 import { ehUuid } from "@/lib/os-acesso";
@@ -27,6 +29,16 @@ function Item({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   );
 }
 
+/** Compra de peças que gerou a conta a pagar */
+async function numeroDaCompra(oficinaId: string, compraId: string) {
+  const db = await getDb();
+  const [c] = await db
+    .select({ id: schema.compras.id, numero: schema.compras.numero })
+    .from(schema.compras)
+    .where(and(eq(schema.compras.id, compraId), eq(schema.compras.oficinaId, oficinaId)));
+  return c ?? null;
+}
+
 /** Detalhe de um lançamento: dados, ações, parcelas do grupo e pagamentos (com estorno) */
 export async function DetalheLancamento({ tipo, id }: { tipo: TipoLancamento; id: string }) {
   const { oficina } = await exigir("financeiro");
@@ -36,6 +48,7 @@ export async function DetalheLancamento({ tipo, id }: { tipo: TipoLancamento; id
   // Link com o tipo trocado (ex.: /pagar?lancamento= de uma conta a receber): vai para a tela certa
   if (d.l.tipo !== tipo) redirect(`/financeiro/${d.l.tipo}/${id}`);
   const { l, recorrencia } = d;
+  const compra = l.compraId ? await numeroDaCompra(oficina.id, l.compraId) : null;
   const [opcoes, cobranca] = await Promise.all([
     opcoesFormulario(oficina.id, tipo, l.clienteId),
     tipo === "receber" ? dadosCobranca(oficina.id, id) : Promise.resolve(null),
@@ -160,6 +173,13 @@ export async function DetalheLancamento({ tipo, id }: { tipo: TipoLancamento; id
             <Item rotulo="Ordem de serviço">
               <Link href={`/ordens-servico/${l.osId}`} className="font-medium underline">
                 OS #{d.osNumero}
+              </Link>
+            </Item>
+          )}
+          {compra && (
+            <Item rotulo="Compra">
+              <Link href={`/estoque/compras/${compra.id}`} className="font-medium underline">
+                Compra #{compra.numero}
               </Link>
             </Item>
           )}

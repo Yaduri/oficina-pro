@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, Erro, Input, inputClass } from "@/components/ui";
 import { useFormAction } from "@/lib/use-form-action";
 import { BuscaCatalogo, type OpcaoCatalogo } from "@/components/busca-catalogo";
 import { calcularTotais } from "@/lib/os-total";
 import { cn, formatBRL } from "@/lib/utils";
-import { adicionarItem, marcarItem, removerItem } from "../actions";
+import { adicionarItem, marcarItem, removerItem, saldosDoCatalogo } from "../actions";
 import { definirDesconto, editarItem } from "../edicao";
 
 type Item = {
@@ -337,9 +337,24 @@ function FormItem({
 }
 
 function NovoItem({ osId, catalogo }: { osId: string; catalogo: OpcaoCatalogo[] }) {
+  // Saldo das peças com estoque (busca à parte para não depender de quem monta o catálogo)
+  const [saldos, setSaldos] = useState<Awaited<ReturnType<typeof saldosDoCatalogo>>>({});
+  const temPecas = catalogo.some((c) => c.tipo === "peca");
+  useEffect(() => {
+    if (!temPecas) return;
+    let vivo = true;
+    saldosDoCatalogo()
+      .then((s) => vivo && setSaldos(s))
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+    // Recarrega quando a página atualiza (o catálogo chega como nova lista)
+  }, [temPecas, catalogo]);
+  const comSaldo = useMemo(() => catalogo.map((c) => (c.estoque === undefined && saldos[c.id] ? { ...c, estoque: saldos[c.id] } : c)), [catalogo, saldos]);
   return (
     <div className="border-t border-border bg-subtle/60 px-4 py-3 sm:px-5">
-      <FormItem acao={adicionarItem.bind(null, osId)} rotulo="Adicionar" limparAoSalvar catalogo={catalogo} />
+      <FormItem acao={adicionarItem.bind(null, osId)} rotulo="Adicionar" limparAoSalvar catalogo={comSaldo} />
     </div>
   );
 }

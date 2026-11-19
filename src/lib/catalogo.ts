@@ -13,6 +13,15 @@ export type ItemCatalogo = {
   tempoMinutos: number | null;
   codigoServicoMunicipal: string | null;
   ativo: boolean;
+  /* Peça: estoque (saldo e custo médio só mudam pelos movimentos de lib/estoque.ts) */
+  controlaEstoque: boolean;
+  unidade: string;
+  estoqueAtual: number;
+  estoqueMinimo: number;
+  localizacao: string | null;
+  marca: string | null;
+  gtin: string | null;
+  ncm: string | null;
 };
 
 /** Catálogo da oficina (só ativos para lançar na OS; todos na tela de configuração) */
@@ -32,11 +41,24 @@ export async function listarCatalogo(oficinaId: string, opcoes: { tipo?: TipoCat
       tempoMinutos: c.tempoMinutos,
       codigoServicoMunicipal: c.codigoServicoMunicipal,
       ativo: c.ativo,
+      controlaEstoque: c.controlaEstoque,
+      unidade: c.unidade,
+      estoqueAtual: c.estoqueAtual,
+      estoqueMinimo: c.estoqueMinimo,
+      localizacao: c.localizacao,
+      marca: c.marca,
+      gtin: c.gtin,
+      ncm: c.ncm,
     })
     .from(c)
     .where(and(...filtros))
     .orderBy(asc(c.descricao));
-  return rows.map((r) => ({ ...r, valor: Number(r.valor) }));
+  return rows.map((r) => ({
+    ...r,
+    valor: Number(r.valor),
+    estoqueAtual: Number(r.estoqueAtual),
+    estoqueMinimo: Number(r.estoqueMinimo),
+  }));
 }
 
 /** "90" → "1h30" */

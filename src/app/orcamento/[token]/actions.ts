@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { TOKEN_RE } from "@/lib/orcamento";
 import { registrarEvento } from "@/lib/os-acesso";
+import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 
 export type RespostaState = { erro?: string } | undefined;
 
@@ -79,6 +80,8 @@ export async function responderOrcamento(token: string, _prev: RespostaState, fo
     return true;
   });
   if (!ok) return { erro: "Este orçamento já foi respondido" };
+  // Aprovado: as peças saem do estoque; recusadas não consomem
+  await sincronizarEstoqueDaOS(orc.oficinaId, orc.osId, `Cliente (${dados.data.nome})`);
 
   const frase = status === "aprovado" ? "aprovou o orçamento" : status === "parcial" ? "aprovou parte do orçamento" : "recusou o orçamento";
   await registrarEvento(db, orc.oficinaId, orc.osId, `${dados.data.nome} ${frase} pelo link`, null);

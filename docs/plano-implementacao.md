@@ -185,16 +185,17 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 ## Fase 4 — Estoque e compras
 
 ### 4.1 Estoque — **G**
-- [ ] Entrada manual e **por XML da nota do fornecedor** (cadastra/atualiza peças e custo)
-- [ ] Baixa automática ao usar a peça na OS; devolução ao remover item
-- [ ] Estoque mínimo e lista de compras
-- [ ] Inventário (contagem e ajuste com motivo)
-- [ ] Custo médio e margem por peça
+- [x] Peça do catálogo com "Controlar estoque": saldo, mínimo, custo médio, unidade, localização, marca, código de barras e NCM; estoque inicial no cadastro
+- [x] Entrada manual e **por XML da nota do fornecedor** (cadastra/vincula peças, aprende o código do fornecedor com fator de conversão, rateia frete, IPI e ST no custo, duplicatas viram contas a pagar)
+- [x] Saída automática quando a OS sai do orçamento (aprovada em diante); volta ao estoque se o item for removido, recusado ou a OS cancelada. Saldo pode ficar negativo, com aviso
+- [x] Estoque mínimo e reposição (sugestão de compra que vira pedido)
+- [x] Inventário (contagem e ajuste com motivo) e ajuste avulso com histórico de movimentações
+- [x] Custo médio e margem por peça; valor em estoque
 
 ### 4.2 Compras e fornecedores — **M**
-- [ ] Cadastro de fornecedores
-- [ ] Pedido de compra; OS fica "Aguardando peça" com previsão
-- [ ] Entrada da compra gera conta a pagar
+- [x] Cadastro de fornecedores
+- [x] Pedido de compra; a partir da OS ela fica "Aguardando peça" (se já aprovada) com previsão; chegada registrada na OS
+- [x] Recebimento gera conta a pagar (parcelas ou já paga); estorno da entrada devolve estoque, custo médio e cancela as contas em aberto
 
 ---
 
@@ -249,11 +250,10 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 
 | Decisão | Com quem | Bloqueia |
 |---|---|---|
-| Vendem peças ou só serviço? | Sócios + contador | 3.3, 4.1 |
+| Vendem peças ou só serviço? | Sócios + contador | 3.3 |
 | Regime tributário do CNPJ | Contador | 1.1, Fase 3 |
 | Município usa NFS-e nacional? | Contador / prefeitura | 3.2 |
 | Certificado A1 do CNPJ | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
-| Estoque separado ou compartilhado? | Sócios | 4.1 |
 | ~~Provedor fiscal~~ | **Decidido:** desenvolver no sandbox do PlugNotas; produção na Focus NFe quando houver os certificados | — |
 | Provedor de WhatsApp | Sócios | 5.1 |
 | Uso próprio ou vender para outras oficinas? | Sócios | Planos/assinatura (fora deste plano) |
