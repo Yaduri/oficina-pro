@@ -63,7 +63,7 @@ pnpm wrangler secret put R2_BUCKET --env homolog
 ```
 
 - `CHAVE_CRIPTOGRAFIA`: gere uma por ambiente (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`) e guarde: sem ela as chaves do Asaas salvas no banco não abrem mais.
-- R2: um bucket privado por ambiente e um token de API do R2 com leitura e escrita nele. Sem as 4 variáveis do R2 os uploads falham no Workers (não há disco).
+- R2: buckets privados `oficina-pro-homolog` (homolog) e `oficina-pro-producao` (produção), já criados; `oficina-pro` fica só para desenvolvimento. Crie um token de API do R2 com leitura e escrita nesses dois buckets. Sem as 4 variáveis do R2 os uploads falham no Workers (não há disco).
 - `APP_URL` já está em `vars` no `wrangler.jsonc`. `DATABASE_URL` não é usada no Workers (o banco vem do binding `HYPERDRIVE`).
 - Conferir: `pnpm wrangler secret list --env homolog`.
 
