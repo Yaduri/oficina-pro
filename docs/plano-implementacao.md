@@ -229,7 +229,8 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 ### 6.2 Segurança e LGPD — **M**
 - [ ] Log de auditoria (alteração de valores, cancelamentos, exclusões, notas)
 - [ ] Limite de tentativas nas páginas públicas (orçamento) e no upload
-- [ ] Política de privacidade e termo de uso; exportar/apagar dados de um cliente a pedido
+- [x] Política de privacidade e termos de uso (/privacidade, /termos; preencher `NEXT_PUBLIC_LEGAL_*` antes de publicar e revisar com advogado)
+- [ ] Exportar/apagar dados de um cliente a pedido; exportação da conta ao cancelar (prometida nos termos: 30 dias)
 - [ ] Revisão de segurança completa antes de abrir
 
 ### 6.3 Operação — **P**

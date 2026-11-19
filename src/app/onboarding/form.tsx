@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button, Input, Label } from "@/components/ui";
 import { criarOficina } from "./actions";
 
@@ -30,6 +31,17 @@ export function OnboardingForm() {
       <Button variant="primary" className="h-11 text-[15px]" disabled={pending}>
         {pending ? "Criando…" : "Criar oficina"}
       </Button>
+      <p className="-mt-3 text-center text-[12px] text-muted">
+        Ao criar a oficina, você concorda com os{" "}
+        <Link href="/termos" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+          Termos de uso
+        </Link>{" "}
+        e a{" "}
+        <Link href="/privacidade" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+          Política de privacidade
+        </Link>
+        .
+      </p>
     </form>
   );
 }
