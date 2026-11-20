@@ -63,6 +63,34 @@ if (fontes.size === 0) {
 } else {
   const imports = [...fontes].map(([nome, arq]) => `import __fontePdf_${nome} from ${JSON.stringify(arq.split(path.sep).join("/"))};`);
   codigo = `${imports.join("\n")}\n${codigo}`;
-  writeFileSync(handler, codigo);
 }
+
+// O yoga-layout (layout do @react-pdf) traz o wasm em base64 e o compila em tempo de execução,
+// o que o Workers proíbe ("Wasm code generation disallowed by embedder"). Aqui o binário vira
+// o arquivo yoga.wasm ao lado do handler, importado estaticamente (o wrangler o sobe já compilado,
+// como WebAssembly.Module), e o loader do Emscripten recebe um `instantiateWasm` que o usa.
+const marcaYoga = codigo.indexOf('yoga-wasm-base64-esm.js"(){');
+const reYoga = /(\w+)\.ready=new Promise\(function\((\w+),(\w+)\)\{(\w+)=\2[,;](\w+)=\3\}\);/y;
+const reBase64 = /"data:application\/octet-stream;base64,([A-Za-z0-9+/=]+)"/y;
+const iReady = marcaYoga < 0 ? -1 : codigo.slice(marcaYoga).search(/\w+\.ready=new Promise\(function/) + marcaYoga;
+const iBase64 = marcaYoga < 0 ? -1 : codigo.indexOf('"data:application/octet-stream;base64,AGFzbQ', marcaYoga);
+reYoga.lastIndex = iReady;
+reBase64.lastIndex = iBase64;
+const ready = iReady >= marcaYoga && marcaYoga >= 0 ? reYoga.exec(codigo) : null;
+const base64 = iBase64 >= 0 ? reBase64.exec(codigo) : null;
+if (!ready || !base64 || iBase64 < iReady || !base64[1].startsWith("AGFzbQ")) {
+  console.error("Erro: não achei o loader do yoga-layout no worker; os PDFs falhariam no Workers. Revise o patch em scripts/cf-build.mjs.");
+  process.exit(1);
+}
+writeFileSync(path.join(path.dirname(handler), "yoga.wasm"), Buffer.from(base64[1], "base64"));
+const [trechoReady, mod, , , , rejeitar] = ready;
+const gancho = `${mod}.instantiateWasm||(${mod}.instantiateWasm=function(i,ok){WebAssembly.instantiate(__yogaWasm,i).then(ok,${rejeitar});return{}});`;
+// Troca de trás para frente para os índices continuarem válidos (o base64 vem depois do ready)
+codigo =
+  codigo.slice(0, iBase64) +
+  '"data:application/octet-stream;base64,"' +
+  codigo.slice(iBase64 + base64[0].length);
+codigo = codigo.slice(0, iReady) + trechoReady + gancho + codigo.slice(iReady + trechoReady.length);
+codigo = `import __yogaWasm from "./yoga.wasm";\n${codigo}`;
+writeFileSync(handler, codigo);
 console.log(`\nWorker pronto para "${ambiente}" em .open-next/ (sem valores de .env.local embutidos).`);

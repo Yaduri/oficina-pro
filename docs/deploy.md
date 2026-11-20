@@ -83,6 +83,7 @@ Passos soltos, se precisar: `pnpm db:migrate:homolog`, `pnpm cf:build:homolog`, 
 ## Como funciona (para manutenção)
 
 - `scripts/cf-build.mjs`: build com `CF_BUILD=1`. Lê as `NEXT_PUBLIC_*` do `wrangler.jsonc` (não do `.env.local`), não embute o `.env.local` no worker e troca o carregamento das fontes padrão do pdfkit (que usa `createRequire`, inexistente no Workers) por imports estáticos.
+- PDFs no Workers: o yoga-layout (layout do `@react-pdf`) compila em tempo de execução um wasm embutido em base64, o que o Workers proíbe ("Wasm code generation disallowed by embedder"). O `scripts/cf-build.mjs` extrai esse binário para `yoga.wasm` ao lado do handler, importa-o estaticamente (o wrangler sobe como módulo wasm já compilado) e injeta um `instantiateWasm` no loader do Emscripten que o usa. Em `next dev` nada muda. Se o build falhar com "não achei o loader do yoga-layout", a versão do yoga mudou e o patch precisa ser revisto.
 - `next.config.ts` com `CF_BUILD=1`: PGlite e sharp viram stubs (`scripts/cf-sem-*.mjs`) e saem do worker. `.data/` nunca entra em build.
 - `src/db/index.ts`: no Workers cria o cliente postgres-js por requisição (conexões não podem ser reaproveitadas entre requisições) usando o binding `HYPERDRIVE`; o pool fica no Hyperdrive. Em `next dev` continua o PGlite.
 - `src/lib/pdf/imagens.ts`: no Workers usa o binding `IMAGES` (Cloudflare Images) para reduzir as fotos do PDF; sem cota/binding, usa o JPEG/PNG original (as fotos já chegam do celular em JPEG ≤ 1600 px). Em Node continua o sharp.
