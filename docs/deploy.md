@@ -23,12 +23,11 @@ pnpm wrangler login
 
 1. No Supabase, projeto `oficina-pro-homolog`: **Project Settings → Database → Reset database password**. Guarde a senha só com você.
 2. Botão **Connect** → copie duas strings (com a senha no lugar de `[YOUR-PASSWORD]`):
-   - **Transaction pooler** (porta **6543**): vai para o Hyperdrive.
-   - **Session pooler** (porta **5432**): para as migrações.
+   - **Session pooler** (porta **5432**): vai para o Hyperdrive e para as migrações. Não use o Transaction pooler (6543) no Hyperdrive: em 20/11/2026 a primeira consulta de cada conexão travava (o Hyperdrive já faz o pool).
 3. Crie o Hyperdrive **no seu terminal** (a senha não passa por chat nem pelo git). Cache **desligado** é obrigatório: com cache, uma consulta de uma oficina poderia ser devolvida para outra (RLS) e telas mostrariam dados velhos.
 
    ```sh
-   pnpm wrangler hyperdrive create oficina-pro-homolog --caching-disabled --connection-string="postgresql://postgres.<ref>:<SENHA>@aws-0-sa-east-1.pooler.supabase.com:6543/postgres"
+   pnpm wrangler hyperdrive create oficina-pro-homolog --caching-disabled --origin-connection-limit 10 --connection-string="postgresql://postgres.<ref>:<SENHA>@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
    ```
 
 4. Copie o `id` impresso para `env.homolog.hyperdrive[0].id` no `wrangler.jsonc` (troque `COLE_AQUI_O_ID_DO_HYPERDRIVE_HOMOLOG`). O id não é segredo.

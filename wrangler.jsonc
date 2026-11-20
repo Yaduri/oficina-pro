@@ -24,7 +24,7 @@
         {
           "binding": "HYPERDRIVE",
           // id impresso por `wrangler hyperdrive create oficina-pro-homolog ...` (docs/deploy.md)
-          "id": "8202e5323ead4e23bd7b21a132ae8c68",
+          "id": "7f5ce26fcaa84cb2a6b60a59b2d3ee2b",
           // Só para `wrangler dev`/preview local; sem banco local fica um endereço que não responde.
           "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
         }
