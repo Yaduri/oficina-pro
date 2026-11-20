@@ -8,12 +8,15 @@ import { TOKEN_RE, orcamentoPorToken } from "@/lib/orcamento";
 import { textoAvisoOficina } from "@/lib/fila-mensagens";
 import { registrarEvento } from "@/lib/os-acesso";
 import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
+import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export type RespostaState = { erro?: string } | undefined;
 
 /** Resposta do cliente pelo link público (sem login — o token é a autorização). */
 export async function responderOrcamento(token: string, _prev: RespostaState, form: FormData): Promise<RespostaState> {
   if (!TOKEN_RE.test(token)) return { erro: "Link inválido" };
+  const lim = await verificarLimite({ chave: `orc-resp:${await ipAtual()}:${token.slice(0, 12)}`, limite: 10, janelaSeg: 600 });
+  if (!lim.permitido) return { erro: `Muitas tentativas. Aguarde ${lim.retryAfterSeg} segundos e tente novamente.` };
   const dados = z
     .object({
       decisao: z.enum(["aprovar", "recusar"]),

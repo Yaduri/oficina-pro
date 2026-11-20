@@ -1135,6 +1135,47 @@ export const notasFiscais = pgTable(
   ],
 );
 
+/* ---------- Segurança e LGPD (Fase 6.2) ---------- */
+
+/**
+ * Trilha de auditoria: quem alterou valores, cancelou, excluiu, emitiu/cancelou nota,
+ * mudou permissões ou executou ações LGPD.
+ */
+export const auditoria = pgTable(
+  "auditoria",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    usuarioId: text("usuario_id"),
+    usuarioNome: text("usuario_nome"),
+    tabela: text("tabela").notNull(),
+    registroId: text("registro_id"),
+    acao: text("acao").notNull(),
+    resumo: text("resumo").notNull(),
+    antes: jsonb("antes").$type<Record<string, unknown> | null>(),
+    depois: jsonb("depois").$type<Record<string, unknown> | null>(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [
+    index("auditoria_oficina_data_idx").on(t.oficinaId, t.criadoEm),
+    index("auditoria_oficina_tabela_idx").on(t.oficinaId, t.tabela, t.criadoEm),
+  ],
+);
+
+/**
+ * Contadores de limite de tentativas (rate limit distribuído para links públicos e uploads).
+ * Acessado apenas pela conexão do sistema (getDbSistema).
+ */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    chave: text("chave").primaryKey(),
+    contagem: integer("contagem").notNull().default(1),
+    expiraEm: timestamp("expira_em", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("rate_limits_expira_idx").on(t.expiraEm)],
+);
+
 /* ---------- Relações ---------- */
 
 export const ordensServicoRelations = relations(ordensServico, ({ one, many }) => ({

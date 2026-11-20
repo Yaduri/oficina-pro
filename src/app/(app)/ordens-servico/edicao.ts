@@ -16,6 +16,7 @@ import {
   type PlanoPagamento,
 } from "@/lib/recebimento";
 import { ehUuid, nomeDoUsuario, osDaOficina, registrarEvento } from "@/lib/os-acesso";
+import { registrarAuditoria } from "@/lib/auditoria";
 import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 import { atualizarLembretesDaEntrega } from "@/lib/relacionamento";
 import { formatBRL, formatData, parseValor, soDigitos } from "@/lib/utils";
@@ -151,6 +152,20 @@ export async function editarItem(osId: string, itemId: string, _prev: EdicaoStat
     `Alterou o item “${d.data.descricao}”${detalhes.length ? ` (${detalhes.join(", ")})` : ""}`,
     ctx,
   );
+  if (detalhes.length > 0) {
+    await registrarAuditoria({
+      oficinaId: ctx.oficina.id,
+      usuarioId: ctx.userId,
+      usuarioNome: nomeDoUsuario(ctx),
+      tabela: "os_itens",
+      registroId: itemId,
+      acao: "alterar_valor",
+      resumo: `OS #${os.numero}: alterou “${d.data.descricao}” (${detalhes.join(", ")})`,
+      antes: { quantidade: Number(antes.quantidade), valorUnitario: Number(antes.valorUnitario) },
+      depois: { quantidade: d.data.quantidade, valorUnitario: d.data.valor },
+      db,
+    });
+  }
   revalidar(os.id);
   return { ok: true };
 }
@@ -179,6 +194,18 @@ export async function definirDesconto(osId: string, _prev: EdicaoState, form: Fo
 
   await db.update(schema.ordensServico).set(set).where(eq(schema.ordensServico.id, os.id));
   await registrarEvento(db, ctx.oficina.id, os.id, texto, ctx);
+  await registrarAuditoria({
+    oficinaId: ctx.oficina.id,
+    usuarioId: ctx.userId,
+    usuarioNome: nomeDoUsuario(ctx),
+    tabela: "ordens_servico",
+    registroId: os.id,
+    acao: "desconto",
+    resumo: `OS #${os.numero}: ${texto}`,
+    antes: { descontoPercentual: os.descontoPercentual, descontoValor: os.descontoValor },
+    depois: set,
+    db,
+  });
   revalidar(os.id);
   return { ok: true };
 }

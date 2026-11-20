@@ -1,6 +1,7 @@
 import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { getDb, getDbSistema, schema, type DB } from "@/db";
+import { registrarAuditoria } from "@/lib/auditoria";
 import { cifrar, decifrar, iguais, tokenAleatorio } from "@/lib/cripto";
 import { gerarCsv, type Celula } from "@/lib/csv";
 import { diaSP } from "@/lib/agenda-datas";
@@ -727,7 +728,7 @@ export async function transmitirNota(
       }
     }
 
-    // Registra no histórico da OS
+    // Registra no histórico da OS e na auditoria
     if (nota.osId) {
       await db.insert(osEventos).values({
         oficinaId,
@@ -737,6 +738,17 @@ export async function transmitirNota(
         usuarioNome: opts?.usuarioNome ?? "Sistema",
       });
     }
+    await registrarAuditoria({
+      oficinaId,
+      usuarioId: opts?.usuarioId ?? null,
+      usuarioNome: opts?.usuarioNome ?? "Sistema",
+      tabela: "notas_fiscais",
+      registroId: nota.id,
+      acao: "emitir_nota",
+      resumo: `Emitiu NFS-e${res.numeroNota ? ` nº ${res.numeroNota}` : ""} (${nota.ambiente}) para ${nota.tomadorNome} — R$ ${nota.valorLiquido}`,
+      depois: { numeroNota: res.numeroNota, chaveAcesso: res.chaveAcesso, valorLiquido: nota.valorLiquido, ambiente: nota.ambiente },
+      db,
+    });
 
     return { status: "autorizada" };
   }
@@ -929,6 +941,18 @@ export async function cancelarNotaFiscal(p: {
       usuarioNome: p.usuarioNome ?? "Usuário",
     });
   }
+  await registrarAuditoria({
+    oficinaId: p.oficinaId,
+    usuarioId: p.usuarioId,
+    usuarioNome: p.usuarioNome ?? "Usuário",
+    tabela: "notas_fiscais",
+    registroId: nota.id,
+    acao: "cancelar_nota",
+    resumo: `Cancelou NFS-e${nota.numeroNota ? ` nº ${nota.numeroNota}` : ""} (${p.motivo.trim()})`,
+    antes: { status: nota.status, numeroNota: nota.numeroNota, valorLiquido: nota.valorLiquido },
+    depois: { status: "cancelada", codigoMotivo: p.codigoMotivo, motivo: p.motivo.trim() },
+    db,
+  });
 
   return { ok: true };
 }

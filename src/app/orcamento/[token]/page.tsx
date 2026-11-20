@@ -12,12 +12,22 @@ import { RespostaOrcamento } from "./resposta";
 import { AvisarOficina } from "./avisar-oficina";
 import { linkMensagem } from "@/lib/mensagens";
 import { textoAvisoOficina } from "@/lib/fila-mensagens";
+import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export const metadata: Metadata = { title: "Orçamento", robots: { index: false, follow: false } };
 
 const qtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 export default async function OrcamentoPublico({ params }: PageProps<"/orcamento/[token]">) {
+  const lim = await verificarLimite({ chave: `orc-view:${await ipAtual()}`, limite: 60, janelaSeg: 600 });
+  if (!lim.permitido) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-2 px-4 text-center">
+        <h1 className="text-[18px] font-semibold">Muitas tentativas</h1>
+        <p className="text-[14px] text-muted">Aguarde {lim.retryAfterSeg} segundos e recarregue a página.</p>
+      </div>
+    );
+  }
   const { token } = await params;
   const dados = await orcamentoPorToken(token);
   if (!dados) notFound();

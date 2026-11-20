@@ -88,3 +88,86 @@ export async function lerArquivo(key: string): Promise<Arquivo | null> {
 export function urlArquivo(key: string) {
   return `/arquivos/${key}`;
 }
+
+export type ObjetoArmazenado = { key: string; modificadoEm: Date; tamanho: number };
+
+/** Lista objetos no R2 (S3 ListObjectsV2) ou no disco local, para manutenção/limpeza de órfãos */
+export async function listarArquivos(prefixo = ""): Promise<ObjetoArmazenado[]> {
+  const r = await clienteR2();
+  if (r) {
+    const { XMLParser } = await import("fast-xml-parser");
+    const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false });
+    const resultado: ObjetoArmazenado[] = [];
+    let token: string | undefined;
+
+    do {
+      const qs = new URLSearchParams({ "list-type": "2", "max-keys": "1000" });
+      if (prefixo) qs.set("prefix", prefixo);
+      if (token) qs.set("continuation-token", token);
+      const res = await r.aws.fetch(`${r.cfg.endpoint}?${qs.toString()}`);
+      if (!res.ok) throw new Error(`Falha ao listar R2 (${res.status})`);
+      const xml = await res.text();
+      const parsed = parser.parse(xml) as {
+        ListBucketResult?: {
+          IsTruncated?: string;
+          NextContinuationToken?: string;
+          Contents?: { Key: string; LastModified: string; Size: string } | { Key: string; LastModified: string; Size: string }[];
+        };
+      };
+      const br = parsed.ListBucketResult;
+      const itens = br?.Contents ? (Array.isArray(br.Contents) ? br.Contents : [br.Contents]) : [];
+      for (const item of itens) {
+        if (!item.Key) continue;
+        resultado.push({
+          key: item.Key,
+          modificadoEm: new Date(item.LastModified),
+          tamanho: Number(item.Size) || 0,
+        });
+      }
+      token = br?.IsTruncated === "true" ? br.NextContinuationToken : undefined;
+    } while (token);
+
+    return resultado;
+  }
+
+  // Disco local (.data/arquivos)
+  const { readdir, stat } = await import("node:fs/promises");
+  const raiz = path.resolve(pastaLocal());
+  const resultado: ObjetoArmazenado[] = [];
+  async function caminhar(dir: string) {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const completo = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        await caminhar(completo);
+      } else if (e.isFile() && !e.name.endsWith(".type")) {
+        const rel = path.relative(raiz, completo).split(path.sep).join("/");
+        if (prefixo && !rel.startsWith(prefixo)) continue;
+        const st = await stat(completo);
+        resultado.push({ key: rel, modificadoEm: st.mtime, tamanho: st.size });
+      }
+    }
+  }
+  await caminhar(raiz);
+  return resultado;
+}
+
+/** Remove um arquivo do R2 ou do disco local */
+export async function removerArquivo(key: string): Promise<void> {
+  if (!chaveValida(key)) throw new Error("Chave inválida");
+  const r = await clienteR2();
+  if (r) {
+    const res = await r.aws.fetch(`${r.cfg.endpoint}/${key}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 404) throw new Error(`Falha ao remover do R2 (${res.status})`);
+    return;
+  }
+  const { rm } = await import("node:fs/promises");
+  const destino = caminhoLocal(key);
+  await rm(destino, { force: true });
+  await rm(`${destino}.type`, { force: true });
+}

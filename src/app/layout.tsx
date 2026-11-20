@@ -10,6 +10,7 @@ const plex = IBM_Plex_Sans({
   variable: "--font-plex",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

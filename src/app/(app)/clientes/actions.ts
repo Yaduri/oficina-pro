@@ -7,6 +7,8 @@ import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import { usoDoCliente, usoDoVeiculo } from "@/lib/cadastros";
+import { registrarAuditoria } from "@/lib/auditoria";
+import { apagarOuAnonimizarClienteLgpd } from "@/lib/lgpd";
 import { nomeDoUsuario } from "@/lib/os-acesso";
 import { COMBUSTIVEIS } from "@/lib/veiculo";
 import { PLACA_RE, formatPlaca, soDigitos } from "@/lib/utils";
@@ -253,6 +255,7 @@ export async function excluirCliente(id: string): Promise<Simples> {
     return r.ok ? { ok: true, arquivado: true } : r;
   }
   const db = await getDb();
+  const [antes] = await db.select({ nome: schema.clientes.nome, documento: schema.clientes.documento }).from(schema.clientes).where(and(eq(schema.clientes.id, id), eq(schema.clientes.oficinaId, ctx.oficina.id)));
   const apagou = await db.transaction(async (tx) => {
     await tx.delete(schema.veiculos).where(and(eq(schema.veiculos.clienteId, id), eq(schema.veiculos.oficinaId, ctx.oficina.id)));
     return tx
@@ -261,8 +264,35 @@ export async function excluirCliente(id: string): Promise<Simples> {
       .returning({ id: schema.clientes.id });
   });
   if (apagou.length === 0) return { erro: "Cliente não encontrado" };
+  await registrarAuditoria({
+    oficinaId: ctx.oficina.id,
+    usuarioId: ctx.userId,
+    usuarioNome: nomeDoUsuario(ctx),
+    tabela: "clientes",
+    registroId: id,
+    acao: "excluir",
+    resumo: `Excluiu o cliente "${antes?.nome ?? id}"`,
+    antes: antes ?? null,
+    db,
+  });
   revalidarCadastros();
   redirect("/clientes");
+}
+
+/** Atende pedido LGPD do cliente: apaga se sem histórico, ou anonimiza dados pessoais */
+export async function anonimizarClienteAction(id: string): Promise<Simples> {
+  const ctx = await ctxCadastros();
+  if (!ctx) return { erro: "Seu usuário não tem permissão para isso" };
+  if (!z.uuid().safeParse(id).success) return { erro: "Cliente não encontrado" };
+
+  const r = await apagarOuAnonimizarClienteLgpd(ctx.oficina.id, id, {
+    usuarioId: ctx.userId,
+    usuarioNome: nomeDoUsuario(ctx),
+  });
+  if (!r.ok) return { erro: r.erro };
+  revalidarCadastros(`/clientes/${id}`);
+  if (r.modo === "excluido") redirect("/clientes");
+  return { ok: true, arquivado: true };
 }
 
 async function veiculoDaOficina(oficinaId: string, veiculoId: string) {
@@ -298,6 +328,17 @@ export async function excluirVeiculo(veiculoId: string): Promise<Simples> {
   }
   const db = await getDb();
   await db.delete(schema.veiculos).where(eq(schema.veiculos.id, v.id));
+  await registrarAuditoria({
+    oficinaId: ctx.oficina.id,
+    usuarioId: ctx.userId,
+    usuarioNome: nomeDoUsuario(ctx),
+    tabela: "veiculos",
+    registroId: v.id,
+    acao: "excluir",
+    resumo: `Excluiu o veículo ${v.placa} (${v.modelo})`,
+    antes: { placa: v.placa, marca: v.marca, modelo: v.modelo },
+    db,
+  });
   revalidarCadastros(v.clienteId && `/clientes/${v.clienteId}`);
   return { ok: true };
 }

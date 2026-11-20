@@ -3,12 +3,16 @@ import { obterOuGerarDanfsePdf } from "@/lib/fiscal/notas";
 import { TOKEN_RE } from "@/lib/orcamento";
 import { documentoPorToken, pdfOS, pdfTermo } from "@/lib/pdf/carregar";
 import { respostaPdf } from "@/lib/pdf/gerar";
+import { ipDaRequisicao, respostaMuitasTentativas, verificarLimite } from "@/lib/rate-limit";
 
 /**
  * Documento enviado ao cliente por link (OS na via do cliente, termo de entrada ou DANFSe).
  * O token é a autorização; a OS sai sempre com os dados atuais.
  */
 export async function GET(req: Request, ctx: RouteContext<"/documento/[token]">) {
+  const lim = await verificarLimite({ chave: `doc:${ipDaRequisicao(req.headers)}`, limite: 60, janelaSeg: 600 });
+  if (!lim.permitido) return respostaMuitasTentativas(lim);
+
   const { token } = await ctx.params;
   if (!TOKEN_RE.test(token)) return new Response("Não encontrado", { status: 404 });
   const link = await documentoPorToken(token);

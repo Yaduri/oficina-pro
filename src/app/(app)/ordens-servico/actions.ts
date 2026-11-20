@@ -8,6 +8,7 @@ import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
 import type { Acao } from "@/lib/permissoes";
 import { nomeDoUsuario, registrarEvento } from "@/lib/os-acesso";
+import { registrarAuditoria } from "@/lib/auditoria";
 import { sincronizarEstoqueDaOS } from "@/lib/estoque-os";
 import { STATUS } from "@/lib/os";
 import { atualizarStatusOS } from "@/lib/queries";
@@ -53,6 +54,20 @@ export async function moverOS(osId: string, status: string) {
   await sincronizarEstoqueDaOS(oficina.id, parsed.data.osId, nomeDoUsuario(ctx));
   if (antes && antes.status !== parsed.data.status) {
     await registrarEvento(db, oficina.id, parsed.data.osId, `Status: ${STATUS[antes.status].label} → ${STATUS[parsed.data.status].label}`, ctx);
+    if (parsed.data.status === "cancelada" || antes.status === "entregue" || antes.status === "cancelada") {
+      await registrarAuditoria({
+        oficinaId: oficina.id,
+        usuarioId: ctx.userId,
+        usuarioNome: nomeDoUsuario(ctx),
+        tabela: "ordens_servico",
+        registroId: parsed.data.osId,
+        acao: parsed.data.status === "cancelada" ? "cancelar" : "reabrir",
+        resumo: `${parsed.data.status === "cancelada" ? "Cancelou" : "Reabriu"} a OS (${STATUS[antes.status].label} → ${STATUS[parsed.data.status].label})`,
+        antes: { status: antes.status },
+        depois: { status: parsed.data.status },
+        db,
+      });
+    }
   }
 
   revalidarOS(parsed.data.osId);
@@ -292,10 +307,27 @@ export async function removerItem(osId: string, itemId: string) {
   const [item] = await r.db
     .delete(schema.osItens)
     .where(and(eq(schema.osItens.id, itemId), eq(schema.osItens.osId, osId)))
-    .returning({ descricao: schema.osItens.descricao });
+    .returning({
+      descricao: schema.osItens.descricao,
+      quantidade: schema.osItens.quantidade,
+      valorUnitario: schema.osItens.valorUnitario,
+      tipo: schema.osItens.tipo,
+    });
   if (item) {
-    await sincronizarEstoqueDaOS(r.oficinaId, osId, nomeDoUsuario(await getContexto()));
-    await registrarEvento(r.db, r.oficinaId, osId, `Removeu o item “${item.descricao}”`, await getContexto());
+    const ctx = await getContexto();
+    await sincronizarEstoqueDaOS(r.oficinaId, osId, nomeDoUsuario(ctx));
+    await registrarEvento(r.db, r.oficinaId, osId, `Removeu o item “${item.descricao}”`, ctx);
+    await registrarAuditoria({
+      oficinaId: r.oficinaId,
+      usuarioId: ctx.userId,
+      usuarioNome: nomeDoUsuario(ctx),
+      tabela: "os_itens",
+      registroId: itemId,
+      acao: "excluir",
+      resumo: `Removeu ${item.tipo === "peca" ? "peça" : "serviço"} “${item.descricao}” (${formatBRL(Number(item.quantidade) * Number(item.valorUnitario))}) da OS`,
+      antes: { osId, ...item },
+      db: r.db,
+    });
   }
   revalidarOS(osId);
 }

@@ -30,21 +30,27 @@ export async function membroAtivo(userId: string) {
 
 /**
  * Contexto da requisição: oficina (o CNPJ) do usuário e o papel dele.
+ * Otimizado (Fase 6.4): busca membro + oficina em uma única consulta JOIN em vez de duas voltas ao banco.
  * Sem participação: vai para o cadastro inicial; com acesso desativado: tela de aviso.
  */
 export const getContexto = cache(async () => {
   const userId = await exigirLogin();
   const db = await getDb();
 
-  const membro = await membroAtivo(userId);
-  if (!membro) {
+  const [row] = await db
+    .select({ membro: schema.membros, oficina: schema.oficinas })
+    .from(schema.membros)
+    .innerJoin(schema.oficinas, eq(schema.oficinas.id, schema.membros.oficinaId))
+    .where(and(eq(schema.membros.clerkUserId, userId), eq(schema.membros.ativo, true)))
+    .orderBy(desc(schema.membros.criadoEm))
+    .limit(1);
+
+  if (!row) {
     const [inativo] = await db.select({ id: schema.membros.id }).from(schema.membros).where(eq(schema.membros.clerkUserId, userId)).limit(1);
     redirect(inativo ? "/sem-acesso" : "/onboarding");
   }
 
-  const [oficina] = await db.select().from(schema.oficinas).where(eq(schema.oficinas.id, membro.oficinaId));
-  if (!oficina) redirect("/onboarding");
-
+  const { membro, oficina } = row;
   const papel = membro.papel;
   return {
     userId,

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema, type DB } from "@/db";
+import { registrarAuditoria } from "@/lib/auditoria";
 import { getContexto } from "@/lib/oficina";
 import { podeGerenciarPapel, type Papel } from "@/lib/permissoes";
 
@@ -115,6 +116,18 @@ export async function atualizarMembro(membroId: string, _prev: UsuarioState, for
   }
 
   await db.update(schema.membros).set({ papel: r.papel as Papel }).where(eq(schema.membros.id, m.id));
+  await registrarAuditoria({
+    oficinaId: m.oficinaId,
+    usuarioId: r.ctx.userId,
+    usuarioNome: r.ctx.membro.nome || r.ctx.membro.email,
+    tabela: "membros",
+    registroId: m.id,
+    acao: "alterar_acesso",
+    resumo: `Alterou papel de ${m.nome || m.email || "usuário"}: ${m.papel} → ${r.papel}`,
+    antes: { papel: m.papel },
+    depois: { papel: r.papel },
+    db,
+  });
   revalidar();
   return { ok: true };
 }
@@ -122,11 +135,23 @@ export async function atualizarMembro(membroId: string, _prev: UsuarioState, for
 export async function alterarAtivo(membroId: string, ativo: boolean): Promise<UsuarioState> {
   const alvo = await membroAlteravel(membroId);
   if ("erro" in alvo) return { erro: alvo.erro };
-  const { db, m } = alvo;
+  const { db, m, ctx } = alvo;
   if (!ativo && m.papel === "dono" && !(await sobraDono(db, m.oficinaId, m.id))) {
     return { erro: "A oficina precisa ter ao menos um dono ativo" };
   }
   await db.update(schema.membros).set({ ativo }).where(eq(schema.membros.id, m.id));
+  await registrarAuditoria({
+    oficinaId: m.oficinaId,
+    usuarioId: ctx.userId,
+    usuarioNome: ctx.membro.nome || ctx.membro.email,
+    tabela: "membros",
+    registroId: m.id,
+    acao: "alterar_acesso",
+    resumo: `${ativo ? "Reativou" : "Desativou"} o acesso de ${m.nome || m.email || "usuário"}`,
+    antes: { ativo: m.ativo },
+    depois: { ativo },
+    db,
+  });
   revalidar();
   return { ok: true };
 }

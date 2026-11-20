@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { getDb, schema, type DB } from "@/db";
 import { getContexto } from "@/lib/oficina";
-import { ehUuid } from "@/lib/os-acesso";
+import { ehUuid, nomeDoUsuario } from "@/lib/os-acesso";
+import { registrarAuditoria } from "@/lib/auditoria";
 import { chaveValida } from "@/lib/storage";
 import { DIA_RE } from "@/lib/agenda-datas";
 import {
@@ -323,6 +324,20 @@ export async function editarLancamento(id: string, _prev: AcaoState, form: FormD
       status: pago === 0 ? "aberto" : pago >= d.valor ? "pago" : "parcial",
     })
     .where(eq(l.id, id));
+  if (centavos(atual.valor) !== d.valor || atual.vencimento !== d.vencimento) {
+    await registrarAuditoria({
+      oficinaId,
+      usuarioId: c.ctx.userId,
+      usuarioNome: nomeDoUsuario(c.ctx),
+      tabela: "lancamentos",
+      registroId: id,
+      acao: "alterar_valor",
+      resumo: `Alterou conta a ${atual.tipo} “${d.descricao}” (R$ ${atual.valor} → R$ ${reais(d.valor)})`,
+      antes: { valor: atual.valor, vencimento: atual.vencimento },
+      depois: { valor: reais(d.valor), vencimento: d.vencimento },
+      db,
+    });
+  }
   await encerrarCobrancas(db, oficinaId, id);
   revalidar();
   return { ok: true, id };
@@ -345,6 +360,18 @@ export async function cancelarLancamento(id: string): Promise<AcaoState> {
     .limit(1);
   if (ativa || centavos(atual.valorPago) > 0) return { erro: "Este lançamento tem pagamentos. Estorne-os antes de cancelar." };
   await db.update(l).set({ status: "cancelado" }).where(eq(l.id, id));
+  await registrarAuditoria({
+    oficinaId,
+    usuarioId: c.ctx.userId,
+    usuarioNome: nomeDoUsuario(c.ctx),
+    tabela: "lancamentos",
+    registroId: id,
+    acao: "cancelar",
+    resumo: `Cancelou conta a ${atual.tipo} “${atual.descricao}” (R$ ${atual.valor})`,
+    antes: { status: atual.status, valor: atual.valor },
+    depois: { status: "cancelado" },
+    db,
+  });
   await encerrarCobrancas(db, oficinaId, id);
   revalidar();
   return { ok: true };
@@ -427,8 +454,21 @@ export async function estornarPagamento(baixaId: string): Promise<AcaoState> {
   if (!c) return SEM_PERMISSAO;
   const { ctx, db, oficinaId } = c;
   if (!ehUuid(baixaId)) return { erro: "Pagamento não encontrado" };
+  const [baixaAntes] = await db.select({ valor: baixas.valor, data: baixas.data, lancamentoId: baixas.lancamentoId }).from(baixas).where(and(eq(baixas.id, baixaId), eq(baixas.oficinaId, oficinaId)));
   const res = await db.transaction(async (txRaw) => estornarBaixa(txRaw as unknown as DB, oficinaId, baixaId, ctx.userId));
   if ("erro" in res) return { erro: res.erro };
+  await registrarAuditoria({
+    oficinaId,
+    usuarioId: ctx.userId,
+    usuarioNome: nomeDoUsuario(ctx),
+    tabela: "baixas",
+    registroId: baixaId,
+    acao: "estornar",
+    resumo: `Estornou pagamento de R$ ${baixaAntes?.valor ?? "?"} (${baixaAntes?.data ?? ""})`,
+    antes: baixaAntes ?? null,
+    depois: { estornada: true },
+    db,
+  });
   revalidar();
   return { ok: true };
 }

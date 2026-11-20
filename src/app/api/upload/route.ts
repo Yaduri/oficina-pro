@@ -1,5 +1,7 @@
 import { getContexto } from "@/lib/oficina";
+import { respostaMuitasTentativas, verificarLimite } from "@/lib/rate-limit";
 import { salvarArquivo } from "@/lib/storage";
+import { tipoRealDoArquivo } from "@/lib/upload-validacao";
 
 const IMAGENS = new Set(["image/jpeg", "image/png", "image/webp"]);
 const IMAGENS_E_PDF = new Set([...IMAGENS, "application/pdf"]);
@@ -16,10 +18,16 @@ const PASTAS: Record<string, { max: number; tipos: Set<string>; erroTipo: string
 
 /**
  * Recebe um arquivo por vez (fotos já comprimidas no celular) e devolve a chave no armazenamento.
- * Fotos de check-in abandonado ficam órfãs; uma limpeza periódica pode removê-las depois.
+ * Aplica limite de envios por usuário e valida assinatura binária (magic bytes) do arquivo.
  */
 export async function POST(req: Request) {
-  const { oficina, admin, pode } = await getContexto();
+  const { oficina, userId, admin, pode } = await getContexto();
+  if (!pode("checkin")) return Response.json({ erro: "Sem permissão" }, { status: 403 });
+
+  // Limite de tentativas: até 60 envios a cada 10 minutos por usuário
+  const lim = await verificarLimite({ chave: `upload:${oficina.id}:${userId}`, limite: 60, janelaSeg: 600 });
+  if (!lim.permitido) return respostaMuitasTentativas(lim);
+
   const form = await req.formData().catch(() => null);
   const arquivo = form?.get("arquivo");
   const pasta = String(form?.get("pasta") ?? "checkins");
@@ -28,13 +36,19 @@ export async function POST(req: Request) {
   if (pasta === "logos" && !admin) return Response.json({ erro: "Sem permissão" }, { status: 403 });
   if (pasta === "financeiro" && !pode("financeiro")) return Response.json({ erro: "Sem permissão" }, { status: 403 });
   if (!(arquivo instanceof File)) return Response.json({ erro: "Arquivo ausente" }, { status: 400 });
-  if (!regra.tipos.has(arquivo.type)) return Response.json({ erro: regra.erroTipo }, { status: 415 });
   if (arquivo.size > regra.max) {
     return Response.json({ erro: `Arquivo maior que ${regra.max / 1024 / 1024} MB` }, { status: 413 });
   }
 
+  const dados = await arquivo.arrayBuffer();
+  // Confere assinatura real do arquivo (impede HTML/SVG disfarçado de imagem)
+  const tipoReal = tipoRealDoArquivo(new Uint8Array(dados));
+  if (!tipoReal || !regra.tipos.has(tipoReal)) {
+    return Response.json({ erro: regra.erroTipo }, { status: 415 });
+  }
+
   const mes = new Date().toISOString().slice(0, 7);
   const key = `${oficina.id}/${pasta}/${mes}/${crypto.randomUUID()}`;
-  await salvarArquivo(key, await arquivo.arrayBuffer(), arquivo.type);
+  await salvarArquivo(key, dados, tipoReal);
   return Response.json({ key });
 }

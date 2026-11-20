@@ -11,9 +11,19 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: { "*": [".data/**"] },
   // Domínio de teste servido pelo Cloudflare Tunnel apontando para o `next dev`.
   allowedDevOrigins: ["oficinapro.yagoduarte.com.br"],
-  // Service worker: sempre a versão mais nova e só scripts do próprio site
+  // Service worker + cabeçalhos de segurança HTTP (Fase 6.2)
   async headers() {
     return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+        ],
+      },
       {
         source: "/sw.js",
         headers: [

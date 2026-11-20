@@ -10,6 +10,7 @@ import { AcoesArquivo } from "../arquivar";
 import { EditarClienteForm } from "../forms";
 import { ListaVeiculos } from "../veiculos";
 import { PortalCliente } from "./portal";
+import { AcoesLgpdCliente } from "./lgpd";
 
 export async function generateMetadata({ params }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
@@ -108,6 +109,15 @@ export default async function ClientePage({ params }: PageProps<"/clientes/[id]"
               <CardHeader title="Arquivar ou excluir" />
               <div className="p-5">
                 <AcoesArquivo tipo="cliente" id={cliente.id} arquivado={!!cliente.arquivadoEm} temHistorico={uso > 0} rotulo={cliente.nome} />
+              </div>
+            </Card>
+          )}
+
+          {editavel && (
+            <Card>
+              <CardHeader title="Privacidade (LGPD)" />
+              <div className="p-5">
+                <AcoesLgpdCliente clienteId={cliente.id} nome={cliente.nome} temHistorico={uso > 0} />
               </div>
             </Card>
           )}

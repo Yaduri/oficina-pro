@@ -5,11 +5,21 @@ import { Placa } from "@/components/ui";
 import { pesquisaPorToken } from "@/lib/relacionamento";
 import { identificacao } from "@/lib/identificacao";
 import { formatData } from "@/lib/utils";
+import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 import { FormularioPesquisa } from "./formulario";
 
 export const metadata: Metadata = { title: "Pesquisa de satisfação", robots: { index: false, follow: false } };
 
 export default async function PesquisaPublica({ params }: PageProps<"/pesquisa/[token]">) {
+  const lim = await verificarLimite({ chave: `pesq-view:${await ipAtual()}`, limite: 60, janelaSeg: 600 });
+  if (!lim.permitido) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-2 px-4 text-center">
+        <h1 className="text-[18px] font-semibold">Muitas tentativas</h1>
+        <p className="text-[14px] text-muted">Aguarde {lim.retryAfterSeg} segundos e recarregue a página.</p>
+      </div>
+    );
+  }
   const { token } = await params;
   const dados = await pesquisaPorToken(token);
   if (!dados) notFound();

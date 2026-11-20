@@ -12,6 +12,7 @@ const ABAS = [
   { href: "/configuracoes/checklist", label: "Checklist" },
   { href: "/configuracoes/mensagens", label: "Mensagens" },
   { href: "/configuracoes/usuarios", label: "Usuários" },
+  { href: "/configuracoes/auditoria", label: "Auditoria" },
 ];
 
 export function AbasConfig() {

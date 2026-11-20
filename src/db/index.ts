@@ -28,7 +28,11 @@ const globalForDb = globalThis as unknown as { __db?: Promise<Base> };
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Cliente postgres-js que roda cada consulta como o usuário (transação curta com o papel app_usuario). */
+/**
+ * Cliente postgres-js que roda cada consulta como o usuário (transação curta com o papel app_usuario).
+ * Otimização (Fase 6.4): enfileira set_config e a query juntos em pipelining dentro da mesma
+ * transação, reduzindo as voltas seriais ao banco de ~4 para 1–2 round-trips por consulta.
+ */
 function postgresDoUsuario(sql: any, usuario: string) {
   const preparar = (t: any) => t.unsafe(PREPARAR, [usuario]);
   return {
@@ -36,9 +40,10 @@ function postgresDoUsuario(sql: any, usuario: string) {
     unsafe(query: string, params?: unknown[], opts?: unknown) {
       const run = (valores: boolean) =>
         sql.begin(async (t: any) => {
-          await preparar(t);
+          const p = preparar(t);
           const q = t.unsafe(query, params, opts);
-          return valores ? q.values() : q;
+          const [, res] = await Promise.all([p, valores ? q.values() : q]);
+          return res;
         });
       return { values: () => run(true), then: (ok: any, erro: any) => run(false).then(ok, erro) };
     },

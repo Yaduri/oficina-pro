@@ -7,6 +7,7 @@ import type { StatusOS } from "@/lib/os";
 import { dadosPortal, formatDia, portalPorToken, SITUACAO_REVISAO } from "@/lib/relacionamento";
 import { identificacao } from "@/lib/identificacao";
 import { formatBRL, formatData, linkWhatsApp } from "@/lib/utils";
+import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export const metadata: Metadata = { title: "Meus veículos", robots: { index: false, follow: false } };
 
@@ -27,6 +28,15 @@ const COM_TOTAL: StatusOS[] = ["aguardando_peca", "em_execucao", "pronto", "entr
 const resumo = (itens: string[]) => (itens.length <= 4 ? itens.join(", ") : `${itens.slice(0, 4).join(", ")} e mais ${itens.length - 4}`);
 
 export default async function PortalCliente({ params }: PageProps<"/portal/[token]">) {
+  const lim = await verificarLimite({ chave: `portal-view:${await ipAtual()}`, limite: 60, janelaSeg: 600 });
+  if (!lim.permitido) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-2 px-4 text-center">
+        <h1 className="text-[18px] font-semibold">Muitas tentativas</h1>
+        <p className="text-[14px] text-muted">Aguarde {lim.retryAfterSeg} segundos e recarregue a página.</p>
+      </div>
+    );
+  }
   const { token } = await params;
   const dados = await portalPorToken(token);
   if (!dados) notFound();

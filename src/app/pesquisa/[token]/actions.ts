@@ -5,12 +5,15 @@ import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { getDbSistema, schema } from "@/db";
 import { TOKEN_PESQUISA_RE } from "@/lib/relacionamento";
+import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export type PesquisaState = { erro?: string; ok?: boolean } | undefined;
 
 /** Resposta do cliente pelo link público (sem login: o token é a autorização). Vale só a primeira. */
 export async function responderPesquisa(token: string, _prev: PesquisaState, form: FormData): Promise<PesquisaState> {
   if (!TOKEN_PESQUISA_RE.test(token)) return { erro: "Link inválido" };
+  const lim = await verificarLimite({ chave: `pesq-resp:${await ipAtual()}:${token.slice(0, 12)}`, limite: 10, janelaSeg: 600 });
+  if (!lim.permitido) return { erro: `Muitas tentativas. Aguarde ${lim.retryAfterSeg} segundos e tente novamente.` };
   const dados = z
     .object({
       nota: z

@@ -234,20 +234,20 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 - [x] Homologação (hoficina.yagoduarte.com.br) testada: login, check-in com fotos no R2, OS, orçamento público e PDFs. Produção (oficina.yagoduarte.com.br) publicada em 20/11/2026
 
 ### 6.2 Segurança e LGPD — **M**
-- [ ] Log de auditoria (alteração de valores, cancelamentos, exclusões, notas)
-- [ ] Limite de tentativas nas páginas públicas (orçamento) e no upload
+- [x] Log de auditoria (alteração de valores, descontos, cancelamentos, exclusões, estornos, notas, acessos e ações LGPD — tabela `auditoria` + tela `/configuracoes/auditoria`)
+- [x] Limite de tentativas nas páginas públicas (orçamento, portal, pesquisa, documentos) e no upload (`/api/upload`, com validação de magic bytes), persistido no Postgres (`rate_limits`)
 - [x] Política de privacidade e termos de uso (/privacidade, /termos; preencher `NEXT_PUBLIC_LEGAL_*` antes de publicar e revisar com advogado)
-- [ ] Exportar/apagar dados de um cliente a pedido; exportação da conta ao cancelar (prometida nos termos: 30 dias)
-- [ ] Revisão de segurança completa antes de abrir
+- [x] Exportar/apagar (ou anonimizar, quando há histórico fiscal/operacional) dados de um cliente a pedido (`/clientes/[id]/lgpd`); exportação completa da conta ao cancelar (`/configuracoes/exportar`)
+- [x] Revisão de segurança completa (`docs/revisao-seguranca.md`: headers HTTP, CSP sandbox em `/arquivos`, magic bytes no upload, bloqueio do papel contador)
 
 ### 6.3 Operação — **P**
-- [ ] Backup diário automático e teste de restauração
-- [ ] Monitoramento de erros e alerta
-- [ ] Limpeza de fotos órfãs (check-ins abandonados)
+- [x] Backup diário automático e teste de restauração (`scripts/backup.mjs`, `scripts/testar-restauracao.mjs` e workflow `.github/workflows/operacao-diaria.yml`; configurar segredos no GitHub Actions)
+- [x] Monitoramento de erros e alerta (`src/lib/monitoramento.ts`, `error.tsx`, `global-error.tsx`, `/api/erros` e healthcheck `/api/saude`; suporta `ALERTA_WEBHOOK_URL` e `SENTRY_DSN`)
+- [x] Limpeza de fotos órfãs (check-ins abandonados > 24h no R2 via `POST /api/operacao/limpar-orfas`, sem tocar em `*/fiscal/*`)
 
 ### 6.4 Qualidade — contínuo
-- [ ] Testes automáticos dos fluxos críticos (check-in, orçamento, entrega + pagamento, emissão de nota)
-- [ ] Revisão de acessibilidade e desempenho no celular
+- [x] Testes automáticos dos fluxos críticos (`pnpm test` em `tests/fluxos-criticos.test.mts`: RLS multi-tenant, check-in/OS/orçamento, entrega+pagamento/estorno, emissão fiscal/XMLDSig/ZIP, segurança e LGPD)
+- [x] Revisão de acessibilidade e desempenho no celular (link "Pular para o conteúdo", `touch-action: manipulation`, `font-display: swap`) e otimização do banco (pipelining em `postgresDoUsuario` + JOIN único em `getContexto()`)
 
 ---
 

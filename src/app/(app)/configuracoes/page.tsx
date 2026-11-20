@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { PageHeader } from "@/components/ui";
+import { Download } from "lucide-react";
+import { Card, PageHeader, buttonClass } from "@/components/ui";
 import { exigirAdmin } from "@/lib/oficina";
 import { FiscalForm, OficinaForm, TextosForm } from "./forms";
 import { AbasConfig } from "./abas";
@@ -25,6 +26,9 @@ export default async function ConfiguracoesPage() {
         <a href="#textos" className="whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
           Textos padrão
         </a>
+        <a href="#conta" className="whitespace-nowrap rounded-full border border-border px-3 py-1 font-medium text-foreground-2 hover:bg-subtle">
+          Dados e LGPD
+        </a>
       </nav>
 
       <Secao id="oficina" titulo="Oficina" descricao="Aparecem para o cliente no orçamento e nos documentos.">
@@ -37,6 +41,24 @@ export default async function ConfiguracoesPage() {
 
       <Secao id="textos" titulo="Textos padrão">
         <TextosForm textos={oficina} />
+      </Secao>
+
+      <Secao
+        id="conta"
+        titulo="Dados da conta e saída"
+        descricao="Portabilidade prometida nos Termos de Uso: baixe todos os dados da oficina em JSON e planilhas CSV."
+      >
+        <Card className="flex flex-col gap-3 p-5 text-[13px]">
+          <p className="text-muted">
+            O arquivo ZIP inclui cadastros de clientes, veículos, catálogo, ordens de serviço, financeiro, notas fiscais e trilha de auditoria. Chaves de API e certificados privados nunca entram no arquivo.
+          </p>
+          <div>
+            <a href="/configuracoes/exportar" className={buttonClass("secondary")}>
+              <Download />
+              Exportar todos os dados da conta (ZIP)
+            </a>
+          </div>
+        </Card>
       </Secao>
     </>
   );
