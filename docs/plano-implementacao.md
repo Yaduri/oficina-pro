@@ -153,8 +153,8 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 
 ### 3.1 Integração base — **G**
 - [ ] Camada `ProvedorFiscal` (interface única) para poder trocar de provedor sem reescrever o sistema
-- [ ] Implementação **PlugNotas** (sandbox público, sem cadastro) para desenvolver e testar o fluxo
-- [ ] Implementação **Focus NFe** (homologação e depois produção) quando houver os certificados A1; o provedor é escolhido nas Configurações
+- [ ] NFS-e: **emissão direta na NFS-e Nacional** (API do gov.br, sem provedor pago): DPS em XML assinada com o certificado A1, envio com o certificado na conexão (mTLS), consulta, cancelamento e substituição; ambiente de produção restrita (homologação) para testar
+- [ ] Peças (3.3), se houver: provedor (Focus NFe), pela mesma interface
 - [ ] Cadastro da oficina (CNPJ) no provedor com o **certificado A1** (upload criptografado, aviso de vencimento)
 - [ ] Ambientes: homologação para testes e produção
 - [ ] Fila de emissão com tentativas automáticas e webhook de retorno
@@ -228,8 +228,9 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 - [x] Deploy preparado para Cloudflare Workers (OpenNext, Hyperdrive sem cache, Images no lugar do sharp nos PDFs), com homologação e produção em `wrangler.jsonc`; passo a passo em `docs/deploy.md`
 - [x] Plano Workers Paid assinado (o worker tem ~3,6 MiB; o grátis aceita 3 MiB)
 - [x] `wrangler login`; buckets e tokens R2 por ambiente; segredos em `.env.secrets.*.json` (sobem no deploy)
-- [ ] Senhas do Supabase, Hyperdrive, Clerk produção com DNS (a secret atual foi exposta no chat e deve ser trocada) e `CLERK_SECRET_KEY` nos arquivos de segredos
-- [ ] Publicar homologação (hoficina.yagoduarte.com.br), testar login, OS, check-in com foto e PDFs; depois produção (oficina.yagoduarte.com.br)
+- [x] Supabase, Hyperdrive (Session pooler 5432) e Clerk de produção com DNS, nos dois ambientes
+- [ ] Trocar a chave do Clerk de desenvolvimento (exposta no chat); credenciais próprias do Google no Clerk de produção; dados de `NEXT_PUBLIC_LEGAL_*`
+- [x] Homologação (hoficina.yagoduarte.com.br) testada: login, check-in com fotos no R2, OS, orçamento público e PDFs. Produção (oficina.yagoduarte.com.br) publicada em 20/11/2026
 
 ### 6.2 Segurança e LGPD — **M**
 - [ ] Log de auditoria (alteração de valores, cancelamentos, exclusões, notas)
@@ -255,9 +256,9 @@ Pode ser feita a qualquer momento para um ambiente de testes; a abertura para us
 |---|---|---|
 | Vendem peças ou só serviço? | Sócios + contador | 3.3 |
 | Regime tributário do CNPJ | Contador | 1.1, Fase 3 |
-| Município usa NFS-e nacional? | Contador / prefeitura | 3.2 |
+| ~~Município usa NFS-e nacional?~~ | **Sim** (20/11/2026) | — |
 | Certificado A1 do CNPJ | Sócios | Fase 3 (inclusive testes em homologação de NF-e) |
-| ~~Provedor fiscal~~ | **Decidido:** desenvolver no sandbox do PlugNotas; produção na Focus NFe quando houver os certificados | — |
+| ~~Provedor fiscal~~ | **Decidido (20/11/2026):** NFS-e emitida direto na NFS-e Nacional, sem provedor; Focus NFe só se houver NF-e/NFC-e de peças | — |
 | Provedor de WhatsApp (API oficial) | Sócios | Envio automático (5.1 já funciona por wa.me) |
 | Uso próprio ou vender para outras oficinas? | Sócios | Planos/assinatura (fora deste plano) |
 
