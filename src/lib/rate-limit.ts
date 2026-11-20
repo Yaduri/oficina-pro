@@ -61,7 +61,7 @@ export async function verificarLimite(p: {
       target: schema.rateLimits.chave,
       set: {
         contagem: sql`CASE WHEN ${schema.rateLimits.expiraEm} <= now() THEN 1 ELSE ${schema.rateLimits.contagem} + 1 END`,
-        expiraEm: sql`CASE WHEN ${schema.rateLimits.expiraEm} <= now() THEN ${expira} ELSE ${schema.rateLimits.expiraEm} END`,
+        expiraEm: sql`CASE WHEN ${schema.rateLimits.expiraEm} <= now() THEN ${expira.toISOString()}::timestamptz ELSE ${schema.rateLimits.expiraEm} END`,
       },
     })
     .returning({ contagem: schema.rateLimits.contagem, expiraEm: schema.rateLimits.expiraEm });
