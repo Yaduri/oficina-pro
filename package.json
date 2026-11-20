@@ -16,8 +16,8 @@
     "cf:build:homolog": "node scripts/cf-build.mjs homolog",
     "cf:build:prod": "node scripts/cf-build.mjs production",
     "cf:preview": "opennextjs-cloudflare preview --env homolog",
-    "cf:deploy:homolog": "pnpm db:migrate:homolog && pnpm cf:build:homolog && opennextjs-cloudflare deploy --env homolog",
-    "cf:deploy:prod": "pnpm db:migrate:prod && pnpm cf:build:prod && opennextjs-cloudflare deploy --env production",
+    "cf:deploy:homolog": "pnpm db:migrate:homolog && pnpm cf:build:homolog && opennextjs-cloudflare deploy --env homolog --secrets-file .env.secrets.homolog.json",
+    "cf:deploy:prod": "pnpm db:migrate:prod && pnpm cf:build:prod && opennextjs-cloudflare deploy --env production --secrets-file .env.secrets.prod.json",
     "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {

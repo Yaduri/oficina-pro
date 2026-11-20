@@ -51,21 +51,15 @@ Variáveis `NEXT_PUBLIC_*` entram no build: mudou, faça deploy de novo.
 
 ## 4. Segredos (por ambiente)
 
-Cada comando pede o valor no terminal. Para produção, troque `--env homolog` por `--env production`.
+Os segredos ficam em `.env.secrets.homolog.json` e `.env.secrets.prod.json` (ignorados pelo git; são a cópia local das chaves) e sobem junto com cada deploy (`--secrets-file` nos scripts `cf:deploy:*`). Antes de o worker existir, `wrangler secret put` não guarda nada.
 
-```sh
-pnpm wrangler secret put CLERK_SECRET_KEY --env homolog
-pnpm wrangler secret put CHAVE_CRIPTOGRAFIA --env homolog
-pnpm wrangler secret put R2_ACCOUNT_ID --env homolog
-pnpm wrangler secret put R2_ACCESS_KEY_ID --env homolog
-pnpm wrangler secret put R2_SECRET_ACCESS_KEY --env homolog
-pnpm wrangler secret put R2_BUCKET --env homolog
-```
+Cada arquivo tem:
+- `CLERK_SECRET_KEY`: homolog usa a chave da instância de desenvolvimento do Clerk; produção, a da instância de Production.
+- `CHAVE_CRIPTOGRAFIA`: já gerada, uma diferente por ambiente. Não troque depois do primeiro uso: sem ela as chaves do Asaas salvas no banco não abrem mais.
+- `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`: já preenchidos. Tokens de conta do R2 `oficina-pro-homolog` e `oficina-pro-producao`, cada um com leitura e escrita só no próprio bucket (`oficina-pro` fica só para desenvolvimento).
 
-- `CHAVE_CRIPTOGRAFIA`: gere uma por ambiente (`node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`) e guarde: sem ela as chaves do Asaas salvas no banco não abrem mais.
-- R2: buckets privados `oficina-pro-homolog` (homolog) e `oficina-pro-producao` (produção), já criados; `oficina-pro` fica só para desenvolvimento. Crie um token de API do R2 com leitura e escrita nesses dois buckets. Sem as 4 variáveis do R2 os uploads falham no Workers (não há disco).
-- `APP_URL` já está em `vars` no `wrangler.jsonc`. `DATABASE_URL` não é usada no Workers (o banco vem do binding `HYPERDRIVE`).
-- Conferir: `pnpm wrangler secret list --env homolog`.
+`APP_URL` já está em `vars` no `wrangler.jsonc`. `DATABASE_URL` não é usada no Workers (o banco vem do binding `HYPERDRIVE`).
+Para trocar um segredo depois: edite o arquivo e faça o deploy, ou `pnpm wrangler secret put NOME --env homolog`. Conferir: `pnpm wrangler secret list --env homolog`.
 
 ## 5. Deploy
 
