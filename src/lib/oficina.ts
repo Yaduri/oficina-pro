@@ -56,10 +56,10 @@ export const getContexto = cache(async () => {
   };
 });
 
-/** Página que exige uma permissão: sem ela, volta para o início. */
+/** Página que exige uma permissão: sem ela, volta para a tela inicial do papel. */
 export async function exigir(acao: Acao) {
   const ctx = await getContexto();
-  if (!ctx.pode(acao)) redirect("/inicio");
+  if (!ctx.pode(acao)) redirect(ctx.papel === "contador" ? "/notas" : "/inicio");
   return ctx;
 }
 

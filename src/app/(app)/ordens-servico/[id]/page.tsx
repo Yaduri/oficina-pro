@@ -29,6 +29,8 @@ import { FORMAS_PAGAMENTO } from "@/lib/recebimento-regras";
 import { RecebimentosOS } from "./recebimentos";
 import { ComprasOS } from "./compras";
 import { PesquisaOS } from "./pesquisa";
+import { NotasOS } from "./notas";
+import { notasDaOS, prepararNfseDaOS } from "@/lib/fiscal/notas";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -75,8 +77,13 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   ]);
   const desconto = { percentual: os.descontoPercentual != null ? Number(os.descontoPercentual) : null, valor: Number(os.descontoValor) };
 
-  // Recebimentos (financeiro): só para quem vê valores
-  const [recebimento, contas] = valores ? await Promise.all([situacaoRecebimento(oficina.id, os), listarContas(oficina.id)]) : [null, []];
+  // Recebimentos (financeiro) e Notas fiscais: só para quem tem permissão
+  const [recebimento, contas, notasOS, prepNfse] = await Promise.all([
+    valores ? situacaoRecebimento(oficina.id, os) : Promise.resolve(null),
+    valores ? listarContas(oficina.id) : Promise.resolve([]),
+    pode("fiscal") ? notasDaOS(oficina.id, os.id) : Promise.resolve([]),
+    pode("emitirNota") && os.status === "entregue" ? prepararNfseDaOS(oficina.id, os.id) : Promise.resolve(null),
+  ]);
   const hoje = hojeSP();
   const formasPagamento = {
     contas: contas.map((c) => ({ id: c.id, nome: c.nome })),
@@ -302,6 +309,43 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               registro={os.status === "entregue" && pode("fecharOS") && contas.length > 0 ? formasPagamento : null}
               podeEstornar={pode("financeiro")}
               podeCobrar={pode("financeiro")}
+            />
+          )}
+
+          {pode("fiscal") && (os.status === "entregue" || notasOS.length > 0) && (
+            <NotasOS
+              osId={os.id}
+              podeEmitir={pode("emitirNota") && os.status === "entregue"}
+              notas={notasOS.map((n) => ({
+                id: n.id,
+                numeroNota: n.numeroNota,
+                numeroDps: n.numeroDps,
+                status: n.status,
+                ambiente: n.ambiente,
+                valorLiquido: Number(n.valorLiquido),
+                temXml: !!(n.xmlNotaKey || n.xmlDpsKey),
+                ultimaMensagem: n.ultimaMensagem,
+              }))}
+              dadosEmissao={
+                prepNfse
+                  ? {
+                      osId: prepNfse.osId,
+                      clienteId: prepNfse.tomador.clienteId,
+                      competencia: prepNfse.competencia,
+                      valorServicos: prepNfse.valorServicos,
+                      valorDesconto: prepNfse.valorDesconto,
+                      aliquotaIss: prepNfse.aliquotaIss,
+                      issRetido: prepNfse.issRetido,
+                      codigoTribNacional: prepNfse.codigoTribNacional,
+                      codigoTribMunicipal: prepNfse.codigoTribMunicipal,
+                      discriminacao: prepNfse.discriminacao,
+                      tomador: prepNfse.tomador,
+                      ambiente: prepNfse.ambiente,
+                      temCertificado: prepNfse.temCertificado,
+                      certificadoVencido: prepNfse.certificadoVencido,
+                    }
+                  : null
+              }
             />
           )}
 

@@ -149,23 +149,24 @@ Objetivo: caixa, contas e relatórios da oficina.
 
 ## Fase 3 — Fiscal (via API)
 
-Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do contador** (ver Decisões pendentes).
+Objetivo: emitir as notas sem sair do sistema. Base, emissão direta na NFS-e Nacional, contador e reforma tributária implementados em 20/11/2026; faltam apenas os testes na produção restrita com o certificado A1 real e as confirmações do contador (regime, alíquota ISS, peças).
 
 ### 3.1 Integração base — **G**
-- [ ] Camada `ProvedorFiscal` (interface única) para poder trocar de provedor sem reescrever o sistema
-- [ ] NFS-e: **emissão direta na NFS-e Nacional** (API do gov.br, sem provedor pago): DPS em XML assinada com o certificado A1, envio com o certificado na conexão (mTLS), consulta, cancelamento e substituição; ambiente de produção restrita (homologação) para testar
-- [ ] Peças (3.3), se houver: provedor (Focus NFe), pela mesma interface
-- [ ] Cadastro da oficina (CNPJ) no provedor com o **certificado A1** (upload criptografado, aviso de vencimento)
-- [ ] Ambientes: homologação para testes e produção
-- [ ] Fila de emissão com tentativas automáticas e webhook de retorno
-- [ ] Guardar XML e PDF de cada nota no R2 (obrigatório guardar por 5 anos)
+- [x] Camada `ProvedorFiscal` (interface única) para poder trocar de provedor sem reescrever o sistema (`src/lib/fiscal/`)
+- [x] NFS-e: **emissão direta na NFS-e Nacional** (API do gov.br, sem provedor pago): DPS em XML assinada com o certificado A1 (XMLDSig C14N), envio com mTLS (`node:https` local, binding `MTLS_NFSE` no Cloudflare Workers ou proxy mTLS), consulta, cancelamento (`e101101`) e substituição; ambiente de produção restrita (homologação) configurável
+- [x] Peças (3.3), se houver: provedor (Focus NFe) preparado pela mesma interface (`provedor-focus.ts`)
+- [x] Cadastro da oficina (CNPJ) com o **certificado A1** (upload `.pfx`/`.p12` validado e guardado criptografado, aviso de vencimento na tela e no sino)
+- [x] Ambientes: homologação (produção restrita) para testes e produção
+- [x] Fila de emissão com tentativas automáticas (backoff exponencial + `/api/fiscal/fila` + botão "Processar fila") e webhook de retorno (`/api/webhooks/fiscal/[oficinaId]`)
+- [x] Guardar XML (DPS, NFS-e e cancelamento) e PDF (DANFSe) de cada nota no R2 (organizados por ano/mês para guarda de 5 anos)
 
 ### 3.2 NFS-e (serviços) — **G**
-- [ ] Emitir a partir da OS entregue (itens de serviço)
-- [ ] Código de serviço (LC 116, item 14.01), alíquota de ISS, retenções
-- [ ] Padrão nacional ou do município (confirmar com o contador)
-- [ ] Cancelamento e substituição dentro do prazo
-- [ ] Envio automático por e-mail/WhatsApp ao cliente
+- [x] Emitir a partir da OS entregue (itens de serviço com desconto proporcional e discriminação automática) ou avulsa
+- [x] Código de serviço (LC 116, item 14.01), alíquota de ISS, ISS retido e retenções federais (PIS, COFINS, CSLL, IRRF, INSS)
+- [x] Padrão nacional implementado (código municipal opcional configurável após confirmar com o contador)
+- [x] Cancelamento (`e101101`) e substituição (`<subst>`) com regeneração do DANFSe
+- [x] Envio ao cliente por WhatsApp (link público do DANFSe + modelo editável) e e-mail; notas autorizadas também aparecem no Portal do Cliente
+- [ ] Testar emissão, consulta e cancelamento na produção restrita da SEFIN Nacional assim que o certificado A1 da oficina chegar (e configurar mTLS no Cloudflare conforme `docs/fiscal-mtls.md`)
 
 ### 3.3 NF-e / NFC-e (peças) — **G**, só se vendem peças
 - [ ] NCM, CFOP, CST/CSOSN por produto (no catálogo de peças)
@@ -174,11 +175,11 @@ Objetivo: emitir as notas sem sair do sistema. **Bloqueada pelas respostas do co
 - [ ] Contingência
 
 ### 3.4 Contador — **P**
-- [ ] Exportação mensal (XMLs + relatório), em ZIP
-- [ ] Acesso de leitura para o contador (papel próprio)
+- [x] Exportação mensal (XMLs + DANFSe PDFs + relatório CSV), em ZIP (`/notas/exportar`)
+- [x] Acesso de leitura para o contador (papel `contador`, convidável em Configurações → Usuários)
 
 ### 3.5 Reforma tributária — **P**
-- [ ] Campos de IBS/CBS conforme as notas técnicas em vigor no momento da implementação
+- [x] Campos de IBS/CBS na DPS v1.01 (LC 214/2025 / NT 009: `finNFSe`, `indFinal`, `cIndOp`, `CST`, `cClassTrib`, alíquotas), ativáveis em Configurações → Fiscal conforme orientação do contador
 
 ---
 

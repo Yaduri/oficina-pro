@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCheck, ListChecks, MessageCircle, Plus, Truck } from "lucide-react";
 import Link from "next/link";
 import { Avatar, PageHeader, Placa, buttonClass } from "@/components/ui";
-import { getContexto } from "@/lib/oficina";
+import { exigir } from "@/lib/oficina";
 import { listarOSAbertas, type OSResumo } from "@/lib/queries";
 import { COLUNAS, STATUS } from "@/lib/os";
 import { formatBRL, formatHora, tempoDesde } from "@/lib/utils";
@@ -11,7 +11,7 @@ import { AbasOS } from "./abas";
 export const metadata = { title: "Ordens de serviço" };
 
 export default async function OrdensServicoPage() {
-  const { oficina, pode } = await getContexto();
+  const { oficina, pode } = await exigir("checkin");
   const valores = pode("verValores");
   const podeFechar = pode("fecharOS");
   const abertas = await listarOSAbertas(oficina.id);

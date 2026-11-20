@@ -19,6 +19,7 @@ export type TipoMensagem =
   | "reativacao"
   | "documento"
   | "cobranca"
+  | "nota_fiscal"
   | "livre";
 
 /** Variáveis aceitas nos modelos, escritas como {nome} */
@@ -31,6 +32,7 @@ export type VariaveisMensagem = Partial<
     | "os"
     | "total"
     | "link"
+    | "nota"
     | "data"
     | "hora"
     | "servico"
@@ -116,6 +118,13 @@ export const MODELOS: ModeloMensagem[] = [
     padrao: "Olá, {cliente}! Faz tempo que o seu {veiculo} não passa pela {oficina}. Quer agendar uma revisão?",
     marketing: true,
   },
+  {
+    tipo: "nota_fiscal",
+    label: "Nota fiscal emitida",
+    quando: "Ao enviar a NFS-e (DANFSe em PDF) ao cliente",
+    variaveis: ["cliente", "nota", "os", "veiculo", "placa", "total", "link", "oficina"],
+    padrao: "Olá, {cliente}! A nota fiscal nº {nota} dos serviços da OS #{os} ({veiculo}) foi emitida pela {oficina}. Você pode abrir o PDF aqui: {link}",
+  },
 ];
 
 export const MODELO_POR_TIPO = Object.fromEntries(MODELOS.map((m) => [m.tipo, m])) as Partial<Record<TipoMensagem, ModeloMensagem>>;
@@ -131,6 +140,7 @@ export const LABEL_TIPO: Record<TipoMensagem, string> = {
   reativacao: "Cliente inativo",
   documento: "Documento",
   cobranca: "Cobrança",
+  nota_fiscal: "Nota fiscal",
   livre: "Mensagem",
 };
 
@@ -205,7 +215,8 @@ export const LABEL_VARIAVEL: Record<keyof VariaveisMensagem, string> = {
   placa: "Placa",
   os: "Nº da OS",
   total: "Total",
-  link: "Link do orçamento",
+  link: "Link do documento",
+  nota: "Nº da nota",
   data: "Data",
   hora: "Hora",
   servico: "Serviço",
@@ -221,7 +232,8 @@ export const EXEMPLO_VARIAVEIS: VariaveisMensagem = {
   placa: "ABC1D23",
   os: "128",
   total: "R$ 850,00",
-  link: "https://exemplo.com/orcamento/abc",
+  link: "https://exemplo.com/documento/abc",
+  nota: "202600001",
   data: "amanhã",
   hora: "09:00",
   servico: "troca de óleo",

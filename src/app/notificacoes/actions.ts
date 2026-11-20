@@ -7,6 +7,7 @@ import { ABERTAS, STATUS } from "@/lib/os";
 import { diaSP, inicioDoDia } from "@/lib/agenda-datas";
 import { formatBRL, formatData } from "@/lib/utils";
 import { alertasVencimento } from "@/lib/financeiro-lancamentos";
+import { alertaCertificado } from "@/lib/fiscal/notas";
 
 /** Dias sem nenhuma movimentação para uma OS aberta ser considerada parada */
 const DIAS_PARADA = 3;
@@ -16,7 +17,7 @@ const DIA = 86_400_000;
 
 export type Notificacao = {
   id: string;
-  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega" | "conta_vence" | "conta_vencida" | "pesquisa";
+  tipo: "aprovado" | "parcial" | "recusado" | "visto" | "peca" | "parada" | "entrega" | "conta_vence" | "conta_vencida" | "pesquisa" | "certificado";
   titulo: string;
   detalhe: string;
   href: string;
@@ -221,6 +222,22 @@ export async function minhasNotificacoes(): Promise<{ itens: Notificacao[]; nova
         detalhe: `Total a cobrar: ${total(a.receberVencidas.total)}`,
         href: "/financeiro/receber?status=vencidas",
         quando: inicioHoje,
+      });
+    }
+  }
+
+  // Fiscal: vencimento do certificado digital A1 (30 dias antes ou vencido)
+  if (ctx.pode("configurar") || ctx.pode("emitirNota")) {
+    const cert = await alertaCertificado(ctx.oficina.id);
+    if (cert) {
+      const hojeStr = diaSP(new Date());
+      itens.push({
+        id: `cert-a1-${cert.situacao}-${hojeStr}`,
+        tipo: "certificado",
+        titulo: cert.situacao === "vencido" ? "Certificado digital A1 vencido" : `Certificado A1 vence em ${cert.diasRestantes} ${cert.diasRestantes === 1 ? "dia" : "dias"}`,
+        detalhe: `${cert.titular} · validade ${formatData(cert.validoAte)}`,
+        href: "/configuracoes/fiscal",
+        quando: inicioDoDia(hojeStr).toISOString(),
       });
     }
   }

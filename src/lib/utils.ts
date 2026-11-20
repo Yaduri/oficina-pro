@@ -77,6 +77,21 @@ export function normalizarCnpj(v: string | null | undefined) {
   return (v ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
 }
 
+/** Valida CPF (11 dígitos numéricos, rejeita sequências repetidas) */
+export function cpfValido(v: string | null | undefined) {
+  const c = soDigitos(v);
+  if (c.length !== 11 || /^(\d)\1{10}$/.test(c)) return false;
+  const dv = (base: string) => {
+    let soma = 0;
+    for (let i = 0; i < base.length; i++) soma += Number(base[i]) * (base.length + 1 - i);
+    const r = (soma * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  const d1 = dv(c.slice(0, 9));
+  const d2 = dv(c.slice(0, 9) + d1);
+  return c.endsWith(`${d1}${d2}`);
+}
+
 /**
  * Valida CNPJ numérico ou alfanumérico (IN RFB 2.229/2024): 12 posições de 0-9/A-Z
  * e 2 dígitos verificadores numéricos; cada caractere vale (código ASCII − 48).

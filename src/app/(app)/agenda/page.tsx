@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, PackageCheck, Plus } from "lucide-react";
 import { Badge, Card, CardHeader, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
-import { getContexto } from "@/lib/oficina";
+import { exigir } from "@/lib/oficina";
 import { listarTecnicos } from "@/lib/queries";
 import { entregasPrevistas, listarAgendamentos, type EntregaPrevista } from "@/lib/agenda";
 import { DIA_RE, diaSP, inicioDaSemana, inicioDoDia, nomeDoDia, somarDias } from "@/lib/agenda-datas";
@@ -16,7 +16,7 @@ export const metadata = { title: "Agenda" };
 export default async function AgendaPage({ searchParams }: PageProps<"/agenda">) {
   const sp = await searchParams;
   const p = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]) ?? "";
-  const { oficina, pode } = await getContexto();
+  const { oficina, pode } = await exigir("checkin");
   const podeEditar = pode("abrirOS");
 
   const hoje = diaSP(new Date());

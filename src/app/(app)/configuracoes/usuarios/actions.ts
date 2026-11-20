@@ -10,7 +10,7 @@ import { podeGerenciarPapel, type Papel } from "@/lib/permissoes";
 
 export type UsuarioState = { erro?: string; ok?: boolean } | undefined;
 
-const papelEnum = z.enum(["dono", "gerente", "financeiro", "atendente", "tecnico"], { error: "Escolha o papel" });
+const papelEnum = z.enum(["dono", "gerente", "financeiro", "atendente", "tecnico", "contador"], { error: "Escolha o papel" });
 const DIAS_CONVITE = 7;
 
 /** Lê o papel do formulário e confere se quem está alterando pode dar esse acesso */

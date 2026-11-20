@@ -33,7 +33,7 @@ const endereco = () => ({
   uf: text("uf"),
 });
 
-export const papel = pgEnum("papel", ["dono", "gerente", "atendente", "tecnico", "financeiro"]);
+export const papel = pgEnum("papel", ["dono", "gerente", "atendente", "tecnico", "financeiro", "contador"]);
 export const tipoPessoa = pgEnum("tipo_pessoa", ["pf", "pj"]);
 export const regimeTributario = pgEnum("regime_tributario", ["mei", "simples", "presumido", "real"]);
 export const statusOS = pgEnum("status_os", [
@@ -418,8 +418,8 @@ export const linksDocumento = pgTable(
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
-    tipo: text("tipo").$type<"os" | "termo" | "portal">().notNull(),
-    /** id da OS, do check-in ou do cliente (portal do cliente) */
+    tipo: text("tipo").$type<"os" | "termo" | "portal" | "nota">().notNull(),
+    /** id da OS, do check-in, do cliente (portal) ou da nota fiscal */
     refId: uuid("ref_id").notNull(),
     criadoEm: criadoEm(),
   },
@@ -953,6 +953,186 @@ export const pesquisasSatisfacao = pgTable(
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex("pesquisas_os_uq").on(t.osId), index("pesquisas_oficina_idx").on(t.oficinaId, t.respondidoEm)],
+);
+
+/* ---------- Fiscal (Fase 3) ---------- */
+
+export type RetencoesFiscais = {
+  pis?: number;
+  cofins?: number;
+  csll?: number;
+  irrf?: number;
+  inss?: number;
+};
+
+/** Campos da Reforma Tributária (LC 214/2025 / NT 009 — IBS e CBS) */
+export type DadosIbsCbs = {
+  /** Finalidade da NFS-e: 0 = regular, 1 = crédito, 2 = débito */
+  finNFSe?: string;
+  /** Indicador de consumidor final: 0 = não, 1 = sim */
+  indFinal?: string;
+  /** Código de indicador de operação (cIndOp, 6 dígitos) */
+  cIndOp?: string;
+  /** CST IBS/CBS (3 dígitos) */
+  cst?: string;
+  /** Código de classificação tributária (cClassTrib, 6 dígitos) */
+  cClassTrib?: string;
+  /** Alíquota IBS Estadual (%) */
+  pIbsUf?: number;
+  /** Alíquota IBS Municipal (%) */
+  pIbsMun?: number;
+  /** Alíquota CBS Federal (%) */
+  pCbs?: number;
+};
+
+export type ErroFiscalItem = {
+  codigo?: string;
+  mensagem: string;
+};
+
+export type ProvedorFiscalTipo = "nfse_nacional" | "focus_nfe";
+export type AmbienteFiscal = "homologacao" | "producao";
+export type TipoNotaFiscal = "nfse" | "nfe" | "nfce";
+export type StatusNotaFiscal = "fila" | "processando" | "autorizada" | "rejeitada" | "cancelada" | "substituida";
+
+/**
+ * Configuração fiscal e certificado A1 da oficina (uma linha por oficina).
+ * Certificado e segredos ficam cifrados com CHAVE_CRIPTOGRAFIA (lib/cripto).
+ */
+export const configuracoesFiscais = pgTable("configuracoes_fiscais", {
+  id: id(),
+  oficinaId: uuid("oficina_id")
+    .notNull()
+    .unique()
+    .references(() => oficinas.id, { onDelete: "cascade" }),
+  provedor: text("provedor").$type<ProvedorFiscalTipo>().notNull().default("nfse_nacional"),
+  ambiente: text("ambiente").$type<AmbienteFiscal>().notNull().default("homologacao"),
+  /* Certificado A1 (cifrado em repouso; nunca enviado ao navegador) */
+  certPfxCifrado: text("cert_pfx_cifrado"),
+  certSenhaCifrada: text("cert_senha_cifrada"),
+  certPemCifrado: text("cert_pem_cifrado"),
+  certChaveCifrada: text("cert_chave_cifrada"),
+  certTitular: text("cert_titular"),
+  certCnpj: text("cert_cnpj"),
+  certSerial: text("cert_serial"),
+  certValidoDe: timestamp("cert_valido_de", { withTimezone: true }),
+  certValidoAte: timestamp("cert_valido_ate", { withTimezone: true }),
+  /* Parâmetros da NFS-e Nacional */
+  /** Código IBGE do município emissor (7 dígitos, ex.: 3550308) */
+  codigoMunicipioIbge: text("codigo_municipio_ibge"),
+  /** Série da DPS (5 dígitos, ex.: 00001) */
+  serieDps: text("serie_dps").notNull().default("00001"),
+  /** Próximo número sequencial da DPS (incrementado atomicamente) */
+  proximoNumeroDps: integer("proximo_numero_dps").notNull().default(1),
+  /** Código de tributação nacional (6 dígitos LC 116; 140101 = manutenção de veículos) */
+  codigoTribNacionalPadrao: text("codigo_trib_nacional_padrao").notNull().default("140101"),
+  codigoTribMunicipalPadrao: text("codigo_trib_municipal_padrao"),
+  /** Alíquota padrão de ISS (%) — opcional no Simples Nacional/MEI */
+  aliquotaIss: numeric("aliquota_iss", { precision: 5, scale: 2 }),
+  issRetidoPadrao: boolean("iss_retido_padrao").notNull().default(false),
+  /** opSimpNac: 1 = Não optante, 2 = MEI, 3 = ME/EPP Simples Nacional */
+  optanteSimplesNacional: text("optante_simples_nacional").notNull().default("3"),
+  /** regApTribSN: 1 = Federais e ISS no SN, 2 = Federais no SN e ISS fora, 3 = Todos fora */
+  regimeApuracaoSn: text("regime_apuracao_sn").notNull().default("1"),
+  /** regEspTrib: 0 = Nenhum, 1..6 conforme tabela nacional */
+  regimeEspecialTrib: text("regime_especial_trib").notNull().default("0"),
+  retencoesPadrao: jsonb("retencoes_padrao").$type<RetencoesFiscais>(),
+  /* Reforma Tributária (3.5 — IBS/CBS) */
+  incluirIbsCbs: boolean("incluir_ibs_cbs").notNull().default(false),
+  ibsCbsPadrao: jsonb("ibs_cbs_padrao").$type<DadosIbsCbs>(),
+  /* Provedor externo (3.3 Focus NFe, quando houver venda de peças) */
+  provedorTokenCifrado: text("provedor_token_cifrado"),
+  provedorTokenFinal: text("provedor_token_final"),
+  webhookToken: text("webhook_token"),
+  criadoEm: criadoEm(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Nota fiscal emitida (NFS-e, e preparado para NF-e/NFC-e).
+ * XMLs e PDF (DANFSe) são guardados no R2 por no mínimo 5 anos.
+ */
+export const notasFiscais = pgTable(
+  "notas_fiscais",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    osId: uuid("os_id").references(() => ordensServico.id, { onDelete: "set null" }),
+    clienteId: uuid("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+    tipo: text("tipo").$type<TipoNotaFiscal>().notNull().default("nfse"),
+    provedor: text("provedor").$type<ProvedorFiscalTipo>().notNull().default("nfse_nacional"),
+    ambiente: text("ambiente").$type<AmbienteFiscal>().notNull().default("homologacao"),
+    status: text("status").$type<StatusNotaFiscal>().notNull().default("fila"),
+    /* DPS e identificação fiscal */
+    serieDps: text("serie_dps").notNull(),
+    numeroDps: integer("numero_dps").notNull(),
+    /** Id da tag infDPS (45 caracteres: DPS + 42 dígitos) */
+    idDps: text("id_dps").notNull(),
+    numeroNota: text("numero_nota"),
+    /** Chave de acesso da NFS-e (50 dígitos) ou NF-e (44 dígitos) */
+    chaveAcesso: text("chave_acesso"),
+    codigoVerificacao: text("codigo_verificacao"),
+    protocolo: text("protocolo"),
+    apiRef: text("api_ref"),
+    /* Competência, emissão e valores */
+    competencia: date("competencia").notNull(),
+    emitidaEm: timestamp("emitida_em", { withTimezone: true }),
+    valorServicos: numeric("valor_servicos", { precision: 12, scale: 2 }).notNull(),
+    valorDesconto: numeric("valor_desconto", { precision: 12, scale: 2 }).notNull().default("0"),
+    baseCalculo: numeric("base_calculo", { precision: 12, scale: 2 }).notNull(),
+    aliquotaIss: numeric("aliquota_iss", { precision: 5, scale: 2 }),
+    valorIss: numeric("valor_iss", { precision: 12, scale: 2 }).notNull().default("0"),
+    issRetido: boolean("iss_retido").notNull().default(false),
+    valorRetencoes: numeric("valor_retencoes", { precision: 12, scale: 2 }).notNull().default("0"),
+    valorLiquido: numeric("valor_liquido", { precision: 12, scale: 2 }).notNull(),
+    codigoTribNacional: text("codigo_trib_nacional").notNull(),
+    codigoTribMunicipal: text("codigo_trib_municipal"),
+    discriminacao: text("discriminacao").notNull(),
+    /* Cópia dos dados do tomador no momento da emissão */
+    tomadorNome: text("tomador_nome").notNull(),
+    tomadorDocumento: text("tomador_documento"),
+    tomadorEmail: text("tomador_email"),
+    tomadorTelefone: text("tomador_telefone"),
+    tomadorEndereco: jsonb("tomador_endereco").$type<{
+      cep?: string | null;
+      logradouro?: string | null;
+      numero?: string | null;
+      complemento?: string | null;
+      bairro?: string | null;
+      cidade?: string | null;
+      uf?: string | null;
+      codigoIbge?: string | null;
+    }>(),
+    retencoes: jsonb("retencoes").$type<RetencoesFiscais>(),
+    ibsCbs: jsonb("ibs_cbs").$type<DadosIbsCbs>(),
+    /* Arquivos no R2 (guarda legal de 5 anos) */
+    xmlDpsKey: text("xml_dps_key"),
+    xmlNotaKey: text("xml_nota_key"),
+    xmlCancelamentoKey: text("xml_cancelamento_key"),
+    pdfKey: text("pdf_key"),
+    /* Fila de emissão e retentativas */
+    tentativas: integer("tentativas").notNull().default(0),
+    proximaTentativaEm: timestamp("proxima_tentativa_em", { withTimezone: true }),
+    ultimaMensagem: text("ultima_mensagem"),
+    erros: jsonb("erros").$type<ErroFiscalItem[]>(),
+    /* Cancelamento e substituição */
+    canceladaEm: timestamp("cancelada_em", { withTimezone: true }),
+    canceladaPor: text("cancelada_por"),
+    codigoMotivoCancelamento: text("codigo_motivo_cancelamento"),
+    motivoCancelamento: text("motivo_cancelamento"),
+    substituiNotaId: uuid("substitui_nota_id"),
+    substituidaPorId: uuid("substituida_por_id"),
+    criadoPor: text("criado_por"),
+    criadoEm: criadoEm(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("notas_dps_uq").on(t.oficinaId, t.ambiente, t.idDps),
+    index("notas_oficina_data_idx").on(t.oficinaId, t.criadoEm),
+    index("notas_oficina_status_idx").on(t.oficinaId, t.status),
+    index("notas_os_idx").on(t.osId),
+    index("notas_chave_idx").on(t.chaveAcesso),
+  ],
 );
 
 /* ---------- Relações ---------- */

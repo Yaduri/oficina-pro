@@ -27,6 +27,7 @@ const TIPOS = [
   "reativacao",
   "documento",
   "cobranca",
+  "nota_fiscal",
   "livre",
 ] as const satisfies readonly TipoMensagem[];
 
@@ -82,6 +83,14 @@ async function resolverRefs(db: DB, oficinaId: string, tipo: TipoMensagem, d: Pa
       const [x] = await db.select({ veiculoId: ck.veiculoId, clienteId: ck.clienteId }).from(ck).where(and(eq(ck.id, r.refId), eq(ck.oficinaId, oficinaId)));
       if (!x) return null;
       r.veiculoId ??= x.veiculoId;
+      r.clienteId ??= x.clienteId;
+    } else if (tipo === "nota_fiscal") {
+      const [x] = await db
+        .select({ osId: schema.notasFiscais.osId, clienteId: schema.notasFiscais.clienteId })
+        .from(schema.notasFiscais)
+        .where(and(eq(schema.notasFiscais.id, r.refId), eq(schema.notasFiscais.oficinaId, oficinaId)));
+      if (!x) return null;
+      r.osId ??= x.osId;
       r.clienteId ??= x.clienteId;
     } else {
       // Outros tipos não usam refId

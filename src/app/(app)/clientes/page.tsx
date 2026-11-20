@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import { Avatar, Card, Input, PageHeader, Placa, Vazio, buttonClass } from "@/components/ui";
-import { getContexto } from "@/lib/oficina";
+import { exigir } from "@/lib/oficina";
 import { listarClientes } from "@/lib/cadastros";
 import { formatDocumento, formatTelefone } from "@/lib/utils";
 
@@ -11,7 +11,7 @@ export default async function ClientesPage({ searchParams }: PageProps<"/cliente
   const sp = await searchParams;
   const busca = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const arquivados = sp.arquivados === "1";
-  const { oficina, pode } = await getContexto();
+  const { oficina, pode } = await exigir("checkin");
   const clientes = await listarClientes(oficina.id, busca, arquivados);
 
   return (

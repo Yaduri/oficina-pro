@@ -114,7 +114,7 @@ export async function pdfTermo(oficinaId: string, checkinId: string, db?: DB) {
 /* ---------- Links públicos ---------- */
 
 /** Token do link público do documento (cria na primeira vez) */
-export async function linkPublico(oficinaId: string, tipo: "os" | "termo" | "portal", refId: string, conexao?: DB) {
+export async function linkPublico(oficinaId: string, tipo: "os" | "termo" | "portal" | "nota", refId: string, conexao?: DB) {
   const db = conexao ?? (await getDb());
   const t = schema.linksDocumento;
   const [existente] = await db.select({ token: t.token }).from(t).where(and(eq(t.tipo, tipo), eq(t.refId, refId), eq(t.oficinaId, oficinaId)));

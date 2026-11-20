@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { Badge, Card, CardHeader, PageHeader, Placa } from "@/components/ui";
 import { MessageCircle } from "lucide-react";
@@ -19,7 +20,8 @@ function saudacao() {
 }
 
 export default async function InicioPage() {
-  const { oficina, pode } = await getContexto();
+  const { oficina, pode, papel } = await getContexto();
+  if (papel === "contador") redirect("/notas");
   const valores = pode("verValores");
   const inicioHoje = inicioDoDia(diaSP(new Date()));
   const fimHoje = new Date(inicioHoje.getTime() + 86_400_000);

@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { getDb, getDbSistema, schema, type DB } from "@/db";
+import { notasAutorizadasDasOS } from "@/lib/fiscal/notas";
 import { linkPublico } from "@/lib/pdf/carregar";
 import { diaSP, somarDias } from "@/lib/agenda-datas";
 import { somarMeses } from "@/lib/financeiro";
@@ -403,7 +404,7 @@ export async function dadosPortal(oficinaId: string, clienteId: string) {
     usoDosVeiculos(oficinaId, ids, db),
   ]);
   const osIds = ordens.map((o) => o.id);
-  const [itens, orcs] = osIds.length
+  const [itens, orcs, notasAut] = osIds.length
     ? await Promise.all([
         db
           .select({ osId: osItens.osId, descricao: osItens.descricao, tipo: osItens.tipo })
@@ -414,16 +415,26 @@ export async function dadosPortal(oficinaId: string, clienteId: string) {
           .select({ osId: schema.orcamentos.osId, token: schema.orcamentos.token, total: schema.orcamentos.total, validoAte: schema.orcamentos.validoAte })
           .from(schema.orcamentos)
           .where(and(eq(schema.orcamentos.oficinaId, oficinaId), inArray(schema.orcamentos.osId, osIds), eq(schema.orcamentos.status, "pendente"))),
+        notasAutorizadasDasOS(oficinaId, osIds, db),
       ])
-    : [[], []];
+    : [[], [], []];
   const agora = new Date();
   const hoje = diaSP(agora);
 
-  // PDF da OS (link público reaproveitado)
+  // PDF da OS e DANFSe das notas autorizadas (links públicos reaproveitados)
   const pdfs = new Map<string, string>();
   for (const o of ordens) {
     const t = await linkPublico(oficinaId, "os", o.id, db);
     if (t) pdfs.set(o.id, t);
+  }
+  const notasTokens = new Map<string, { numero: string; ambiente: "homologacao" | "producao"; token: string }[]>();
+  for (const n of notasAut) {
+    if (!n.osId) continue;
+    const t = await linkPublico(oficinaId, "nota", n.id, db);
+    if (!t) continue;
+    const arr = notasTokens.get(n.osId) ?? [];
+    arr.push({ numero: n.numeroNota ?? `DPS ${n.numeroDps}`, ambiente: n.ambiente, token: t });
+    notasTokens.set(n.osId, arr);
   }
 
   return vs.map((v) => ({
@@ -438,6 +449,7 @@ export async function dadosPortal(oficinaId: string, clienteId: string) {
           itens: itens.filter((i) => i.osId === o.id).map((i) => i.descricao),
           orcamento: orc ? { token: orc.token, total: Number(orc.total), validoAte: orc.validoAte } : null,
           pdfToken: pdfs.get(o.id) ?? null,
+          notas: notasTokens.get(o.id) ?? [],
         };
       }),
     revisoes: lembretes

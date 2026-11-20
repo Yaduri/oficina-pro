@@ -150,17 +150,32 @@ export default async function PortalCliente({ params }: PageProps<"/portal/[toke
                         {o.garantiaAte && o.status === "entregue" && ` · garantia até ${formatData(o.garantiaAte)}`}
                       </p>
                       <p className="text-[13px] text-foreground-2">{o.itens.length > 0 ? resumo(o.itens) : o.descricao}</p>
-                      {o.pdfToken && (
-                        <a
-                          href={`/documento/${o.pdfToken}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium underline-offset-4 hover:underline"
-                        >
-                          <FileText className="size-4" aria-hidden />
-                          Ver OS em PDF
-                        </a>
-                      )}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        {o.pdfToken && (
+                          <a
+                            href={`/documento/${o.pdfToken}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium underline-offset-4 hover:underline"
+                          >
+                            <FileText className="size-4" aria-hidden />
+                            Ver OS em PDF
+                          </a>
+                        )}
+                        {o.notas.map((n) => (
+                          <a
+                            key={n.token}
+                            href={`/documento/${n.token}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium underline-offset-4 hover:underline"
+                          >
+                            <FileText className="size-4" aria-hidden />
+                            Nota fiscal nº {n.numero}
+                            {n.ambiente === "homologacao" ? " (homologação)" : ""}
+                          </a>
+                        ))}
+                      </div>
                     </li>
                   ))}
                 </ul>

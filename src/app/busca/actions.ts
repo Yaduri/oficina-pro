@@ -24,7 +24,8 @@ const { ordensServico: os, veiculos, clientes } = schema;
 export async function buscarTudo(texto: string): Promise<ResultadoBusca[]> {
   const q = texto.trim().slice(0, 60);
   if (q.length < 2) return [];
-  const { oficina } = await getContexto();
+  const { oficina, pode } = await getContexto();
+  if (!pode("checkin")) return [];
   const db = await getDb();
   const digitos = soDigitos(q);
   const placa = formatPlaca(q).replace(/[^A-Z0-9]/g, "");

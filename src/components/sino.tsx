@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CalendarClock, CheckCircle2, CircleAlert, Eye, PackageX, PauseCircle, Star, TruckIcon, XCircle } from "lucide-react";
+import { Bell, CalendarClock, CheckCircle2, CircleAlert, Eye, PackageX, PauseCircle, ShieldAlert, Star, TruckIcon, XCircle } from "lucide-react";
 import { formatEntrada, cn } from "@/lib/utils";
 import { marcarNotificacoesLidas, minhasNotificacoes, type Notificacao } from "@/app/notificacoes/actions";
 
@@ -18,6 +18,7 @@ const ICONE: Record<Notificacao["tipo"], { icone: typeof Bell; cor: string }> = 
   conta_vence: { icone: CalendarClock, cor: "text-warn" },
   conta_vencida: { icone: CircleAlert, cor: "text-danger" },
   pesquisa: { icone: Star, cor: "text-info" },
+  certificado: { icone: ShieldAlert, cor: "text-danger" },
 };
 
 /** Sino do topo: busca as notificações ao abrir a página, a cada minuto e ao navegar */

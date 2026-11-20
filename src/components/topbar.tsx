@@ -11,15 +11,16 @@ import { cn } from "@/lib/utils";
 import { pode, type Acao, type Papel } from "@/lib/permissoes";
 
 const NAV: { href: string; label: string; acao?: Acao }[] = [
-  { href: "/inicio", label: "Início" },
-  { href: "/agenda", label: "Agenda" },
-  { href: "/check-in", label: "Check-in" },
+  { href: "/inicio", label: "Início", acao: "checkin" },
+  { href: "/agenda", label: "Agenda", acao: "checkin" },
+  { href: "/check-in", label: "Check-in", acao: "checkin" },
   { href: "/orcamentos", label: "Orçamentos", acao: "verValores" },
-  { href: "/ordens-servico", label: "Ordens de serviço" },
-  { href: "/clientes", label: "Clientes" },
+  { href: "/ordens-servico", label: "Ordens de serviço", acao: "checkin" },
+  { href: "/clientes", label: "Clientes", acao: "checkin" },
   { href: "/mensagens", label: "Mensagens", acao: "mensagens" },
   { href: "/estoque", label: "Estoque", acao: "estoque" },
   { href: "/financeiro", label: "Financeiro", acao: "financeiro" },
+  { href: "/notas", label: "Notas fiscais", acao: "fiscal" },
   { href: "/relatorios", label: "Relatórios", acao: "relatorios" },
 ];
 
@@ -47,7 +48,7 @@ export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] print:hidden">
       <div className="flex h-16 items-center gap-2.5 px-4 sm:px-8">
-        <Link href="/inicio" className="mr-3 shrink-0" aria-label={`Início, ${oficina}`}>
+        <Link href={papel === "contador" ? "/notas" : "/inicio"} className="mr-3 shrink-0" aria-label={`Início, ${oficina}`}>
           <Brand />
         </Link>
         <nav className="hidden xl:flex gap-0.5" aria-label="Principal">
@@ -55,8 +56,8 @@ export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
         </nav>
         <div className="flex-1" />
 
-        <BuscaGlobal />
-        <Sino />
+        {pode(papel, "checkin") && <BuscaGlobal />}
+        {pode(papel, "checkin") && <Sino />}
         {admin && (
           <Link
             href="/configuracoes"
