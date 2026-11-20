@@ -24,14 +24,14 @@
         {
           "binding": "HYPERDRIVE",
           // id impresso por `wrangler hyperdrive create oficina-pro-homolog ...` (docs/deploy.md)
-          "id": "COLE_AQUI_O_ID_DO_HYPERDRIVE_HOMOLOG",
+          "id": "8202e5323ead4e23bd7b21a132ae8c68",
           // Só para `wrangler dev`/preview local; sem banco local fica um endereço que não responde.
           "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
         }
       ],
       "vars": {
         // Públicas (vão para o navegador): o build lê daqui (scripts/cf-build.mjs).
-        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "COLE_AQUI_pk_test_OU_pk_live_DO_CLERK_HOMOLOG",
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_cHJvZm91bmQtbXVza294LTM3ODIuY2xlcmsuYWNjb3VudHMuZGV2JA",
         "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
         "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
         "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
