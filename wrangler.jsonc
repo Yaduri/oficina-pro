@@ -37,9 +37,9 @@
         "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
         "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/onboarding",
         // Termos de uso e Política de privacidade (src/lib/legal.ts)
-        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
-        "NEXT_PUBLIC_LEGAL_EMAIL": "",
-        "NEXT_PUBLIC_LEGAL_FORO": "",
+        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "Yago Duarte Ribeiro",
+        "NEXT_PUBLIC_LEGAL_EMAIL": "contato@yagoduarte.com.br",
+        "NEXT_PUBLIC_LEGAL_FORO": "Várzea Paulista/SP",
         "APP_URL": "https://hoficina.yagoduarte.com.br"
       }
     },
@@ -64,9 +64,9 @@
         "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
         "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL": "/onboarding",
         // Termos de uso e Política de privacidade (src/lib/legal.ts)
-        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "",
-        "NEXT_PUBLIC_LEGAL_EMAIL": "",
-        "NEXT_PUBLIC_LEGAL_FORO": "",
+        "NEXT_PUBLIC_LEGAL_RESPONSAVEL": "Yago Duarte Ribeiro",
+        "NEXT_PUBLIC_LEGAL_EMAIL": "contato@yagoduarte.com.br",
+        "NEXT_PUBLIC_LEGAL_FORO": "Várzea Paulista/SP",
         "APP_URL": "https://oficina.yagoduarte.com.br"
       }
     }
