@@ -26,7 +26,7 @@ export function MoverOS({
   const opcoes: StatusOS[] = !podeFechar && fechada ? [status] : base.includes(status) ? base : [status, ...base];
 
   return (
-    <label className="relative inline-flex items-center">
+    <label className="relative inline-flex min-w-0 items-center">
       <span className="sr-only">Mudar status da OS</span>
       <select
         value={status}
@@ -41,7 +41,7 @@ export function MoverOS({
         className={
           grande
             ? "h-9 cursor-pointer appearance-none rounded-md border border-border bg-card pl-3 pr-8 text-sm font-medium hover:bg-subtle disabled:opacity-60"
-            : "h-7 cursor-pointer appearance-none rounded-md border border-border bg-card pl-2 pr-6 text-xs font-medium text-foreground-2 hover:bg-subtle disabled:opacity-60"
+            : "h-7 min-w-0 max-w-full cursor-pointer appearance-none truncate rounded-md border border-border bg-card pl-2 pr-6 text-xs font-medium text-foreground-2 hover:bg-subtle disabled:opacity-60"
         }
       >
         {opcoes.map((s) => (

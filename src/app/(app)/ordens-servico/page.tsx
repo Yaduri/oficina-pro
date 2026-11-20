@@ -91,10 +91,10 @@ function CartaoOS({ os, valores, podeFechar }: { os: OSResumo; valores: boolean;
         )}
       </div>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <MoverOS osId={os.id} status={os.status} podeFechar={podeFechar} />
         {os.status === "pronto" && podeFechar && (
-          <Link href={`/ordens-servico/${os.id}#entregar`} className="text-xs font-medium underline-offset-4 hover:underline">
+          <Link href={`/ordens-servico/${os.id}#entregar`} className="shrink-0 whitespace-nowrap text-xs font-medium underline-offset-4 hover:underline">
             Entregar
           </Link>
         )}
