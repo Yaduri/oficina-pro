@@ -52,13 +52,13 @@
         {
           "binding": "HYPERDRIVE",
           // id impresso por `wrangler hyperdrive create oficina-pro ...` (docs/deploy.md)
-          "id": "COLE_AQUI_O_ID_DO_HYPERDRIVE_PROD",
+          "id": "7ae166a704e04761b818e70809ef110b",
           "localConnectionString": "postgres://postgres:postgres@127.0.0.1:5432/postgres"
         }
       ],
       "vars": {
         // Públicas (vão para o navegador): o build lê daqui (scripts/cf-build.mjs).
-        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "COLE_AQUI_pk_live_DO_CLERK_PRODUCAO",
+        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsueWFnb2R1YXJ0ZS5jb20uYnIk",
         "NEXT_PUBLIC_CLERK_SIGN_IN_URL": "/sign-in",
         "NEXT_PUBLIC_CLERK_SIGN_UP_URL": "/sign-up",
         "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL": "/inicio",
