@@ -6,7 +6,9 @@ import { Settings } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Brand } from "@/components/brand";
 import { BuscaGlobal } from "@/components/busca-global";
+import { SeletorOficina } from "@/components/seletor-oficina";
 import { Sino } from "@/components/sino";
+import type { OficinaResumo } from "@/lib/oficina";
 import { cn } from "@/lib/utils";
 import { pode, type Acao, type Papel } from "@/lib/permissoes";
 
@@ -24,8 +26,19 @@ const NAV: { href: string; label: string; acao?: Acao }[] = [
   { href: "/relatorios", label: "Relatórios", acao: "relatorios" },
 ];
 
-export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
+export function Topbar({
+  oficina,
+  oficinaId,
+  oficinas,
+  papel,
+}: {
+  oficina: string;
+  oficinaId: string;
+  oficinas: OficinaResumo[];
+  papel: Papel;
+}) {
   const admin = pode(papel, "configurar");
+  const multiOficinas = oficinas.length > 1;
   const pathname = usePathname();
   const navLinks = NAV.filter((item) => !item.acao || pode(papel, item.acao)).map((item) => {
     const ativo = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -48,9 +61,12 @@ export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] print:hidden">
       <div className="flex h-16 items-center gap-2.5 px-4 sm:px-8">
-        <Link href={papel === "contador" ? "/notas" : "/inicio"} className="mr-3 shrink-0" aria-label={`Início, ${oficina}`}>
+        <Link href={papel === "contador" ? "/notas" : "/inicio"} className="mr-1 shrink-0 sm:mr-3" aria-label={`Início, ${oficina}`}>
           <Brand />
         </Link>
+        {multiOficinas && (
+          <SeletorOficina atualId={oficinaId} oficinas={oficinas} retorno={pathname} variante="topbar" className="hidden sm:block" />
+        )}
         <nav className="hidden xl:flex gap-0.5" aria-label="Principal">
           {navLinks}
         </nav>
@@ -76,6 +92,13 @@ export function Topbar({ oficina, papel }: { oficina: string; papel: Papel }) {
           <UserButton />
         </div>
       </div>
+
+      {/* Celular (< sm) com 2+ oficinas: seletor em barra própria, sem duplicar com o topo desktop */}
+      {multiOficinas && (
+        <div className="border-t border-border px-4 py-1.5 sm:hidden">
+          <SeletorOficina atualId={oficinaId} oficinas={oficinas} retorno={pathname} variante="topbar" />
+        </div>
+      )}
 
       {/* Telas menores: menu em linha rolável */}
       <div className="xl:hidden border-t border-border">
