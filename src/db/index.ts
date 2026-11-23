@@ -133,9 +133,26 @@ async function conectarPostgres(url: string, workers: boolean): Promise<Base> {
   const { default: postgres } = await import("postgres");
   const { drizzle } = await import("drizzle-orm/postgres-js");
   // prepare: false é exigido pelo pooler (transaction mode) do Supabase.
-  // No Workers: no máximo 6 conexões abertas por requisição, e fetch_types economiza uma ida ao banco
-  // (o schema não usa arrays de tipos próprios).
-  const client = postgres(url, workers ? { prepare: false, max: 5, fetch_types: false } : { prepare: false });
+  // fetch_types: false economiza uma ida ao banco (o schema não usa arrays de tipos próprios).
+  //
+  // No Workers o cliente é de uma requisição só e o pool de verdade é o Hyperdrive, então o pool
+  // daqui é mínimo (o portal travava com max 5: 6 consultas em paralelo abriam 5 sockets e a 6ª
+  // ia em pipeline numa conexão já ocupada):
+  // - max: 2. O Workers limita 6 conexões abertas por requisição (somando fetch para Clerk, R2,
+  //   Asaas...) e o postgres-js mantém as dele abertas até o fim da requisição; 2 deixa folga.
+  //   Não usamos 1 por dois motivos: getDb() roda cada consulta numa transação (sql.begin), que
+  //   segura a conexão até o COMMIT, então com 1 as consultas em paralelo de uma tela viram uma
+  //   fila; e se algum dia um db.transaction() chamar o `db` de fora (e não o `tx`), com 1 conexão
+  //   isso trava para sempre. Hoje nenhum callback de transação faz isso (conferido em 23/11/2026).
+  // - max_pipeline: 1. Consulta fora de transação nunca vai em pipeline numa conexão ocupada: espera
+  //   a vez. Poolers em transaction mode (Hyperdrive, Supavisor) podem travar com pipeline.
+  //   Dentro de sql.begin o pipeline continua (set_config + consulta de postgresDoUsuario).
+  // - query_timeout: 20s (espera + execução). Se o banco ou o pooler parar de responder, a página
+  //   dá erro em vez de ficar pendurada até o Cloudflare cortar.
+  const client = postgres(
+    url,
+    workers ? { prepare: false, fetch_types: false, max: 2, max_pipeline: 1, query_timeout: 20 } : { prepare: false },
+  );
   const db = drizzle({ client, schema });
   return { db, doUsuario: comCache((u, o) => drizzle({ client: postgresDoUsuario(client, u, o) as never, schema })) };
 }
