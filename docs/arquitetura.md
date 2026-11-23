@@ -7,6 +7,8 @@ Requisito central: **cada conta é uma oficina com um único CNPJ**, com vários
 
 > **Mudança de 18/11/2026:** a primeira versão previa várias empresas (CNPJs) na mesma conta, com OS e financeiro separados por CNPJ.
 > Os sócios decidiram simplificar: **um CNPJ por conta**. Se duas empresas quiserem usar o sistema, cada uma tem a sua conta, com os próprios usuários e dados.
+>
+> **Mudança de 23/11/2026:** continua **um CNPJ por oficina** (dados, financeiro, estoque, OS e notas totalmente isolados por RLS), mas **um mesmo login pode participar de várias oficinas**, com papéis independentes em cada uma (ex.: atendente em duas oficinas, sócio ou contador). Quem participa de 2+ oficinas alterna pelo seletor no topo (e vê banner/confirmação no check-in pelo celular); para quem participa de 1 oficina só, não há nenhuma mudança visual. Criar uma segunda oficina pelo onboarding ficou fora do escopo (entra na 2ª oficina por convite).
 
 ---
 
@@ -14,12 +16,12 @@ Requisito central: **cada conta é uma oficina com um único CNPJ**, com vários
 
 ```
 Oficina (tenant / conta)  = um CNPJ (razão social, regime, IM/IE, certificado A1, financeiro)
- └── Usuários (membros com papel: dono, gerente, financeiro, atendente, técnico)
+ └── Usuários (membros com papel: dono, gerente, financeiro, atendente, técnico, contador)
 ```
 
 - Tudo pertence à oficina: clientes, veículos, agenda, check-in, OS, orçamentos, catálogo, técnicos, financeiro e notas.
 - Não há divisão por tipo de serviço: a OS tem peças e serviços, sem marcar se são de mecânica ou elétrica.
-- **Cada login pertence a uma única oficina.** Quem já participa de uma oficina não consegue aceitar convite de outra com o mesmo e-mail.
+- **Um CNPJ por oficina; um login pode participar de N oficinas** (com papéis independentes em cada vínculo `membros`). A oficina ativa da requisição é escolhida pelo cookie `HttpOnly` `oficina_ativa` (validado no servidor e reforçado pelo RLS `app.oficina` em `public.app_oficinas()`). Criar uma segunda oficina via onboarding ficou fora do escopo: o acesso a oficinas adicionais acontece por convite.
 - Cada check-in abre **uma** OS.
 
 ### Cobrança

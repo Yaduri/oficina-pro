@@ -96,8 +96,14 @@ Objetivo: os dois sócios e a equipe conseguem tocar o dia a dia inteiro no sist
 - [x] A oficina passa a ser o CNPJ: dados fiscais nas Configurações; sai a tabela de empresas e todo `empresa_id`
 - [x] Sem seletor de empresa no topo, sem etiquetas de mecânica/elétrica, sem OS mista e sem transferir OS
 - [x] Check-in abre uma OS; usuários sem escolha de empresas; catálogo, agenda e técnicos sem campo de empresa
-- [x] Cada login pertence a uma única oficina (convite recusa quem já está em outra)
 - [x] Migrações reunidas numa só (nada publicado ainda) e banco de desenvolvimento zerado
+
+### 1.8c Um login em várias oficinas (evolução de 23/11/2026) — **M**
+- [x] Mantém **um CNPJ por oficina** (isolamento total por RLS), mas permite que **um mesmo login participe de várias oficinas** com papéis independentes (ex.: atendente em duas oficinas, sócio ou contador)
+- [x] RLS ciente da oficina ativa (`app.oficina` na migração `0011_rls_oficina_ativa.sql`) + cookie `HttpOnly` `oficina_ativa` validado a cada requisição (`oficinaDaRequisicao()` fail-closed)
+- [x] Seletor de oficina no `Topbar` e banner + confirmação no Novo Check-in exibidos apenas para quem tem 2+ oficinas (zero mudança visual para quem tem 1)
+- [x] Proteção contra troca de oficina em outra aba no check-in (`criarCheckin`) e no upload de fotos/assinatura (`/api/upload` retornando HTTP 409)
+- [x] Fora do escopo (proposital): criar uma segunda oficina pelo onboarding — entrada em oficinas adicionais é feita por convite
 
 ### 1.9 Celular como app (PWA) — **P**
 - [x] Ícone na tela inicial, abre em tela cheia (manifesto com atalhos, iPhone e Android, margens do notch, cartão "Instalar app" no Início)

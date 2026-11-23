@@ -99,9 +99,9 @@ const TEMPO_LIMITE = 60_000;
 export async function enviarArquivo(
   blob: Blob,
   pasta: "checkins" | "logos" | "os" | "financeiro",
-  opcoes: { signal?: AbortSignal; tentativas?: number } = {},
+  opcoes: { signal?: AbortSignal; tentativas?: number; oficinaId?: string } = {},
 ): Promise<string> {
-  const { signal } = opcoes;
+  const { signal, oficinaId } = opcoes;
   const tentativas = opcoes.tentativas ?? ESPERAS.length + 1;
   let ultimo = new ErroEnvio("Sem conexão com o servidor", "conexao");
 
@@ -116,6 +116,7 @@ export async function enviarArquivo(
     const form = new FormData();
     form.append("arquivo", blob, "foto");
     form.append("pasta", pasta);
+    if (oficinaId) form.append("oficinaId", oficinaId);
     const ctrl = new AbortController();
     let estourou = false;
     const timer = setTimeout(() => {

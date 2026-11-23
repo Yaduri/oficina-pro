@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { SeletorOficina } from "@/components/seletor-oficina";
 import { Card, PageHeader } from "@/components/ui";
-import { getContexto } from "@/lib/oficina";
+import { exigir } from "@/lib/oficina";
 import { obterVeiculo, opcoesClientes } from "@/lib/cadastros";
 import type { ResultadoPlaca } from "@/app/(app)/ordens-servico/actions";
 import { CheckinForm } from "./checkin-form";
@@ -14,7 +15,7 @@ export const metadata = { title: "Novo check-in" };
 export default async function NovoCheckinPage({ searchParams }: PageProps<"/check-in/novo">) {
   const sp = await searchParams;
   const param = (k: string) => (Array.isArray(sp[k]) ? sp[k][0] : sp[k]);
-  const { oficina } = await getContexto();
+  const { oficina, oficinas } = await exigir("checkin");
   const [clientes, checklist] = await Promise.all([opcoesClientes(oficina.id), listarChecklist(oficina.id, true)]);
 
   let inicial: ResultadoPlaca | null = null;
@@ -47,9 +48,12 @@ export default async function NovoCheckinPage({ searchParams }: PageProps<"/chec
         <ArrowLeft className="size-4" />Check-in
       </Link>
       <PageHeader title="Novo check-in" description="Ao registrar a entrada, a OS é aberta." />
+      <SeletorOficina atualId={oficina.id} oficinas={oficinas} retorno="/check-in/novo" variante="banner" />
       <Card className="p-5 sm:p-6">
         <CheckinForm
+          key={oficina.id}
           oficinaId={oficina.id}
+          oficinaNome={oficinas.length > 1 ? oficina.nomeFantasia || oficina.nome : null}
           agendamento={agendamento}
           clientes={clientes}
           inicial={inicial}

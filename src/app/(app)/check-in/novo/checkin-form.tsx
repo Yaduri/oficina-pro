@@ -16,8 +16,6 @@ import { apagarRascunho, lerRascunho, salvarRascunho, type RascunhoCheckin } fro
 
 /* ---------- Upload e conexão ---------- */
 
-const enviar = (blob: Blob, signal?: AbortSignal) => enviarArquivo(blob, "checkins", { signal });
-
 type Foto = {
   id: number;
   posicao: Posicao;
@@ -66,6 +64,8 @@ const CAMPOS_TEXTO = ["km", "avarias", "objetos", "relato", "marca", "modelo", "
 type Props = {
   /** Separa o rascunho salvo no navegador por oficina */
   oficinaId: string;
+  /** Exibido no resumo final quando o usuário participa de 2+ oficinas */
+  oficinaNome?: string | null;
   clientes: ClienteOpcao[];
   inicial: ResultadoPlaca | null;
   /** Texto que o cliente lê antes de assinar */
@@ -174,6 +174,7 @@ type Fase =
 
 function FormularioCheckin({
   oficinaId,
+  oficinaNome = null,
   clientes,
   inicial,
   termo,
@@ -183,6 +184,7 @@ function FormularioCheckin({
   podeSalvar,
 }: Props & { restauracao: Restauracao | null; podeSalvar: boolean }) {
   const router = useRouter();
+  const enviar = (blob: Blob, signal?: AbortSignal) => enviarArquivo(blob, "checkins", { signal, oficinaId });
   const r = restauracao?.rascunho;
   const agendamento = r ? r.agendamento : agendamentoProp;
   const [resultado, setResultado] = useState<ResultadoPlaca | null>(r ? r.veiculo : inicial);
@@ -370,7 +372,8 @@ function FormularioCheckin({
     // 1. Espera as fotos pendentes (o reenvio automático continua trabalhando)
     for (;;) {
       const atuais = atual.current.fotos;
-      if (atuais.some((f) => f.status === "erro")) throw new ErroFormulario("Alguma foto foi recusada. Troque ou remova a foto antes de registrar.");
+      const fotoErro = atuais.find((f) => f.status === "erro");
+      if (fotoErro) throw new ErroFormulario(fotoErro.erro || "Alguma foto foi recusada. Troque ou remova a foto antes de registrar.");
       const faltam = atuais.filter((f) => f.status === "enviando" || f.status === "aguardando").length;
       if (faltam === 0) break;
       setFase({ etapa: "fotos", faltam });
@@ -384,6 +387,7 @@ function FormularioCheckin({
 
     // 3. Registro (a chave de envio evita check-in duplicado se a resposta se perder)
     const dados = new FormData(formRef.current!);
+    dados.set("oficinaId", oficinaId);
     dados.set("fotos", JSON.stringify(atual.current.fotos.filter((f) => f.key).map((f) => ({ posicao: f.posicao, key: f.key }))));
     dados.set("assinaturaKey", assinaturaKey);
     dados.set("chaveEnvio", chaveEnvio);
@@ -401,7 +405,8 @@ function FormularioCheckin({
     e.preventDefault();
     if (finalizacao.current || concluido.current) return;
     setErroLocal(undefined);
-    if (fotos.some((f) => f.status === "erro")) return setErroLocal("Alguma foto foi recusada. Troque ou remova a foto antes de registrar.");
+    const fotoErro = fotos.find((f) => f.status === "erro");
+    if (fotoErro) return setErroLocal(fotoErro.erro || "Alguma foto foi recusada. Troque ou remova a foto antes de registrar.");
     const faltando = fotos.filter((f) => FOTOS_PADRAO.includes(f.posicao) && f.status === "vazia").length;
     if (faltando > 0 && !confirm(`Faltam ${faltando} das ${FOTOS_PADRAO.length} fotos padrão. Registrar mesmo assim?`)) return;
     if (assinatura.current?.vazia() && !confirm("O cliente não assinou. Registrar mesmo assim?")) return;
@@ -446,6 +451,7 @@ function FormularioCheckin({
       }}
       className="flex flex-col gap-8 pb-32 sm:pb-0"
     >
+      <input type="hidden" name="oficinaId" value={oficinaId} />
       {!conectado ? (
         <AvisoConexao>Sem internet. As fotos serão enviadas quando a conexão voltar.</AvisoConexao>
       ) : (
@@ -559,6 +565,11 @@ function FormularioCheckin({
       {/* No celular o botão fica fixo no rodapé */}
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-card/95 px-4 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+          {oficinaNome && (
+            <p className="truncate text-[13px] text-foreground-2 sm:mr-auto">
+              Registrando em: <strong className="font-semibold text-foreground">{oficinaNome}</strong>
+            </p>
+          )}
           {status && (
             <span role="status" className={cn("flex items-center gap-1.5 text-[13px]", status.offline ? "text-warn" : "text-muted")}>
               {status.offline ? <WifiOff className="size-4 shrink-0" /> : <Loader2 className="size-4 shrink-0 animate-spin" />}

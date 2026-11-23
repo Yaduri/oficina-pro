@@ -67,7 +67,14 @@ async function checkinPorChave(oficinaId: string, chave: string) {
  */
 export async function criarCheckin(form: FormData): Promise<CheckinResultado> {
   const ctx = await getContexto();
+  if (!ctx.pode("checkin")) return { erro: "Sem permissão" };
   const { oficina, userId } = ctx;
+
+  // Protege contra troca de oficina em outra aba antes de gravar qualquer dado
+  const oficinaForm = f(form, "oficinaId").trim();
+  if (oficinaForm && oficinaForm !== oficina.id) {
+    return { erro: "Você trocou de oficina em outra aba. Recarregue a página antes de registrar a entrada." };
+  }
 
   const chaveRaw = f(form, "chaveEnvio");
   const chaveEnvio = /^[\w-]{8,64}$/.test(chaveRaw) ? chaveRaw : null;

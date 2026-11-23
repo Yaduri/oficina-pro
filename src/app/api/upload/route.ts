@@ -29,6 +29,13 @@ export async function POST(req: Request) {
   if (!lim.permitido) return respostaMuitasTentativas(lim);
 
   const form = await req.formData().catch(() => null);
+  const oficinaForm = String(form?.get("oficinaId") ?? "").trim();
+  if (oficinaForm && oficinaForm !== oficina.id) {
+    return Response.json(
+      { erro: "Você trocou de oficina em outra aba. Recarregue a página antes de enviar fotos." },
+      { status: 409 },
+    );
+  }
   const arquivo = form?.get("arquivo");
   const pasta = String(form?.get("pasta") ?? "checkins");
   const regra = Object.hasOwn(PASTAS, pasta) ? PASTAS[pasta] : undefined;
