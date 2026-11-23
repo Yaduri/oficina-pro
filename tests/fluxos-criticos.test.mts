@@ -20,6 +20,7 @@ import { criarZip } from "../src/lib/fiscal/zip";
 import { registrarAuditoria } from "../src/lib/auditoria";
 import { verificarLimite } from "../src/lib/rate-limit";
 import { apagarOuAnonimizarClienteLgpd, exportarContaCompletaZip, exportarDadosClienteZip } from "../src/lib/lgpd";
+import { resolverOficinaAtiva } from "../src/lib/oficina-ativa";
 import { tipoRealDoArquivo } from "../src/lib/upload-validacao";
 
 /**
@@ -412,6 +413,8 @@ describe("Fluxos críticos — Oficina Pro", () => {
     assert.ok(clientesB.every((c) => c.oficinaId === oficinaB));
 
     // Com app.oficina = UUID de terceiro, inexistente ou texto lixo: 0 linhas, sem erro
+    const dbTerceiro = dbComoUsuario("user_a", oficinaB);
+    assert.equal((await dbTerceiro.select().from(schema.clientes)).length, 0);
     const dbInexistente = dbComoUsuario("user_multi", "00000000-0000-0000-0000-000000000000");
     assert.equal((await dbInexistente.select().from(schema.clientes)).length, 0);
     const dbLixo = dbComoUsuario("user_multi", "abc");
@@ -425,5 +428,48 @@ describe("Fluxos críticos — Oficina Pro", () => {
     assert.equal((await dbSoA.select().from(schema.clientes)).length, 0);
     // Vínculo em B continua funcionando normalmente
     assert.ok((await dbSoB.select().from(schema.clientes)).length >= 1);
+  });
+
+  it("7. Resolução da oficina ativa (cookie/fallback) e segundo vínculo por convite", async () => {
+    const lista = [
+      { oficina: { id: oficinaA }, papel: "atendente" as const },
+      { oficina: { id: oficinaB }, papel: "contador" as const },
+    ];
+    // Cookie válido seleciona B
+    assert.equal(resolverOficinaAtiva(lista, oficinaB)?.oficina.id, oficinaB);
+    // Cookie inexistente/desativado faz fallback para lista[0] (vínculo mais recente)
+    assert.equal(resolverOficinaAtiva(lista, "00000000-0000-0000-0000-000000000000")?.oficina.id, oficinaA);
+    // Sem cookie faz fallback para lista[0]
+    assert.equal(resolverOficinaAtiva(lista, null)?.oficina.id, oficinaA);
+    // Lista vazia retorna null
+    assert.equal(resolverOficinaAtiva([], oficinaA), null);
+
+    // Usuário membro ativo em A recebe segundo vínculo em B via mesmo padrão onConflictDoUpdate do aceite de convite
+    await dbSistema.insert(schema.membros).values({
+      oficinaId: oficinaA,
+      clerkUserId: "user_convite2",
+      nome: "Maria Duas Oficinas",
+      email: "maria@teste.com",
+      papel: "atendente",
+      ativo: true,
+    });
+    const dadosConviteB = {
+      papel: "contador" as const,
+      ativo: true,
+      nome: "Maria Duas Oficinas",
+      email: "maria@teste.com",
+    };
+    await dbSistema
+      .insert(schema.membros)
+      .values({ oficinaId: oficinaB, clerkUserId: "user_convite2", ...dadosConviteB })
+      .onConflictDoUpdate({ target: [schema.membros.oficinaId, schema.membros.clerkUserId], set: dadosConviteB });
+
+    const vinculos = await dbComoUsuario("user_convite2", "")
+      .select()
+      .from(schema.membros)
+      .where(and(eq(schema.membros.clerkUserId, "user_convite2"), eq(schema.membros.ativo, true)));
+    assert.equal(vinculos.length, 2);
+    assert.equal(vinculos.find((v) => v.oficinaId === oficinaA)?.papel, "atendente");
+    assert.equal(vinculos.find((v) => v.oficinaId === oficinaB)?.papel, "contador");
   });
 });

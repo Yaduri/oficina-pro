@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { and, eq, gt, isNull, ne } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { getDbSistema, schema } from "@/db";
+import { definirOficinaAtivaCookie } from "@/lib/oficina-ativa";
 import { TOKEN_CONVITE_RE } from "@/lib/usuarios";
 
 export type AceiteState = { erro?: string } | undefined;
@@ -17,18 +18,7 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
   // Ainda não é membro da oficina do convite: conexão do sistema, filtrada pelo token e pelo login
   const db = await getDbSistema();
 
-  // Cada login pertence a uma única oficina
-  const [outra] = await db
-    .select({ oficinaId: schema.membros.oficinaId })
-    .from(schema.membros)
-    .innerJoin(schema.convites, eq(schema.convites.token, token))
-    .where(and(eq(schema.membros.clerkUserId, userId), eq(schema.membros.ativo, true), ne(schema.membros.oficinaId, schema.convites.oficinaId)))
-    .limit(1);
-  if (outra) {
-    return { erro: "Este login já faz parte de outra oficina. Para entrar nesta, use outro e-mail ou peça para ser removido da outra." };
-  }
-
-  const ok = await db.transaction(async (tx) => {
+  const conviteAceito = await db.transaction(async (tx) => {
     // Marca o convite como usado só se ainda estiver válido (evita uso duplo)
     const [convite] = await tx
       .update(schema.convites)
@@ -42,7 +32,7 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
         ),
       )
       .returning();
-    if (!convite) return false;
+    if (!convite) return null;
 
     const dados = {
       papel: convite.papel,
@@ -54,9 +44,10 @@ export async function aceitarConvite(token: string): Promise<AceiteState> {
       .insert(schema.membros)
       .values({ oficinaId: convite.oficinaId, clerkUserId: userId, ...dados })
       .onConflictDoUpdate({ target: [schema.membros.oficinaId, schema.membros.clerkUserId], set: dados });
-    return true;
+    return convite;
   });
 
-  if (!ok) return { erro: "Este convite já foi usado, foi cancelado ou venceu. Peça um novo." };
-  redirect("/inicio");
+  if (!conviteAceito) return { erro: "Este convite já foi usado, foi cancelado ou venceu. Peça um novo." };
+  await definirOficinaAtivaCookie(conviteAceito.oficinaId);
+  redirect(conviteAceito.papel === "contador" ? "/notas" : "/inicio");
 }

@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/db";
+import { and, eq } from "drizzle-orm";
+import { getDbSistema, schema } from "@/db";
 import { Brand } from "@/components/brand";
 import { buttonClass } from "@/components/ui";
-import { membroAtivo } from "@/lib/oficina";
 import { PAPEIS } from "@/lib/permissoes";
 import { conviteDoToken, situacaoConvite } from "@/lib/usuarios";
 import { formatData } from "@/lib/utils";
@@ -23,17 +22,16 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
   const { userId } = await auth();
   const voltar = encodeURIComponent(`/convite/${token}`);
 
-  // Já participa desta oficina? E de outra?
+  // Já participa desta oficina? (Um mesmo login pode participar de várias oficinas.)
   let jaMembro = false;
-  let outraOficina: string | null = null;
   if (userId) {
-    const atual = await membroAtivo(userId);
-    if (atual?.oficinaId === oficina.id) jaMembro = true;
-    else if (atual) {
-      const db = await getDb();
-      const [o] = await db.select({ nome: schema.oficinas.nome }).from(schema.oficinas).where(eq(schema.oficinas.id, atual.oficinaId));
-      outraOficina = o?.nome ?? null;
-    }
+    const db = await getDbSistema();
+    const [m] = await db
+      .select({ id: schema.membros.id })
+      .from(schema.membros)
+      .where(and(eq(schema.membros.oficinaId, oficina.id), eq(schema.membros.clerkUserId, userId), eq(schema.membros.ativo, true)))
+      .limit(1);
+    jaMembro = !!m;
   }
 
   return (
@@ -73,16 +71,7 @@ export default async function ConvitePage({ params }: PageProps<"/convite/[token
               </div>
 
               {userId ? (
-                <>
-                  {outraOficina ? (
-                    <p className="rounded-md bg-warn-soft px-3 py-2 text-[13px]">
-                      Este login já faz parte da oficina <strong>{outraOficina}</strong>. Cada login entra em uma oficina só: para aceitar
-                      este convite, entre com outro e-mail.
-                    </p>
-                  ) : (
-                    <Aceitar token={token} />
-                  )}
-                </>
+                <Aceitar token={token} />
               ) : (
                 <div className="flex flex-col gap-2.5">
                   <Link href={`/sign-up?redirect_url=${voltar}`} className={buttonClass("primary", "h-11")}>

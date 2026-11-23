@@ -1,7 +1,5 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
-import { auth } from "@clerk/nextjs/server";
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 
@@ -25,6 +23,7 @@ export type Vinculo = {
 /** Lê a preferência de oficina ativa no cookie; retorna null se ausente ou formato inválido */
 export async function lerOficinaAtivaCookie(): Promise<string | null> {
   try {
+    const { cookies } = await import("next/headers");
     const store = await cookies();
     const valor = store.get(COOKIE_OFICINA)?.value?.trim() ?? "";
     return UUID_RE.test(valor) ? valor : null;
@@ -36,6 +35,7 @@ export async function lerOficinaAtivaCookie(): Promise<string | null> {
 /** Grava a preferência de oficina ativa (chamar somente em Server Action ou Route Handler) */
 export async function definirOficinaAtivaCookie(oficinaId: string): Promise<void> {
   if (!UUID_RE.test(oficinaId)) throw new Error("ID de oficina inválido");
+  const { cookies } = await import("next/headers");
   const store = await cookies();
   store.set(COOKIE_OFICINA, oficinaId, {
     httpOnly: true,
@@ -64,6 +64,7 @@ export function resolverOficinaAtiva<T extends { oficina: { id: string } }>(list
  * Memorizada com `cache()` do React: roda no máximo 1 vez por requisição.
  */
 export const oficinaDaRequisicao = cache(async (): Promise<{ ativo: Vinculo | null; vinculos: Vinculo[] }> => {
+  const { auth } = await import("@clerk/nextjs/server");
   const { userId } = await auth();
   if (!userId) return { ativo: null, vinculos: [] };
 

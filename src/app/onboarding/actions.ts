@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDbSistema, schema } from "@/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { exigirLogin, membroAtivo } from "@/lib/oficina";
+import { definirOficinaAtivaCookie } from "@/lib/oficina-ativa";
 import { cnpjValido, normalizarCnpj } from "@/lib/utils";
 
 const formSchema = z.object({
@@ -34,7 +35,7 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
   }
   const usuario = await currentUser();
 
-  await db.transaction(async (tx) => {
+  const oficinaId = await db.transaction(async (tx) => {
     const [oficina] = await tx
       .insert(schema.oficinas)
       // clerk_org_id: identificador legado (a oficina não depende de Organization do Clerk)
@@ -47,7 +48,9 @@ export async function criarOficina(_prev: OnboardingState, form: FormData): Prom
       email: usuario?.primaryEmailAddress?.emailAddress ?? null,
       papel: "dono",
     });
+    return oficina.id;
   });
 
+  await definirOficinaAtivaCookie(oficinaId);
   redirect("/inicio");
 }
