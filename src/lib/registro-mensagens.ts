@@ -24,6 +24,7 @@ const TIPOS = [
   "pos_venda",
   "revisao",
   "portal",
+  "acompanhamento",
   "reativacao",
   "documento",
   "cobranca",

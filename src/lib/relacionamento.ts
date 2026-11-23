@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { getDb, getDbSistema, schema, type DB } from "@/db";
 import { notasAutorizadasDasOS } from "@/lib/fiscal/notas";
-import { linkPublico } from "@/lib/pdf/carregar";
+import { linkPublico, linksPublicosEmLote } from "@/lib/links-publicos";
 import { diaSP, somarDias } from "@/lib/agenda-datas";
 import { somarMeses } from "@/lib/financeiro";
 import { totalOS } from "@/lib/queries";
@@ -421,16 +421,16 @@ export async function dadosPortal(oficinaId: string, clienteId: string) {
   const agora = new Date();
   const hoje = diaSP(agora);
 
-  // PDF da OS e DANFSe das notas autorizadas (links públicos reaproveitados)
-  const pdfs = new Map<string, string>();
-  for (const o of ordens) {
-    const t = await linkPublico(oficinaId, "os", o.id, db);
-    if (t) pdfs.set(o.id, t);
-  }
+  // Links públicos reaproveitados, em lote (1 consulta + 1 insert por tipo, não 1 ida ao banco por OS):
+  // acompanhamento de cada OS, PDF da OS e DANFSe das notas autorizadas
+  const acompanhamentos = await linksPublicosEmLote(oficinaId, "acompanhamento", osIds, db);
+  const pdfs = await linksPublicosEmLote(oficinaId, "os", osIds, db);
+  const notasDasOS = notasAut.filter((n) => n.osId);
+  const tokensNotas = await linksPublicosEmLote(oficinaId, "nota", notasDasOS.map((n) => n.id), db);
   const notasTokens = new Map<string, { numero: string; ambiente: "homologacao" | "producao"; token: string }[]>();
-  for (const n of notasAut) {
+  for (const n of notasDasOS) {
     if (!n.osId) continue;
-    const t = await linkPublico(oficinaId, "nota", n.id, db);
+    const t = tokensNotas.get(n.id);
     if (!t) continue;
     const arr = notasTokens.get(n.osId) ?? [];
     arr.push({ numero: n.numeroNota ?? `DPS ${n.numeroDps}`, ambiente: n.ambiente, token: t });
@@ -449,6 +449,7 @@ export async function dadosPortal(oficinaId: string, clienteId: string) {
           itens: itens.filter((i) => i.osId === o.id).map((i) => i.descricao),
           orcamento: orc ? { token: orc.token, total: Number(orc.total), validoAte: orc.validoAte } : null,
           pdfToken: pdfs.get(o.id) ?? null,
+          acompanhamentoToken: acompanhamentos.get(o.id) ?? null,
           notas: notasTokens.get(o.id) ?? [],
         };
       }),

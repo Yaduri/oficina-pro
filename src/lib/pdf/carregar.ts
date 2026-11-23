@@ -1,9 +1,10 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { getDb, getDbSistema, schema, type DB } from "@/db";
+import { linkPublico } from "@/lib/links-publicos";
 import { obterOS } from "@/lib/queries";
 import { obterCheckin } from "@/lib/checkin-dados";
-import { novoToken, orcamentoPorToken, ultimoOrcamento, urlBase } from "@/lib/orcamento";
+import { orcamentoPorToken, ultimoOrcamento, urlBase } from "@/lib/orcamento";
 import { documentoOS, documentoOrcamento, documentoTermo } from "./gerar";
 
 /*
@@ -67,6 +68,8 @@ export async function pdfOrcamentoDaOS(oficinaId: string, osId: string) {
   const dados = await obterOS(oficinaId, osId);
   if (!dados) return null;
   const orcamento = await ultimoOrcamento(osId);
+  // O cliente aprova pelo link de acompanhamento da OS
+  const acompanhamento = orcamento ? await linkPublico(oficinaId, "acompanhamento", osId) : null;
   const doc = await documentoOrcamento({
     oficina,
     os: dados.os,
@@ -74,7 +77,7 @@ export async function pdfOrcamentoDaOS(oficinaId: string, osId: string) {
     cliente: dados.cliente,
     orcamento,
     itensAtuais: dados.itens,
-    link: orcamento ? `${await urlBase()}/orcamento/${orcamento.token}` : null,
+    link: acompanhamento ? `${await urlBase()}/acompanhamento/${acompanhamento}` : null,
   });
   return { doc, nome: `Orcamento-OS-${dados.os.numero}-${placaArquivo(dados.veiculo.placa)}.pdf` };
 }
@@ -83,13 +86,15 @@ export async function pdfOrcamentoDaOS(oficinaId: string, osId: string) {
 export async function pdfOrcamentoPorToken(token: string) {
   const r = await orcamentoPorToken(token);
   if (!r) return null;
+  // Sem login: conexão do sistema, com a oficina e a OS do orçamento do token
+  const acompanhamento = await linkPublico(r.orcamento.oficinaId, "acompanhamento", r.os.id, await getDbSistema());
   const doc = await documentoOrcamento({
     oficina: r.oficina,
     os: r.os,
     veiculo: r.veiculo,
     cliente: r.cliente,
     orcamento: r.orcamento,
-    link: `${await urlBase()}/orcamento/${token}`,
+    link: `${await urlBase()}${acompanhamento ? `/acompanhamento/${acompanhamento}` : `/orcamento/${token}`}`,
   });
   return { doc, nome: `Orcamento-OS-${r.os.numero}-${placaArquivo(r.veiculo.placa)}.pdf` };
 }
@@ -113,25 +118,5 @@ export async function pdfTermo(oficinaId: string, checkinId: string, db?: DB) {
 
 /* ---------- Links públicos ---------- */
 
-/** Token do link público do documento (cria na primeira vez) */
-export async function linkPublico(oficinaId: string, tipo: "os" | "termo" | "portal" | "nota", refId: string, conexao?: DB) {
-  const db = conexao ?? (await getDb());
-  const t = schema.linksDocumento;
-  const [existente] = await db.select({ token: t.token }).from(t).where(and(eq(t.tipo, tipo), eq(t.refId, refId), eq(t.oficinaId, oficinaId)));
-  if (existente) return existente.token;
-  const [novo] = await db
-    .insert(t)
-    .values({ oficinaId, tipo, refId, token: novoToken() })
-    .onConflictDoNothing()
-    .returning({ token: t.token });
-  if (novo) return novo.token;
-  const [outro] = await db.select({ token: t.token }).from(t).where(and(eq(t.tipo, tipo), eq(t.refId, refId), eq(t.oficinaId, oficinaId)));
-  return outro?.token ?? null;
-}
-
-/** Link público pelo token (sem login: conexão do sistema, filtrada pelo token) */
-export async function documentoPorToken(token: string) {
-  const db = await getDbSistema();
-  const [l] = await db.select().from(schema.linksDocumento).where(eq(schema.linksDocumento.token, token));
-  return l ?? null;
-}
+// Ficam em lib/links-publicos.ts (sem dependência do gerador de PDF); reexportados aqui
+export { documentoPorToken, linkPublico, linksPublicosEmLote } from "@/lib/links-publicos";

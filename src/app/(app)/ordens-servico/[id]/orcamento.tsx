@@ -155,11 +155,11 @@ function Detalhes({ osId, o }: { osId: string; o: ResumoOrcamento }) {
             type="button"
             disabled={pending}
             onClick={() => {
-              if (confirm("Cancelar este link? O cliente não poderá mais responder por ele.")) start(() => cancelarOrcamento(osId));
+              if (confirm("Cancelar este orçamento? O cliente não poderá mais aprová-lo pelo link de acompanhamento.")) start(() => cancelarOrcamento(osId));
             }}
             className="self-start text-[13px] text-muted underline-offset-4 hover:text-danger hover:underline disabled:opacity-50"
           >
-            Cancelar link
+            Cancelar orçamento
           </button>
         </div>
       )}
@@ -192,7 +192,7 @@ function EnviarForm({
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
       {!reenvio && (
         <p className="text-[13px] text-muted">
-          O cliente aprova pelo link, item por item. A OS vai para “Aguardando aprovação” e, com a aprovação, para “Em
+          O cliente aprova pelo link de acompanhamento da OS, item por item. A OS vai para “Aguardando aprovação” e, com a aprovação, para “Em
           execução”.
         </p>
       )}

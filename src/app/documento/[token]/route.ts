@@ -16,7 +16,7 @@ export async function GET(req: Request, ctx: RouteContext<"/documento/[token]">)
   const { token } = await ctx.params;
   if (!TOKEN_RE.test(token)) return new Response("Não encontrado", { status: 404 });
   const link = await documentoPorToken(token);
-  if (!link || link.tipo === "portal") return new Response("Não encontrado", { status: 404 });
+  if (!link || (link.tipo !== "os" && link.tipo !== "termo" && link.tipo !== "nota")) return new Response("Não encontrado", { status: 404 });
   // Sem login: conexão do sistema; as consultas filtram pela oficina do link
   const db = await getDbSistema();
   const baixar = new URL(req.url).searchParams.has("baixar");

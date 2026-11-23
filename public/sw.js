@@ -2,12 +2,12 @@
 // Só guarda a página /offline e os arquivos estáticos dela. Nada de HTML logado,
 // API, ações do servidor (POST), arquivos, PDFs, links públicos ou Clerk.
 // Ao mudar este arquivo, suba a VERSAO para limpar o cache antigo.
-const VERSAO = "v1";
+const VERSAO = "v2";
 const CACHE = `oficina-offline-${VERSAO}`;
 const OFFLINE = "/offline";
 
 // Rotas que o SW nem toca (vão direto para a rede, como sem SW)
-const IGNORAR = ["/api/", "/arquivos/", "/pdf/", "/documento/", "/orcamento/", "/pesquisa/", "/portal/", "/convite/", "/sign-in", "/sign-up", "/_next/data/", "/__clerk", "/sw.js"];
+const IGNORAR = ["/api/", "/arquivos/", "/pdf/", "/documento/", "/orcamento/", "/acompanhamento/", "/pesquisa/", "/portal/", "/convite/", "/sign-in", "/sign-up", "/_next/data/", "/__clerk", "/sw.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

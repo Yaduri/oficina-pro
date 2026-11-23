@@ -16,6 +16,7 @@ export type TipoMensagem =
   | "pos_venda"
   | "revisao"
   | "portal"
+  | "acompanhamento"
   | "reativacao"
   | "documento"
   | "cobranca"
@@ -38,6 +39,7 @@ export type VariaveisMensagem = Partial<
     | "servico"
     | "pesquisa"
     | "portal"
+    | "acompanhamento"
     | "telefone_oficina",
     string
   >
@@ -62,8 +64,9 @@ export const MODELOS: ModeloMensagem[] = [
     tipo: "orcamento",
     label: "Orçamento pronto",
     quando: "Ao enviar o orçamento para aprovação",
-    variaveis: ["cliente", "veiculo", "placa", "os", "total", "link", "oficina"],
-    padrao: "Olá, {cliente}! Segue o orçamento do seu {veiculo} ({placa}), OS #{os}, no valor de {total}. Você pode aprovar pelo link: {link}",
+    variaveis: ["cliente", "veiculo", "placa", "os", "total", "acompanhamento", "link", "oficina"],
+    padrao:
+      "Olá, {cliente}! Segue o orçamento do seu {veiculo} ({placa}), OS #{os}, no valor de {total}. Você pode aprovar e acompanhar o serviço pelo link: {acompanhamento}",
   },
   {
     tipo: "orcamento_respondido",
@@ -76,8 +79,15 @@ export const MODELOS: ModeloMensagem[] = [
     tipo: "pronto",
     label: "Veículo pronto",
     quando: "Avisar cliente, quando a OS fica pronta",
-    variaveis: ["cliente", "veiculo", "placa", "os", "total", "oficina"],
-    padrao: "Olá, {cliente}! Seu {veiculo} ({placa}) está pronto para retirada na {oficina}. Total: {total}.",
+    variaveis: ["cliente", "veiculo", "placa", "os", "total", "acompanhamento", "oficina"],
+    padrao: "Olá, {cliente}! Seu {veiculo} ({placa}) está pronto para retirada na {oficina}. Total: {total}. Detalhes do serviço: {acompanhamento}",
+  },
+  {
+    tipo: "acompanhamento",
+    label: "Link de acompanhamento",
+    quando: "Na tela da OS, ao enviar ao cliente o link para acompanhar o serviço",
+    variaveis: ["cliente", "veiculo", "placa", "os", "acompanhamento", "oficina"],
+    padrao: "Olá, {cliente}! Neste link você acompanha o serviço do seu {veiculo} ({placa}), OS #{os}, na {oficina}: {acompanhamento}",
   },
   {
     tipo: "agendamento",
@@ -137,6 +147,7 @@ export const LABEL_TIPO: Record<TipoMensagem, string> = {
   pos_venda: "Pós-venda",
   revisao: "Revisão",
   portal: "Portal do cliente",
+  acompanhamento: "Acompanhamento",
   reativacao: "Cliente inativo",
   documento: "Documento",
   cobranca: "Cobrança",
@@ -215,13 +226,14 @@ export const LABEL_VARIAVEL: Record<keyof VariaveisMensagem, string> = {
   placa: "Placa",
   os: "Nº da OS",
   total: "Total",
-  link: "Link do documento",
+  link: "Link do documento (no orçamento, o de acompanhamento)",
   nota: "Nº da nota",
   data: "Data",
   hora: "Hora",
   servico: "Serviço",
   pesquisa: "Link da pesquisa",
   portal: "Link do portal",
+  acompanhamento: "Link de acompanhamento",
   telefone_oficina: "Telefone da oficina",
 };
 
@@ -239,6 +251,7 @@ export const EXEMPLO_VARIAVEIS: VariaveisMensagem = {
   servico: "troca de óleo",
   pesquisa: "https://exemplo.com/pesquisa/abc",
   portal: "https://exemplo.com/portal/abc",
+  acompanhamento: "https://exemplo.com/acompanhamento/abc",
   telefone_oficina: "(11) 3333-4444",
 };
 

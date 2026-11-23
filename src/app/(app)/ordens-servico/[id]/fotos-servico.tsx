@@ -1,13 +1,22 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Loader2, Trash2 } from "lucide-react";
+import { Camera, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
 import { Button, Card, CardHeader, Input } from "@/components/ui";
 import { comprimir, enviarArquivo } from "@/lib/upload-cliente";
 import { cn } from "@/lib/utils";
-import { adicionarFotoOS, removerFotoOS } from "../edicao";
+import { adicionarFotoOS, mostrarFotoAoCliente, removerFotoOS } from "../edicao";
 
-type Foto = { id: string; url: string; legenda: string | null; quando: string; podeRemover: boolean };
+type Foto = {
+  id: string;
+  url: string;
+  legenda: string | null;
+  quando: string;
+  podeRemover: boolean;
+  /** Aparece no link de acompanhamento do cliente */
+  visivelCliente: boolean;
+  podeMostrar: boolean;
+};
 
 /** Fotos tiradas durante o serviço (peça trocada, antes/depois) */
 export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fotos: Foto[]; podeAdicionar: boolean }) {
@@ -62,10 +71,40 @@ export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fot
                 )}
               </div>
               <span className="text-[12px] text-muted">{[f.legenda, f.quando].filter(Boolean).join(" · ")}</span>
+              {f.podeMostrar ? (
+                <button
+                  type="button"
+                  aria-pressed={f.visivelCliente}
+                  disabled={pending}
+                  onClick={() =>
+                    start(async () => {
+                      setErro(undefined);
+                      const r = await mostrarFotoAoCliente(osId, f.id, !f.visivelCliente);
+                      if (r?.erro) setErro(r.erro);
+                    })
+                  }
+                  title={f.visivelCliente ? "A foto e a legenda aparecem no link de acompanhamento" : "Só a oficina vê esta foto"}
+                  className={cn(
+                    "inline-flex h-9 items-center gap-1.5 self-start rounded-md border px-2.5 text-[12px] font-medium transition-colors disabled:opacity-50",
+                    f.visivelCliente ? "border-ok/40 bg-ok-soft text-ok" : "border-border bg-card text-foreground-2 hover:bg-subtle",
+                  )}
+                >
+                  {f.visivelCliente ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />}
+                  {f.visivelCliente ? "Cliente vê" : "Mostrar ao cliente"}
+                </button>
+              ) : (
+                f.visivelCliente && (
+                  <span className="inline-flex items-center gap-1 text-[12px] text-ok">
+                    <Eye className="size-3.5" aria-hidden />
+                    Cliente vê
+                  </span>
+                )
+              )}
             </li>
           ))}
         </ul>
       )}
+      {erro && !podeAdicionar && <p className="px-4 pb-4 text-[13px] text-danger sm:px-5">{erro}</p>}
       {podeAdicionar && (
         <div className={cn("flex flex-col gap-2 px-4 pb-4 sm:px-5", fotos.length === 0 && "pt-4")}>
           {fotos.length === 0 && <p className="text-[13px] text-muted">Registre a peça trocada, o antes e depois ou o que encontrou no diagnóstico.</p>}

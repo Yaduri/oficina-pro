@@ -6,7 +6,8 @@ import { getContexto } from "@/lib/oficina";
 import { eventosDaOS, fotosDaOS, listarTecnicos, obterOS } from "@/lib/queries";
 import { STATUS } from "@/lib/os";
 import { formatBRL, formatData, formatEntrada, formatTelefone, linkWhatsApp } from "@/lib/utils";
-import { STATUS_ORCAMENTO, orcamentoDesatualizado, ultimoOrcamento, urlBase } from "@/lib/orcamento";
+import { STATUS_ORCAMENTO, orcamentoDesatualizado, ultimoOrcamento } from "@/lib/orcamento";
+import { garantirAcompanhamento, urlAcompanhamento } from "@/lib/acompanhamento";
 import { calcularTotais, totalSelecionado } from "@/lib/os-total";
 import { checklistDoCheckin, fotosDoCheckin } from "@/lib/checkin-dados";
 import { ChecklistResumo } from "@/components/checklist-registrado";
@@ -20,6 +21,7 @@ import { DadosOS } from "./dados-os";
 import { EntregarOS } from "./entrega";
 import { FotosServico } from "./fotos-servico";
 import { AvisarCliente } from "./avisar";
+import { AcompanhamentoOS } from "./acompanhamento";
 import { nomeVeiculo, primeiroNome } from "@/lib/mensagens";
 import { textoDaOficina } from "@/lib/fila-mensagens";
 import { DocumentosPdf, type DocumentoOpcao } from "@/components/documentos-pdf";
@@ -99,12 +101,22 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
   const pagamentosAtivos = recebimento?.pagamentos.filter((p) => !p.estornadaEm) ?? [];
   const garantiaPadrao = garantiaSugerida(oficina.garantiaDias);
 
+  // Link de acompanhamento da OS (um só, do orçamento à entrega): é o que vai para o cliente
+  const urlAcomp = await urlAcompanhamento(await garantirAcompanhamento(oficina.id, os.id));
+
   // Variáveis dos modelos de mensagem (Configurações → Mensagens)
-  const varsMensagem = { cliente: primeiroNome(cliente?.nome), veiculo: nomeVeiculo(veiculo), placa: veiculo.placa, os: String(os.numero) };
+  const varsMensagem = {
+    cliente: primeiroNome(cliente?.nome),
+    veiculo: nomeVeiculo(veiculo),
+    placa: veiculo.placa,
+    os: String(os.numero),
+    acompanhamento: urlAcomp,
+  };
 
   let resumo: ResumoOrcamento | null = null;
   if (orc) {
-    const url = `${await urlBase()}/orcamento/${orc.token}`;
+    // O cliente aprova o orçamento pelo link de acompanhamento ({link} nos modelos antigos)
+    const url = urlAcomp;
     const texto = textoDaOficina(oficina, "orcamento", {
       ...varsMensagem,
       total: formatBRL(Number(orc.total)),
@@ -141,6 +153,7 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
     ...varsMensagem,
     total: valores && totalOS > 0 ? formatBRL(totalOS) : undefined,
   });
+  const msgAcomp = textoDaOficina(oficina, "acompanhamento", varsMensagem);
 
   const documentos: DocumentoOpcao[] = [
     { href: `/pdf/os/${os.id}`, label: "Ordem de serviço", detalhe: "Via do cliente" },
@@ -358,6 +371,8 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               legenda: f.legenda,
               quando: formatEntrada(f.criadoEm),
               podeRemover: f.criadoPor === userId || pode("editarItens"),
+              visivelCliente: f.visivelCliente,
+              podeMostrar: f.criadoPor === userId || pode("editarItens"),
             }))}
           />
         </div>
@@ -411,6 +426,17 @@ export default async function OSPage({ params }: PageProps<"/ordens-servico/[id]
               )}
             </div>
           </Card>
+
+          {(pode("mensagens") || pode("orcamento")) && (
+            <AcompanhamentoOS
+              osId={os.id}
+              url={urlAcomp}
+              telefone={cliente?.telefone ?? null}
+              texto={msgAcomp}
+              podeEnviar={pode("mensagens")}
+              fotosVisiveis={fotosServico.filter((f) => f.visivelCliente).length}
+            />
+          )}
 
           <Card>
             <CardHeader title="Andamento" />

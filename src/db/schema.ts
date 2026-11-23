@@ -408,6 +408,9 @@ export const orcamentos = pgTable(
   (t) => [index("orcamentos_os_idx").on(t.osId), index("orcamentos_oficina_idx").on(t.oficinaId, t.criadoEm)],
 );
 
+/** "acompanhamento": página /acompanhamento/<token> da OS (orçamento, andamento, fotos e documentos) */
+export type TipoLinkPublico = "os" | "termo" | "portal" | "nota" | "acompanhamento";
+
 /**
  * Link público de um documento em PDF (OS ou termo de entrada) para mandar ao cliente
  * pelo WhatsApp. O token é o segredo; um link por documento, reaproveitado.
@@ -418,8 +421,8 @@ export const linksDocumento = pgTable(
     id: id(),
     oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
     token: text("token").notNull().unique(),
-    tipo: text("tipo").$type<"os" | "termo" | "portal" | "nota">().notNull(),
-    /** id da OS, do check-in, do cliente (portal) ou da nota fiscal */
+    tipo: text("tipo").$type<TipoLinkPublico>().notNull(),
+    /** id da OS (PDF ou acompanhamento), do check-in, do cliente (portal) ou da nota fiscal */
     refId: uuid("ref_id").notNull(),
     criadoEm: criadoEm(),
   },
@@ -451,9 +454,27 @@ export const osFotos = pgTable(
     key: text("key").notNull(),
     legenda: text("legenda"),
     criadoPor: text("criado_por").notNull(),
+    /** A oficina escolheu mostrar no link de acompanhamento do cliente */
+    visivelCliente: boolean("visivel_cliente").notNull().default(false),
     criadoEm: criadoEm(),
   },
   (t) => [index("os_fotos_os_idx").on(t.osId)],
+);
+
+/**
+ * Cada mudança de status da OS, com data e hora (gravada por trigger no banco, migração 0012).
+ * Mostrada ao cliente no link de acompanhamento: não guarda quem fez nem observações.
+ */
+export const osStatusHistorico = pgTable(
+  "os_status_historico",
+  {
+    id: id(),
+    oficinaId: uuid("oficina_id").notNull().references(() => oficinas.id, { onDelete: "cascade" }),
+    osId: uuid("os_id").notNull().references(() => ordensServico.id, { onDelete: "cascade" }),
+    status: statusOS("status").notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index("os_status_historico_os_idx").on(t.osId, t.criadoEm)],
 );
 
 /**

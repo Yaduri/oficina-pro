@@ -12,7 +12,10 @@ import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export type RespostaState = { erro?: string } | undefined;
 
-/** Resposta do cliente pelo link público (sem login — o token é a autorização). */
+/**
+ * Resposta do cliente pelo link público (sem login — o token do orçamento é a autorização).
+ * Usada pela página de acompanhamento da OS (/acompanhamento/<token>).
+ */
 export async function responderOrcamento(token: string, _prev: RespostaState, form: FormData): Promise<RespostaState> {
   if (!TOKEN_RE.test(token)) return { erro: "Link inválido" };
   const lim = await verificarLimite({ chave: `orc-resp:${await ipAtual()}:${token.slice(0, 12)}`, limite: 10, janelaSeg: 600 });
@@ -90,6 +93,8 @@ export async function responderOrcamento(token: string, _prev: RespostaState, fo
   const frase = status === "aprovado" ? "aprovou o orçamento" : status === "parcial" ? "aprovou parte do orçamento" : "recusou o orçamento";
   await registrarEvento(db, orc.oficinaId, orc.osId, `${dados.data.nome} ${frase} pelo link`, null);
   revalidatePath(`/orcamento/${token}`);
+  // A resposta é dada pela página de acompanhamento da OS
+  revalidatePath("/acompanhamento/[token]", "page");
   revalidatePath(`/ordens-servico/${orc.osId}`);
   revalidatePath("/ordens-servico");
   revalidatePath("/orcamentos");

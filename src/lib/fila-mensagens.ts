@@ -5,6 +5,7 @@ import type { Oficina } from "@/lib/oficina";
 import { totalOS } from "@/lib/queries";
 import { urlBase } from "@/lib/orcamento";
 import { garantirPesquisa, revisoesPendentes } from "@/lib/relacionamento";
+import { linksPublicosEmLote } from "@/lib/links-publicos";
 import { diaSP, horaSP, inicioDoDia, nomeDoDia, somarDias } from "@/lib/agenda-datas";
 import {
   TEXTO_DISPENSADA,
@@ -81,7 +82,8 @@ export function textoAvisoOficina(d: {
 /** Item da fila com o veículo à parte (para mostrar a placa) */
 export type PendenciaFila = PendenciaMensagem & { placa: string | null; veiculo: string };
 
-type Candidato = Omit<PendenciaFila, "texto"> & { montar: () => string | Promise<string> };
+/** `links`: endereço do link de acompanhamento de cada OS da fila (orçamento e veículo pronto) */
+type Candidato = Omit<PendenciaFila, "texto"> & { montar: (links: Map<string, string>) => string | Promise<string> };
 
 /** Ordem dos grupos na fila */
 export const ORDEM_FILA: TipoMensagem[] = ["pronto", "agendamento", "orcamento", "pos_venda", "revisao"];
@@ -219,7 +221,13 @@ async function candidatos(o: Oficina): Promise<Candidato[]> {
       detalhe: `OS #${x.numero}`,
       href: `/ordens-servico/${x.osId}`,
       refs: { osId: x.osId, veiculoId: x.veiculoId },
-      montar: () => textoDaOficina(o, "pronto", { ...varsVeiculo(x), os: String(x.numero), total: total > 0 ? formatBRL(total) : undefined }),
+      montar: (links) =>
+        textoDaOficina(o, "pronto", {
+          ...varsVeiculo(x),
+          os: String(x.numero),
+          total: total > 0 ? formatBRL(total) : undefined,
+          acompanhamento: links.get(x.osId),
+        }),
     });
   }
 
@@ -239,7 +247,6 @@ async function candidatos(o: Oficina): Promise<Candidato[]> {
   }
 
   if (orcamentos.length > 0) {
-    const url = await urlBase();
     for (const x of orcamentos) {
       if (orcDispensado.has(x.orcamentoId)) continue;
       const ultimo = Math.max(orcUltimo.get(x.orcamentoId) ?? 0, x.enviadoEm.getTime());
@@ -253,12 +260,14 @@ async function candidatos(o: Oficina): Promise<Candidato[]> {
         detalhe: `OS #${x.numero} · ${formatBRL(Number(x.total))}`,
         href: `/ordens-servico/${x.osId}`,
         refs: { osId: x.osId, veiculoId: x.veiculoId, refId: x.orcamentoId },
-        montar: () =>
+        // O cliente aprova pelo link de acompanhamento da OS ({link} nos modelos antigos)
+        montar: (links) =>
           textoDaOficina(o, "orcamento", {
             ...varsVeiculo(x),
             os: String(x.numero),
             total: formatBRL(Number(x.total)),
-            link: `${url}/orcamento/${x.token}`,
+            link: links.get(x.osId),
+            acompanhamento: links.get(x.osId),
           }),
       });
     }
@@ -315,7 +324,14 @@ async function candidatos(o: Oficina): Promise<Candidato[]> {
 /** Fila completa, com o texto de cada mensagem montado pelo modelo da oficina */
 export async function filaMensagens(o: Oficina): Promise<PendenciaFila[]> {
   const lista = await candidatos(o);
-  return Promise.all(lista.map(async ({ montar, ...p }) => ({ ...p, texto: await montar() })));
+  // Links de acompanhamento de todas as OS da fila de uma vez (1 consulta e, se faltar, 1 insert)
+  const osIds = lista.filter((p) => (p.tipo === "pronto" || p.tipo === "orcamento") && p.refs.osId).map((p) => p.refs.osId!);
+  const links = new Map<string, string>();
+  if (osIds.length > 0) {
+    const [tokens, url] = await Promise.all([linksPublicosEmLote(o.id, "acompanhamento", osIds), urlBase()]);
+    for (const [osId, token] of tokens) links.set(osId, `${url}/acompanhamento/${token}`);
+  }
+  return Promise.all(lista.map(async ({ montar, ...p }) => ({ ...p, texto: await montar(links) })));
 }
 
 /** Quantos itens há na fila (sem montar os textos nem criar links de pesquisa) */

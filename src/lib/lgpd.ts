@@ -149,6 +149,23 @@ export async function exportarDadosClienteZip(
 
 /* ---------- 2. Apagar ou anonimizar cliente (LGPD) ---------- */
 
+/** Revoga os links de acompanhamento das OS do cliente (a página mostra nome, veículo e serviços) */
+async function apagarAcompanhamentosDoCliente(tx: DB, oficinaId: string, clienteId: string) {
+  await tx.delete(linksDocumento).where(
+    and(
+      eq(linksDocumento.oficinaId, oficinaId),
+      eq(linksDocumento.tipo, "acompanhamento"),
+      inArray(
+        linksDocumento.refId,
+        tx
+          .select({ id: ordensServico.id })
+          .from(ordensServico)
+          .where(and(eq(ordensServico.oficinaId, oficinaId), eq(ordensServico.clienteId, clienteId))),
+      ),
+    ),
+  );
+}
+
 export async function apagarOuAnonimizarClienteLgpd(
   oficinaId: string,
   clienteId: string,
@@ -175,6 +192,7 @@ export async function apagarOuAnonimizarClienteLgpd(
   if (!temHistorico) {
     await db.transaction(async (tx) => {
       await tx.delete(linksDocumento).where(and(eq(linksDocumento.oficinaId, oficinaId), eq(linksDocumento.tipo, "portal"), eq(linksDocumento.refId, clienteId)));
+      await apagarAcompanhamentosDoCliente(tx as unknown as DB, oficinaId, clienteId);
       await tx.delete(mensagens).where(and(eq(mensagens.oficinaId, oficinaId), eq(mensagens.clienteId, clienteId)));
       await tx.delete(veiculos).where(and(eq(veiculos.oficinaId, oficinaId), eq(veiculos.clienteId, clienteId)));
       await tx.delete(clientes).where(and(eq(clientes.id, clienteId), eq(clientes.oficinaId, oficinaId)));
@@ -223,6 +241,8 @@ export async function apagarOuAnonimizarClienteLgpd(
     await tx
       .delete(linksDocumento)
       .where(and(eq(linksDocumento.oficinaId, oficinaId), eq(linksDocumento.tipo, "portal"), eq(linksDocumento.refId, clienteId)));
+    // e o link de acompanhamento de cada OS dele
+    await apagarAcompanhamentosDoCliente(tx as unknown as DB, oficinaId, clienteId);
 
     // Anonimiza telefone e conteúdo de mensagens enviadas ao titular
     await tx

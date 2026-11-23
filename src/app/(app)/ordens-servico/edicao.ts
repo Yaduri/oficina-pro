@@ -346,3 +346,24 @@ export async function removerFotoOS(osId: string, fotoId: string): Promise<Edica
   revalidar(os.id);
   return { ok: true };
 }
+
+/** "Mostrar ao cliente": a foto aparece (ou deixa de aparecer) no link de acompanhamento da OS */
+export async function mostrarFotoAoCliente(osId: string, fotoId: string, visivel: boolean): Promise<EdicaoState> {
+  if (!ehUuid(fotoId)) return SEM_PERMISSAO;
+  const r = await osDaOficina(osId);
+  if (!r) return SEM_PERMISSAO;
+  const { db, ctx, os } = r;
+  const [foto] = await db
+    .select({ id: schema.osFotos.id, criadoPor: schema.osFotos.criadoPor, visivelCliente: schema.osFotos.visivelCliente })
+    .from(schema.osFotos)
+    .where(and(eq(schema.osFotos.id, fotoId), eq(schema.osFotos.osId, os.id)));
+  if (!foto) return { erro: "Foto não encontrada" };
+  // Mesma regra de remover: quem tirou a foto ou quem pode editar a OS
+  if (foto.criadoPor !== ctx.userId && !ctx.pode("editarItens")) return SEM_PERMISSAO;
+  if (foto.visivelCliente === visivel) return { ok: true };
+  await db.update(schema.osFotos).set({ visivelCliente: visivel }).where(and(eq(schema.osFotos.id, foto.id), eq(schema.osFotos.osId, os.id)));
+  await registrarEvento(db, ctx.oficina.id, os.id, visivel ? "Mostrou uma foto ao cliente" : "Deixou de mostrar uma foto ao cliente", ctx);
+  revalidar(os.id);
+  revalidatePath("/acompanhamento/[token]", "page");
+  return { ok: true };
+}

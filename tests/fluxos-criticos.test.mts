@@ -22,6 +22,8 @@ import { verificarLimite } from "../src/lib/rate-limit";
 import { apagarOuAnonimizarClienteLgpd, exportarContaCompletaZip, exportarDadosClienteZip } from "../src/lib/lgpd";
 import { resolverOficinaAtiva } from "../src/lib/oficina-ativa";
 import { tipoRealDoArquivo } from "../src/lib/upload-validacao";
+import { acompanhamentoPorToken, dadosAcompanhamento, fotoDoAcompanhamento, linhaDoTempo } from "../src/lib/acompanhamento";
+import { linkPublico, linksPublicosEmLote } from "../src/lib/links-publicos";
 
 /**
  * Suíte de testes de integração dos fluxos críticos (Fase 6.4):
@@ -30,6 +32,7 @@ import { tipoRealDoArquivo } from "../src/lib/upload-validacao";
  * 3. Entrega com pagamento -> Financeiro (contas a receber, baixa com taxa e estorno)
  * 4. Emissão fiscal (A1 .pfx, DPS v1.01 + IBS/CBS, XMLDSig, cancelamento e101101, ZIP contador)
  * 5. Segurança & LGPD (rate limit, auditoria, exportação/anonimização cliente, saída da conta, magic bytes)
+ * 8. Link de acompanhamento (histórico de status por trigger, link único por OS, fotos visíveis, LGPD)
  */
 
 let tmpDir: string;
@@ -471,5 +474,112 @@ describe("Fluxos críticos — Oficina Pro", () => {
     assert.equal(vinculos.length, 2);
     assert.equal(vinculos.find((v) => v.oficinaId === oficinaA)?.papel, "atendente");
     assert.equal(vinculos.find((v) => v.oficinaId === oficinaB)?.papel, "contador");
+  });
+  it("8. Link de acompanhamento: histórico de status, link único por OS, fotos visíveis e LGPD", async () => {
+    const dbA = dbComoUsuario("user_a", oficinaA);
+    const dbB = dbComoUsuario("user_b", oficinaB);
+
+    const [cli] = await dbA.insert(schema.clientes).values({ oficinaId: oficinaA, nome: "Carla Acompanha" }).returning();
+    const [v] = await dbA
+      .insert(schema.veiculos)
+      .values({ oficinaId: oficinaA, clienteId: cli.id, placa: "XYZ9K87", marca: "VW", modelo: "Gol" })
+      .returning();
+    const [ordem] = await dbA
+      .insert(schema.ordensServico)
+      .values({ oficinaId: oficinaA, numero: 80, veiculoId: v.id, clienteId: cli.id, descricao: "Freio fazendo barulho" })
+      .returning();
+
+    // Histórico gravado pelo trigger em toda mudança de status (e só quando muda)
+    const mudar = (status: (typeof schema.statusOS.enumValues)[number]) =>
+      dbA.update(schema.ordensServico).set({ status }).where(eq(schema.ordensServico.id, ordem.id));
+    await mudar("aguardando_aprovacao");
+    await mudar("aguardando_aprovacao");
+    await mudar("em_execucao");
+    await dbA.update(schema.ordensServico).set({ descricao: "Freio e suspensão" }).where(eq(schema.ordensServico.id, ordem.id));
+    await mudar("pronto");
+    const hist = await dbA
+      .select()
+      .from(schema.osStatusHistorico)
+      .where(eq(schema.osStatusHistorico.osId, ordem.id))
+      .orderBy(schema.osStatusHistorico.criadoEm);
+    assert.deepEqual(
+      hist.map((h) => h.status),
+      ["diagnostico", "aguardando_aprovacao", "em_execucao", "pronto"],
+    );
+    assert.ok(hist.every((h) => h.oficinaId === oficinaA));
+    // RLS: a outra oficina não vê o histórico
+    assert.equal((await dbB.select().from(schema.osStatusHistorico)).length, 0);
+
+    // Linha do tempo para o cliente: etapas feitas com data, a atual e as próximas (sem "Aguardando peça")
+    const linha = linhaDoTempo("pronto", hist, { entradaEm: ordem.entradaEm, entregueEm: null });
+    assert.deepEqual(
+      linha.map((e) => [e.status, e.situacao]),
+      [
+        ["diagnostico", "feita"],
+        ["aguardando_aprovacao", "feita"],
+        ["em_execucao", "feita"],
+        ["pronto", "atual"],
+        ["entregue", "futura"],
+      ],
+    );
+    assert.ok(linha.filter((e) => e.situacao !== "futura").every((e) => e.quando instanceof Date));
+    const cancelada = linhaDoTempo("cancelada", [{ status: "diagnostico", criadoEm: ordem.entradaEm }], { entradaEm: ordem.entradaEm, entregueEm: null });
+    assert.deepEqual(cancelada.map((e) => e.status), ["diagnostico", "cancelada"]);
+
+    // Um link de acompanhamento por OS, reaproveitado (unitário e em lote)
+    const t1 = await linkPublico(oficinaA, "acompanhamento", ordem.id, dbA);
+    const t2 = await linkPublico(oficinaA, "acompanhamento", ordem.id, dbSistema);
+    assert.ok(t1 && /^[A-Za-z0-9_-]{32}$/.test(t1));
+    assert.equal(t1, t2);
+    const lote = await linksPublicosEmLote(oficinaA, "acompanhamento", [ordem.id, osA, ordem.id], dbSistema);
+    assert.equal(lote.get(ordem.id), t1);
+    assert.ok(lote.get(osA));
+    const deNovo = await linksPublicosEmLote(oficinaA, "acompanhamento", [osA], dbSistema);
+    assert.equal(deNovo.get(osA), lote.get(osA));
+    const links = await dbSistema
+      .select()
+      .from(schema.linksDocumento)
+      .where(and(eq(schema.linksDocumento.tipo, "acompanhamento"), eq(schema.linksDocumento.refId, ordem.id)));
+    assert.equal(links.length, 1);
+
+    const pagina = await acompanhamentoPorToken(t1!, dbSistema);
+    assert.equal(pagina?.os.id, ordem.id);
+    assert.equal(pagina?.oficina.id, oficinaA);
+    // Token de outro tipo (PDF da OS) não abre o acompanhamento
+    const tokenPdf = await linkPublico(oficinaA, "os", ordem.id, dbSistema);
+    assert.equal(await acompanhamentoPorToken(tokenPdf!, dbSistema), null);
+
+    // Fotos: só as marcadas "Mostrar ao cliente" e só da OS do token
+    const [oculta, visivel] = await dbA
+      .insert(schema.osFotos)
+      .values([
+        { osId: ordem.id, key: `${oficinaA}/os/oculta.jpg`, legenda: "interna", criadoPor: "user_a" },
+        { osId: ordem.id, key: `${oficinaA}/os/visivel.jpg`, legenda: "pastilha nova", criadoPor: "user_a", visivelCliente: true },
+      ])
+      .returning();
+    const [deOutraOS] = await dbA
+      .insert(schema.osFotos)
+      .values({ osId: osA, key: `${oficinaA}/os/outra.jpg`, criadoPor: "user_a", visivelCliente: true })
+      .returning();
+    assert.equal(await fotoDoAcompanhamento(t1!, visivel.id, dbSistema), `${oficinaA}/os/visivel.jpg`);
+    assert.equal(await fotoDoAcompanhamento(t1!, oculta.id, dbSistema), null);
+    assert.equal(await fotoDoAcompanhamento(t1!, deOutraOS.id, dbSistema), null);
+    const dados = await dadosAcompanhamento(oficinaA, ordem.id, "pronto", { percentual: null, valor: 0 }, dbSistema);
+    assert.deepEqual(
+      dados.fotos.map((f) => f.id),
+      [visivel.id],
+    );
+    assert.deepEqual(
+      dados.historico.map((h) => h.status),
+      ["diagnostico", "aguardando_aprovacao", "em_execucao", "pronto"],
+    );
+    // Dados da oficina A não aparecem com o id da oficina B
+    const cruzado = await dadosAcompanhamento(oficinaB, ordem.id, "pronto", { percentual: null, valor: 0 }, dbSistema);
+    assert.equal(cruzado.fotos.length + cruzado.historico.length + cruzado.orcamentos.length, 0);
+
+    // LGPD: anonimizar o cliente revoga o link de acompanhamento das OS dele
+    const anon = await apagarOuAnonimizarClienteLgpd(oficinaA, cli.id, { usuarioId: "user_a", usuarioNome: "Dono Alfa" }, dbA);
+    assert.deepEqual(anon, { ok: true, modo: "anonimizado" });
+    assert.equal(await acompanhamentoPorToken(t1!, dbSistema), null);
   });
 });

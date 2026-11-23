@@ -1,29 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, FileText, MessageCircle, Phone } from "lucide-react";
-import { Badge, Placa, buttonClass, type Tom } from "@/components/ui";
-import type { StatusOS } from "@/lib/os";
+import { CalendarClock, ChevronRight, FileText, MessageCircle, Phone } from "lucide-react";
+import { Badge, Placa, buttonClass } from "@/components/ui";
+import { COM_TOTAL_CLIENTE as COM_TOTAL, STATUS_CLIENTE } from "@/lib/os";
 import { dadosPortal, formatDia, portalPorToken, SITUACAO_REVISAO } from "@/lib/relacionamento";
 import { identificacao } from "@/lib/identificacao";
 import { formatBRL, formatData, linkWhatsApp } from "@/lib/utils";
 import { ipAtual, verificarLimite } from "@/lib/rate-limit";
 
 export const metadata: Metadata = { title: "Meus veículos", robots: { index: false, follow: false } };
-
-/** Status da OS em palavras para o cliente */
-const STATUS_CLIENTE: Record<StatusOS, { label: string; tom: Tom }> = {
-  diagnostico: { label: "Em avaliação", tom: "neutro" },
-  aguardando_aprovacao: { label: "Aguardando sua aprovação", tom: "warn" },
-  aguardando_peca: { label: "Aguardando peça", tom: "neutro" },
-  em_execucao: { label: "Em serviço", tom: "info" },
-  pronto: { label: "Pronto para retirada", tom: "ok" },
-  entregue: { label: "Entregue", tom: "neutro" },
-  cancelada: { label: "Cancelada", tom: "neutro" },
-};
-
-/** Status em que o valor da OS já foi combinado com o cliente */
-const COM_TOTAL: StatusOS[] = ["aguardando_peca", "em_execucao", "pronto", "entregue"];
 
 const resumo = (itens: string[]) => (itens.length <= 4 ? itens.join(", ") : `${itens.slice(0, 4).join(", ")} e mais ${itens.length - 4}`);
 
@@ -110,8 +96,8 @@ export default async function PortalCliente({ params }: PageProps<"/portal/[toke
                     <span className="block text-[13px] text-foreground-2">Válido até {formatData(o.orcamento!.validoAte)}</span>
                   </p>
                   <Link
-                    href={`/orcamento/${o.orcamento!.token}`}
-                    className={buttonClass("primary")}
+                    href={o.acompanhamentoToken ? `/acompanhamento/${o.acompanhamentoToken}` : `/orcamento/${o.orcamento!.token}`}
+                    className={buttonClass("primary", "h-10")}
                   >
                     Ver e responder
                   </Link>
@@ -161,6 +147,15 @@ export default async function PortalCliente({ params }: PageProps<"/portal/[toke
                       </p>
                       <p className="text-[13px] text-foreground-2">{o.itens.length > 0 ? resumo(o.itens) : o.descricao}</p>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        {o.acompanhamentoToken && (
+                          <Link
+                            href={`/acompanhamento/${o.acompanhamentoToken}`}
+                            className={buttonClass("secondary", "h-10 w-full sm:h-9 sm:w-fit")}
+                          >
+                            {o.status === "entregue" ? "Ver detalhes do serviço" : "Acompanhar serviço"}
+                            <ChevronRight />
+                          </Link>
+                        )}
                         {o.pdfToken && (
                           <a
                             href={`/documento/${o.pdfToken}`}
