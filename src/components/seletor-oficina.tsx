@@ -21,11 +21,19 @@ type Props = {
  * - "banner": faixa destacada no Novo Check-in com troca rápida em 1 toque (alvos >= 44px).
  */
 export function SeletorOficina({ atualId, oficinas, retorno, variante = "topbar", className }: Props) {
+  const [prevAtualId, setPrevAtualId] = useState(atualId);
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [alvoId, setAlvoId] = useState<string | null>(null);
   const [pendente, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  if (atualId !== prevAtualId) {
+    setPrevAtualId(atualId);
+    setAberto(false);
+    setAlvoId(null);
+    setErro(null);
+  }
 
   useEffect(() => {
     if (variante !== "topbar" || !aberto) return;
