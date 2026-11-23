@@ -35,17 +35,23 @@ let tmpDir: string;
 let pg: PGlite;
 let dbSistema: DB;
 
-function dbComoUsuario(clerkUserId: string): DB {
+function dbComoUsuario(clerkUserId: string, oficina = ""): DB {
   const client = {
     query(query: string, params?: unknown[], opts?: unknown) {
       return pg.transaction(async (tx) => {
-        await tx.query("select set_config('app.usuario', $1, true), set_config('role', 'app_usuario', true)", [clerkUserId]);
+        await tx.query("select set_config('app.usuario', $1, true), set_config('app.oficina', $2, true), set_config('role', 'app_usuario', true)", [
+          clerkUserId,
+          oficina,
+        ]);
         return tx.query(query, params, opts as never);
       });
     },
     transaction(fn: (tx: unknown) => unknown) {
       return pg.transaction(async (tx) => {
-        await tx.query("select set_config('app.usuario', $1, true), set_config('role', 'app_usuario', true)", [clerkUserId]);
+        await tx.query("select set_config('app.usuario', $1, true), set_config('app.oficina', $2, true), set_config('role', 'app_usuario', true)", [
+          clerkUserId,
+          oficina,
+        ]);
         return fn(tx);
       });
     },
@@ -373,5 +379,51 @@ describe("Fluxos críticos — Oficina Pro", () => {
     // Saída da conta: exportação completa da oficina
     const expConta = await exportarContaCompletaZip(oficinaA, { usuarioId: "user_a", usuarioNome: "Dono Alfa" }, dbA);
     assert.ok(expConta && expConta.buffer.readUInt32LE(0) === 0x04034b50);
+  });
+
+  it("6. Multi-oficina por usuário: RLS restringe à oficina ativa", async () => {
+    await dbSistema.insert(schema.membros).values([
+      { oficinaId: oficinaA, clerkUserId: "user_multi", nome: "Funcionário Multi", email: "multi@teste.com", papel: "atendente" },
+      { oficinaId: oficinaB, clerkUserId: "user_multi", nome: "Funcionário Multi", email: "multi@teste.com", papel: "tecnico" },
+    ]);
+
+    // Sem app.oficina: enxerga vínculos e clientes das duas oficinas
+    const dbTodas = dbComoUsuario("user_multi", "");
+    const vinculos = await dbTodas.select().from(schema.membros).where(eq(schema.membros.clerkUserId, "user_multi"));
+    assert.equal(vinculos.length, 2);
+    const clientesTodas = await dbTodas.select().from(schema.clientes);
+    assert.ok(clientesTodas.some((c) => c.oficinaId === oficinaA));
+    assert.ok(clientesTodas.some((c) => c.oficinaId === oficinaB));
+
+    // Com app.oficina = oficinaA: vê SÓ A e INSERT em B falha pelo WITH CHECK do RLS
+    const dbSoA = dbComoUsuario("user_multi", oficinaA);
+    const clientesA = await dbSoA.select().from(schema.clientes);
+    assert.ok(clientesA.length >= 1);
+    assert.ok(clientesA.every((c) => c.oficinaId === oficinaA));
+    await assert.rejects(
+      () => dbSoA.insert(schema.clientes).values({ oficinaId: oficinaB, nome: "Invasor B" }),
+      (e: { message?: string; cause?: { message?: string } }) => /row-level security/i.test(`${e?.message ?? ""} ${e?.cause?.message ?? ""}`),
+    );
+
+    // Com app.oficina = oficinaB: vê SÓ B
+    const dbSoB = dbComoUsuario("user_multi", oficinaB);
+    const clientesB = await dbSoB.select().from(schema.clientes);
+    assert.ok(clientesB.length >= 1);
+    assert.ok(clientesB.every((c) => c.oficinaId === oficinaB));
+
+    // Com app.oficina = UUID de terceiro, inexistente ou texto lixo: 0 linhas, sem erro
+    const dbInexistente = dbComoUsuario("user_multi", "00000000-0000-0000-0000-000000000000");
+    assert.equal((await dbInexistente.select().from(schema.clientes)).length, 0);
+    const dbLixo = dbComoUsuario("user_multi", "abc");
+    assert.equal((await dbLixo.select().from(schema.clientes)).length, 0);
+
+    // Após desativar vínculo em A, app.oficina = oficinaA não retorna nada
+    await dbSistema
+      .update(schema.membros)
+      .set({ ativo: false })
+      .where(and(eq(schema.membros.oficinaId, oficinaA), eq(schema.membros.clerkUserId, "user_multi")));
+    assert.equal((await dbSoA.select().from(schema.clientes)).length, 0);
+    // Vínculo em B continua funcionando normalmente
+    assert.ok((await dbSoB.select().from(schema.clientes)).length >= 1);
   });
 });

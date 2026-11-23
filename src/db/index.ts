@@ -20,9 +20,9 @@ import * as schema from "./schema";
 
 export type DB = PostgresJsDatabase<typeof schema>;
 
-type Base = { db: DB; doUsuario: (usuario: string) => DB };
+type Base = { db: DB; doUsuario: (usuario: string, oficina: string) => DB };
 
-const PREPARAR = "select set_config('app.usuario', $1, true), set_config('role', 'app_usuario', true)";
+const PREPARAR = "select set_config('app.usuario', $1, true), set_config('app.oficina', $2, true), set_config('role', 'app_usuario', true)";
 
 const globalForDb = globalThis as unknown as { __db?: Promise<Base> };
 
@@ -33,8 +33,8 @@ const globalForDb = globalThis as unknown as { __db?: Promise<Base> };
  * Otimização (Fase 6.4): enfileira set_config e a query juntos em pipelining dentro da mesma
  * transação, reduzindo as voltas seriais ao banco de ~4 para 1–2 round-trips por consulta.
  */
-function postgresDoUsuario(sql: any, usuario: string) {
-  const preparar = (t: any) => t.unsafe(PREPARAR, [usuario]);
+function postgresDoUsuario(sql: any, usuario: string, oficina: string) {
+  const preparar = (t: any) => t.unsafe(PREPARAR, [usuario, oficina]);
   return {
     options: sql.options,
     unsafe(query: string, params?: unknown[], opts?: unknown) {
@@ -57,17 +57,17 @@ function postgresDoUsuario(sql: any, usuario: string) {
 }
 
 /** O mesmo para o PGlite (desenvolvimento). */
-function pgliteDoUsuario(pg: any, usuario: string) {
+function pgliteDoUsuario(pg: any, usuario: string, oficina: string) {
   return {
     query(query: string, params?: unknown[], opts?: unknown) {
       return pg.transaction(async (tx: any) => {
-        await tx.query(PREPARAR, [usuario]);
+        await tx.query(PREPARAR, [usuario, oficina]);
         return tx.query(query, params, opts);
       });
     },
     transaction(fn: (tx: any) => unknown) {
       return pg.transaction(async (tx: any) => {
-        await tx.query(PREPARAR, [usuario]);
+        await tx.query(PREPARAR, [usuario, oficina]);
         return fn(tx);
       });
     },
@@ -76,15 +76,16 @@ function pgliteDoUsuario(pg: any, usuario: string) {
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Guarda as conexões por usuário (criar o drizzle processa o schema todo) */
-function comCache(criar: (usuario: string) => DB) {
+/** Guarda as conexões por usuário + oficina (criar o drizzle processa o schema todo) */
+function comCache(criar: (usuario: string, oficina: string) => DB) {
   const cache = new Map<string, DB>();
-  return (usuario: string) => {
-    let db = cache.get(usuario);
+  return (usuario: string, oficina: string) => {
+    const chave = `${usuario}:${oficina}`;
+    let db = cache.get(chave);
     if (!db) {
       if (cache.size >= 500) cache.delete(cache.keys().next().value!);
-      db = criar(usuario);
-      cache.set(usuario, db);
+      db = criar(usuario, oficina);
+      cache.set(chave, db);
     }
     return db;
   };
@@ -123,7 +124,7 @@ async function connect(): Promise<Base> {
   await conferirRls(db);
   return {
     db,
-    doUsuario: comCache((u) => drizzle({ client: pgliteDoUsuario(client, u) as never, schema }) as unknown as DB),
+    doUsuario: comCache((u, o) => drizzle({ client: pgliteDoUsuario(client, u, o) as never, schema }) as unknown as DB),
   };
 }
 
@@ -136,7 +137,7 @@ async function conectarPostgres(url: string, workers: boolean): Promise<Base> {
   // (o schema não usa arrays de tipos próprios).
   const client = postgres(url, workers ? { prepare: false, max: 5, fetch_types: false } : { prepare: false });
   const db = drizzle({ client, schema });
-  return { db, doUsuario: comCache((u) => drizzle({ client: postgresDoUsuario(client, u) as never, schema })) };
+  return { db, doUsuario: comCache((u, o) => drizzle({ client: postgresDoUsuario(client, u, o) as never, schema })) };
 }
 
 /** Rodando no Cloudflare Workers (deploy via OpenNext)? */
@@ -176,12 +177,20 @@ function base(): Promise<Base> {
   return globalForDb.__db;
 }
 
-/** Conexão do usuário logado (com RLS). Sem login, as consultas não enxergam nenhuma linha. */
-export async function getDb(): Promise<DB> {
+/**
+ * Conexão do usuário logado (com RLS). Sem login, as consultas não enxergam nenhuma linha.
+ * Por padrão restringe o RLS à oficina ativa da requisição (fail-closed).
+ * `todasOficinas: true` é uso exclusivo de `oficinaDaRequisicao()` para listar os vínculos ativos.
+ */
+export async function getDb(opcoes?: { todasOficinas?: boolean }): Promise<DB> {
   const { auth } = await import("@clerk/nextjs/server");
   const { userId } = await auth();
   const b = await base();
-  return b.doUsuario(userId ?? "");
+  if (!userId) return b.doUsuario("", "");
+  if (opcoes?.todasOficinas) return b.doUsuario(userId, "");
+  const { oficinaDaRequisicao } = await import("@/lib/oficina-ativa");
+  const { ativo } = await oficinaDaRequisicao();
+  return b.doUsuario(userId, ativo?.oficina.id ?? "");
 }
 
 /** Conexão do sistema, sem RLS. Use só onde não há usuário logado com oficina (ver topo). */
