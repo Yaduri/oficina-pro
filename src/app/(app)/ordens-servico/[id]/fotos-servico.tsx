@@ -127,7 +127,6 @@ export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fot
             ref={input}
             type="file"
             accept="image/*"
-            capture="environment"
             multiple
             className="sr-only"
             tabIndex={-1}

@@ -645,7 +645,7 @@ function SlotFoto({
             className="flex size-full flex-col items-center justify-center gap-1.5 border-2 border-dashed border-border-strong text-[13px] font-medium text-foreground-2 hover:bg-zinc-100"
           >
             <Camera className="size-6 text-muted" strokeWidth={1.75} />
-            Tirar foto
+            Tirar ou escolher foto
           </button>
         )}
         {foto.status === "enviando" && (
@@ -698,7 +698,6 @@ function SlotFoto({
         ref={input}
         type="file"
         accept="image/*"
-        capture="environment"
         className="sr-only"
         tabIndex={-1}
         aria-label={rotulo}
