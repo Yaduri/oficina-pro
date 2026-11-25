@@ -22,3 +22,16 @@ export function identificacao(oficina: OficinaInfo) {
     email: oficina.email,
   };
 }
+
+const normalizarNome = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+/** Mesmo nome ignorando espaços extras, maiúsculas e acentos ("Autoelétrica" = " AUTOELETRICA ") */
+export function mesmoNome(a: string | null | undefined, b: string | null | undefined) {
+  return normalizarNome(a ?? "") === normalizarNome(b ?? "");
+}

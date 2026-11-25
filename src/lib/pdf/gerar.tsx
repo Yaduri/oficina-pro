@@ -47,7 +47,7 @@ export function ident(oficina: Oficina): Identificacao {
   return { titulo: i.titulo, razaoSocial: i.razaoSocial, cnpj: i.cnpj, endereco: i.endereco, telefone: i.telefone, email: i.email };
 }
 
-export const logoDa = (oficina: Oficina) => imagemPdf(oficina.logoKey, { largura: 240, png: true });
+export const logoDa = (oficina: Oficina) => imagemPdf(oficina.logoKey, { largura: 600, png: true });
 
 export function pessoa(c: Cliente | null) {
   if (!c) return null;

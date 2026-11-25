@@ -2,6 +2,8 @@ import "server-only";
 import type { ReactNode } from "react";
 import { Image, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { ImagemPdf } from "./imagens";
+import { caixaDoLogo } from "./dimensoes-imagem";
+import { mesmoNome } from "@/lib/identificacao";
 import { formatBRL } from "@/lib/utils";
 
 /*
@@ -56,20 +58,24 @@ export function Cabecalho({
   linhas?: string[];
   via?: string;
 }) {
+  // Razão social só quando difere do nome em destaque (sem ela, o nome aparecia duas vezes)
+  const razao = id.razaoSocial && !mesmoNome(id.razaoSocial, id.titulo) ? id.razaoSocial : null;
+  const segundaLinha = [razao, id.cnpj ? `CNPJ ${id.cnpj}` : null].filter(Boolean).join(" · ");
+  const caixa = logo ? caixaDoLogo(logo.data) : null;
+  const textos = (
+    <View style={caixa?.faixa ? { marginTop: 6 } : { flex: 1 }}>
+      <Text style={[s.negrito, { fontSize: 13, lineHeight: 1.2, marginBottom: 2 }]}>{id.titulo}</Text>
+      {segundaLinha && <Text style={s.suave}>{segundaLinha}</Text>}
+      {id.endereco && <Text style={s.muted}>{id.endereco}</Text>}
+      {(id.telefone || id.email) && <Text style={s.muted}>{[id.telefone, id.email].filter(Boolean).join(" · ")}</Text>}
+    </View>
+  );
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 16, paddingBottom: 12, borderBottomWidth: 1.5, borderBottomColor: COR.texto }}>
-      <View style={{ flexDirection: "row", gap: 10, flex: 1 }}>
+      <View style={caixa?.faixa ? { flex: 1 } : { flexDirection: "row", gap: 10, flex: 1 }}>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- Image do @react-pdf não tem alt */}
-        {logo && <Image src={logo} style={{ width: 52, height: 52, objectFit: "contain" }} />}
-        <View style={{ flex: 1 }}>
-          <Text style={[s.negrito, { fontSize: 13 }]}>{id.titulo}</Text>
-          <Text style={s.suave}>
-            {id.razaoSocial}
-            {id.cnpj ? ` · CNPJ ${id.cnpj}` : ""}
-          </Text>
-          {id.endereco && <Text style={s.muted}>{id.endereco}</Text>}
-          {(id.telefone || id.email) && <Text style={s.muted}>{[id.telefone, id.email].filter(Boolean).join(" · ")}</Text>}
-        </View>
+        {logo && caixa && <Image src={logo} style={{ width: caixa.largura, height: caixa.altura, objectFit: "contain" }} />}
+        {textos}
       </View>
       <View style={{ alignItems: "flex-end", maxWidth: 190 }}>
         <Text style={[s.negrito, { fontSize: 14, lineHeight: 1.2 }]}>{documento}</Text>

@@ -3,7 +3,7 @@
 import { spawnSync } from "node:child_process";
 
 const env = { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --conditions=react-server`.trim() };
-const r = spawnSync("pnpm", ["exec", "tsx", "--test", "tests/fluxos-criticos.test.mts"], {
+const r = spawnSync("pnpm", ["exec", "tsx", "--test", "tests/fluxos-criticos.test.mts", "tests/pdf-cabecalho.test.mts"], {
   stdio: "inherit",
   env,
   shell: true,
