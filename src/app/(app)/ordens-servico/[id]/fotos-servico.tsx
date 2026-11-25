@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Camera, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
+import { Camera, Eye, EyeOff, Images, Loader2, Trash2 } from "lucide-react";
 import { Button, Card, CardHeader, Input } from "@/components/ui";
 import { comprimir, enviarArquivo } from "@/lib/upload-cliente";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,8 @@ type Foto = {
 
 /** Fotos tiradas durante o serviço (peça trocada, antes/depois) */
 export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fotos: Foto[]; podeAdicionar: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
   const [legenda, setLegenda] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string>();
@@ -41,7 +42,8 @@ export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fot
       setErro(e instanceof Error ? e.message : "Falha no envio");
     } finally {
       setEnviando(false);
-      if (input.current) input.current.value = "";
+      if (camera.current) camera.current.value = "";
+      if (galeria.current) galeria.current.value = "";
     }
   }
 
@@ -115,16 +117,40 @@ export function FotosServico({ osId, fotos, podeAdicionar }: { osId: string; fot
               value={legenda}
               onChange={(e) => setLegenda(e.target.value)}
               maxLength={120}
-              className="h-10 min-w-0 flex-1 basis-48"
+              className="h-11 min-w-0 flex-1 basis-48"
             />
-            <Button type="button" disabled={enviando} onClick={() => input.current?.click()} className="h-10">
-              {enviando ? <Loader2 className="animate-spin" /> : <Camera />}
-              {enviando ? "Enviando…" : "Tirar ou escolher foto"}
-            </Button>
+            {enviando ? (
+              <Button type="button" disabled className="h-11">
+                <Loader2 className="animate-spin" />
+                Enviando…
+              </Button>
+            ) : (
+              <div className="flex flex-1 basis-56 gap-2 sm:flex-none sm:basis-auto">
+                <Button type="button" onClick={() => camera.current?.click()} className="h-11 flex-1" aria-label="Tirar foto do serviço">
+                  <Camera />
+                  Câmera
+                </Button>
+                <Button type="button" onClick={() => galeria.current?.click()} className="h-11 flex-1" aria-label="Escolher fotos do serviço da galeria">
+                  <Images />
+                  Galeria
+                </Button>
+              </div>
+            )}
           </div>
           {erro && <p className="text-[13px] text-danger">{erro}</p>}
+          {/* Dois inputs: com capture abre direto a câmera; sem capture abre a galeria (no Android, o seletor de fotos não oferece câmera) */}
           <input
-            ref={input}
+            ref={camera}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => escolher(e.target.files)}
+          />
+          <input
+            ref={galeria}
             type="file"
             accept="image/*"
             multiple

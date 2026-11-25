@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Check, History, ImagePlus, Loader2, RotateCcw, Trash2, WifiOff } from "lucide-react";
+import { Camera, Check, History, ImagePlus, Images, Loader2, RotateCcw, Trash2, WifiOff } from "lucide-react";
 import { Button, Campo, Erro, Input, Textarea } from "@/components/ui";
 import { SeletorVeiculo, type ClienteOpcao } from "@/components/seletor-veiculo";
 import { FOTOS_PADRAO, ROTULO_POSICAO, type Posicao } from "@/lib/checkin";
@@ -630,7 +630,8 @@ function SlotFoto({
   onReenviar: () => void;
   onRemover: () => void;
 }) {
-  const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
   const rotulo = ROTULO_POSICAO[foto.posicao];
   return (
     <div className="flex flex-col gap-1">
@@ -639,14 +640,26 @@ function SlotFoto({
           // eslint-disable-next-line @next/next/no-img-element -- prévia local (blob:)
           <img src={foto.preview} alt={rotulo} className="size-full object-cover" />
         ) : (
-          <button
-            type="button"
-            onClick={() => input.current?.click()}
-            className="flex size-full flex-col items-center justify-center gap-1.5 border-2 border-dashed border-border-strong text-[13px] font-medium text-foreground-2 hover:bg-zinc-100"
-          >
-            <Camera className="size-6 text-muted" strokeWidth={1.75} />
-            Tirar ou escolher foto
-          </button>
+          <div className="grid size-full grid-cols-2 divide-x divide-dashed divide-border-strong rounded-lg border-2 border-dashed border-border-strong">
+            <button
+              type="button"
+              onClick={() => camera.current?.click()}
+              aria-label={`Tirar foto: ${rotulo}`}
+              className="flex min-h-11 flex-col items-center justify-center gap-1.5 text-[13px] font-medium text-foreground-2 hover:bg-zinc-100"
+            >
+              <Camera className="size-6 text-muted" strokeWidth={1.75} aria-hidden />
+              Câmera
+            </button>
+            <button
+              type="button"
+              onClick={() => galeria.current?.click()}
+              aria-label={`Escolher da galeria: ${rotulo}`}
+              className="flex min-h-11 flex-col items-center justify-center gap-1.5 text-[13px] font-medium text-foreground-2 hover:bg-zinc-100"
+            >
+              <Images className="size-6 text-muted" strokeWidth={1.75} aria-hidden />
+              Galeria
+            </button>
+          </div>
         )}
         {foto.status === "enviando" && (
           <span className="absolute inset-0 grid place-items-center bg-white/60">
@@ -665,8 +678,11 @@ function SlotFoto({
         )}
         {foto.preview && foto.status !== "enviando" && (
           <div className="absolute bottom-1.5 right-1.5 flex gap-1.5">
-            <button type="button" onClick={() => input.current?.click()} className="grid size-9 place-items-center rounded-full bg-white/90 shadow-card" aria-label={`Trocar foto: ${rotulo}`}>
+            <button type="button" onClick={() => camera.current?.click()} className="grid size-9 place-items-center rounded-full bg-white/90 shadow-card" aria-label={`Tirar outra foto: ${rotulo}`}>
               <Camera className="size-4" />
+            </button>
+            <button type="button" onClick={() => galeria.current?.click()} className="grid size-9 place-items-center rounded-full bg-white/90 shadow-card" aria-label={`Trocar pela galeria: ${rotulo}`}>
+              <Images className="size-4" />
             </button>
             <button type="button" onClick={onRemover} className="grid size-9 place-items-center rounded-full bg-white/90 shadow-card" aria-label={`Remover foto: ${rotulo}`}>
               <Trash2 className="size-4" />
@@ -694,13 +710,27 @@ function SlotFoto({
       {foto.status === "aguardando" && <p className="text-xs text-warn">Aguardando internet…</p>}
       {foto.status === "enviando" && foto.reenvio && <p className="text-xs text-muted">Reenviando…</p>}
       {foto.status === "erro" && foto.erro && <p className="text-xs text-danger">{foto.erro}</p>}
+      {/* Dois inputs: com capture abre direto a câmera; sem capture abre a galeria (no Android, o seletor de fotos não oferece câmera) */}
       <input
-        ref={input}
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label={`Tirar foto: ${rotulo}`}
+        onChange={(e) => {
+          onEscolher(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={galeria}
         type="file"
         accept="image/*"
         className="sr-only"
         tabIndex={-1}
-        aria-label={rotulo}
+        aria-label={`Escolher da galeria: ${rotulo}`}
         onChange={(e) => {
           onEscolher(e.target.files?.[0]);
           e.target.value = "";
